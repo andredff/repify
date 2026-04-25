@@ -15,13 +15,10 @@ export interface WorkoutPost {
     level: string;
   };
   timeAgo: string;
-  workout: {
+  caption?: string;
+  workout?: {
     name: string;
     muscleGroup: string;
-    duration: number;
-    exercises: WorkoutExercise[];
-    totalVolume: number;
-    caloriesBurned: number;
   };
   photo?: string;
   likes: number;

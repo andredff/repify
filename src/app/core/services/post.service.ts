@@ -1,19 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { supabase } from '../supabase/supabaseClient';
 import { AuthService } from './auth.service';
-import { WorkoutPost, WorkoutExercise } from '../models/workout-post.model';
+import { WorkoutPost } from '../models/workout-post.model';
 
 export interface NewPostData {
   photo: File | null;
   caption: string;
-  workout: {
-    name: string;
-    muscleGroup: string;
-    duration: number;
-    exercises: WorkoutExercise[];
-    totalVolume: number;
-    caloriesBurned: number;
-  };
+  workout?: { name: string; muscleGroup: string } | null;
 }
 
 const BUCKET = 'workout-photos';
@@ -53,12 +46,12 @@ export class PostService {
         level:    'Elite',
       },
       timeAgo:  'agora',
-      workout:  data.workout,
+      caption:  data.caption || undefined,
+      workout:  data.workout ?? undefined,
       photo:    photoUrl || undefined,
       likes:    0,
       comments: 0,
       liked:    false,
-      streak:   7,
     };
 
     return post;
@@ -67,7 +60,6 @@ export class PostService {
   async deletePhoto(photoUrl: string): Promise<void> {
     const user = this.auth.user();
     if (!user) return;
-    // Extract storage path from the public URL: everything after /object/public/workout-photos/
     const marker = `/object/public/${BUCKET}/`;
     const idx = photoUrl.indexOf(marker);
     if (idx === -1) return;

@@ -1,31 +1,27 @@
-import { Component, inject, signal, output } from '@angular/core';
+import { Component, inject, signal, output, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { PostService, NewPostData } from '../../../core/services/post.service';
-import { WorkoutPost, WorkoutExercise } from '../../../core/models/workout-post.model';
+import { PostService } from '../../../core/services/post.service';
+import { WorkoutService } from '../../../core/services/workout.service';
+import { WorkoutPost } from '../../../core/models/workout-post.model';
 
-const MUSCLE_GROUPS = [
-  { value: 'peito',   label: 'Peito',   emoji: '🫁' },
-  { value: 'costas',  label: 'Costas',  emoji: '🔙' },
-  { value: 'pernas',  label: 'Pernas',  emoji: '🦵' },
-  { value: 'ombros',  label: 'Ombros',  emoji: '🏔️' },
-  { value: 'biceps',  label: 'Bíceps',  emoji: '💪' },
-  { value: 'triceps', label: 'Tríceps', emoji: '🤜' },
-  { value: 'abdomen', label: 'Abdômen', emoji: '⚡' },
-  { value: 'full',    label: 'Full Body',emoji: '🔥' },
-];
+const MUSCLE_EMOJI: Record<string, string> = {
+  peito:'🫁', costas:'🔙', pernas:'🦵', ombros:'🏔️',
+  biceps:'💪', triceps:'🤜', abdomen:'⚡', full:'🔥',
+};
 
-type Step = 'photo' | 'workout' | 'exercises' | 'preview';
+interface WorkoutOption {
+  name: string;
+  muscleGroup: string;
+}
 
 @Component({
   selector: 'app-new-post-modal',
   standalone: true,
   imports: [FormsModule],
   template: `
-    <!-- Backdrop -->
     <div class="fixed inset-0 z-50 flex items-end justify-center"
          (click)="onBackdrop($event)">
 
-      <!-- Sheet -->
       <div class="relative w-full max-w-[430px] bg-card border-t border-border rounded-t-3xl overflow-hidden animate-slide-up"
            style="max-height:92dvh"
            (click)="$event.stopPropagation()">
@@ -37,255 +33,112 @@ type Step = 'photo' | 'workout' | 'exercises' | 'preview';
 
         <!-- Header -->
         <div class="flex items-center justify-between px-5 py-3 border-b border-border">
-          <button (click)="back()" class="text-text-2 hover:text-white transition-colors text-[13px] font-body">
-            @if (step() === 'photo') { Cancelar } @else { Voltar }
+          <button (click)="onClose.emit()" class="text-text-2 hover:text-white transition-colors text-[13px] font-body">
+            Cancelar
           </button>
           <p class="text-[14px] font-body font-semibold text-white">Novo post</p>
           <button
-            (click)="next()"
-            [disabled]="!canAdvance()"
-            class="text-[13px] font-body font-semibold transition-colors disabled:opacity-30"
-            [class]="step() === 'preview' ? 'text-primary' : 'text-primary'">
-            {{ step() === 'preview' ? 'Publicar' : 'Próximo' }}
+            (click)="publish()"
+            [disabled]="!canPublish() || publishing()"
+            class="text-[13px] font-body font-semibold text-primary transition-colors disabled:opacity-30">
+            Publicar
           </button>
         </div>
 
-        <!-- Step indicator -->
-        <div class="flex gap-1 px-5 pt-3">
-          @for (s of steps; track s) {
-            <div class="flex-1 h-0.5 rounded-full transition-all"
-                 [class]="stepIndex() >= $index ? 'bg-primary' : 'bg-border'"></div>
-          }
-        </div>
-
         <!-- Scrollable content -->
-        <div class="overflow-y-auto" style="max-height: calc(92dvh - 130px)">
+        <div class="overflow-y-auto p-5 space-y-5" style="max-height: calc(92dvh - 60px)">
 
-          <!-- ── STEP 1: Foto ── -->
-          @if (step() === 'photo') {
-            <div class="p-5 space-y-4">
+          <!-- Hidden file input -->
+          <input #photoInput type="file" accept="image/*" class="hidden" (change)="onPhotoSelected($event)" />
 
-              <!-- Hidden file input -->
-              <input #photoInput type="file" accept="image/*" class="hidden" (change)="onPhotoSelected($event)" />
-
-              <!-- Photo area -->
-              @if (photoPreview()) {
-                <div class="relative rounded-2xl overflow-hidden aspect-square bg-card-2">
-                  <img [src]="photoPreview()" class="w-full h-full object-cover" />
-                  <button
-                    (click)="clearPhoto()"
-                    class="absolute top-3 right-3 w-8 h-8 bg-bg/80 rounded-full flex items-center justify-center text-white hover:bg-bg transition-colors">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                  </button>
-                </div>
-              } @else {
-                <button
-                  (click)="photoInput.click()"
-                  class="w-full aspect-square bg-card-2 border-2 border-dashed border-border-2 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/5 transition-all group">
-                  <div class="w-14 h-14 rounded-2xl bg-card border border-border flex items-center justify-center group-hover:border-primary/40 group-hover:bg-primary/10 transition-all">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-                      <polyline points="21 15 16 10 5 21"/>
-                    </svg>
-                  </div>
-                  <div class="text-center">
-                    <p class="text-[14px] font-body font-semibold text-white group-hover:text-primary transition-colors">Adicionar foto</p>
-                    <p class="text-[11px] text-text-2 font-body mt-0.5">JPG, PNG ou WEBP · máx 10MB</p>
-                  </div>
-                </button>
-              }
-
-              <!-- Caption -->
-              <div class="space-y-1.5">
-                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Legenda</label>
-                <textarea
-                  [(ngModel)]="caption"
-                  placeholder="Conte como foi o treino..."
-                  rows="3"
-                  maxlength="300"
-                  class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none resize-none focus:border-primary/60 placeholder:text-muted transition-colors">
-                </textarea>
-                <p class="text-[10px] text-text-2 text-right">{{ caption.length }}/300</p>
-              </div>
-
-              <!-- Skip photo hint -->
-              <p class="text-[11px] text-text-2 font-body text-center">
-                A foto é opcional — você pode postar só o treino
-              </p>
+          <!-- Photo area -->
+          @if (photoPreview()) {
+            <div class="relative rounded-2xl overflow-hidden aspect-square bg-card-2">
+              <img [src]="photoPreview()" class="w-full h-full object-cover" />
+              <button
+                (click)="clearPhoto()"
+                class="absolute top-3 right-3 w-8 h-8 bg-bg/80 rounded-full flex items-center justify-center text-white hover:bg-bg transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
             </div>
+          } @else {
+            <button
+              (click)="photoInput.click()"
+              class="w-full aspect-[4/3] bg-card-2 border-2 border-dashed border-border-2 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/5 transition-all group">
+              <div class="w-14 h-14 rounded-2xl bg-card border border-border flex items-center justify-center group-hover:border-primary/40 group-hover:bg-primary/10 transition-all">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+              </div>
+              <div class="text-center">
+                <p class="text-[14px] font-body font-semibold text-white group-hover:text-primary transition-colors">Adicionar foto</p>
+                <p class="text-[11px] text-text-2 font-body mt-0.5">Opcional · JPG, PNG ou WEBP · máx 10MB</p>
+              </div>
+            </button>
           }
 
-          <!-- ── STEP 2: Workout info ── -->
-          @if (step() === 'workout') {
-            <div class="p-5 space-y-5">
+          <!-- Caption -->
+          <div class="space-y-1.5">
+            <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Descrição</label>
+            <textarea
+              [(ngModel)]="caption"
+              placeholder="Conte como foi o treino..."
+              rows="3"
+              maxlength="300"
+              class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none resize-none focus:border-primary/60 placeholder:text-muted transition-colors">
+            </textarea>
+            <p class="text-[10px] text-text-2 text-right">{{ caption.length }}/300</p>
+          </div>
 
-              <!-- Workout name -->
-              <div class="space-y-1.5">
-                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Nome do treino</label>
-                <input
-                  type="text"
-                  [(ngModel)]="workoutName"
-                  placeholder="Ex: Peito + Tríceps"
-                  maxlength="60"
-                  class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none focus:border-primary/60 placeholder:text-muted transition-colors"
-                />
-              </div>
+          <!-- Workout selector (optional) -->
+          <div class="space-y-2">
+            <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">
+              Marcar treino do dia <span class="text-text-2/60 normal-case">(opcional)</span>
+            </label>
 
-              <!-- Muscle group -->
+            @if (workoutOptions().length > 0) {
               <div class="space-y-2">
-                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Grupo muscular</label>
-                <div class="grid grid-cols-4 gap-2">
-                  @for (mg of muscleGroups; track mg.value) {
-                    <button
-                      type="button"
-                      (click)="muscleGroup = mg.value"
-                      class="flex flex-col items-center gap-1 py-2.5 rounded-xl border transition-all"
-                      [class]="muscleGroup === mg.value
-                        ? 'border-primary/50 bg-primary/10 text-primary shadow-glow-sm'
-                        : 'border-border bg-card-2 text-text-2 hover:border-border-2'">
-                      <span class="text-lg">{{ mg.emoji }}</span>
-                      <span class="text-[9px] font-body font-medium leading-tight text-center">{{ mg.label }}</span>
-                    </button>
-                  }
-                </div>
-              </div>
-
-              <!-- Duration + Calories side by side -->
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1.5">
-                  <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Duração</label>
-                  <div class="relative">
-                    <input type="number" [(ngModel)]="duration" min="1" max="300" placeholder="60"
-                           class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none focus:border-primary/60 placeholder:text-muted transition-colors pr-10" />
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">min</span>
-                  </div>
-                </div>
-                <div class="space-y-1.5">
-                  <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Calorias</label>
-                  <div class="relative">
-                    <input type="number" [(ngModel)]="calories" min="0" max="9999" placeholder="400"
-                           class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none focus:border-primary/60 placeholder:text-muted transition-colors pr-12" />
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">kcal</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          }
-
-          <!-- ── STEP 3: Exercícios ── -->
-          @if (step() === 'exercises') {
-            <div class="p-5 space-y-4">
-
-              <div class="flex items-center justify-between">
-                <p class="text-[13px] font-body font-semibold text-white">Exercícios</p>
-                <button
-                  (click)="addExercise()"
-                  class="flex items-center gap-1 text-[12px] font-body text-primary border border-primary/30 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
-                  Adicionar
-                </button>
-              </div>
-
-              @if (exercises().length === 0) {
-                <div class="flex flex-col items-center justify-center py-8 gap-3 bg-card-2 rounded-2xl border border-border">
-                  <span class="text-2xl">🏋️</span>
-                  <p class="text-[12px] text-text-2 font-body">Adicione pelo menos um exercício</p>
-                </div>
-              }
-
-              @for (ex of exercises(); track $index; let i = $index) {
-                <div class="bg-card-2 border border-border rounded-xl p-3 space-y-3 animate-fade-in">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[11px] font-mono text-text-2">Exercício {{ i + 1 }}</span>
-                    <button (click)="removeExercise(i)" class="text-text-2 hover:text-danger transition-colors">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                      </svg>
-                    </button>
-                  </div>
-
-                  <input type="text" [(ngModel)]="exercises()[i].name" placeholder="Nome do exercício"
-                         class="w-full bg-card border border-border rounded-lg px-3 py-2 text-[13px] font-body outline-none focus:border-primary/60 placeholder:text-muted transition-colors" />
-
-                  <div class="grid grid-cols-3 gap-2">
-                    <div class="space-y-1">
-                      <label class="text-[9px] font-body text-text-2 uppercase tracking-wider">Séries</label>
-                      <input type="number" [(ngModel)]="exercises()[i].sets" min="1" max="20" placeholder="4"
-                             class="w-full bg-card border border-border rounded-lg px-2 py-2 text-[13px] font-body outline-none focus:border-primary/60 text-center" />
+                @for (opt of workoutOptions(); track opt.name) {
+                  <button
+                    type="button"
+                    (click)="toggleWorkout(opt)"
+                    class="w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left"
+                    [class]="isSelected(opt)
+                      ? 'border-primary/50 bg-primary/10 shadow-glow-sm'
+                      : 'border-border bg-card-2 hover:border-border-2'">
+                    <div class="w-10 h-10 rounded-xl bg-bg/50 flex items-center justify-center text-[18px] shrink-0">
+                      {{ muscleEmoji(opt.muscleGroup) }}
                     </div>
-                    <div class="space-y-1">
-                      <label class="text-[9px] font-body text-text-2 uppercase tracking-wider">Reps</label>
-                      <input type="number" [(ngModel)]="exercises()[i].reps" min="1" max="100" placeholder="12"
-                             class="w-full bg-card border border-border rounded-lg px-2 py-2 text-[13px] font-body outline-none focus:border-primary/60 text-center" />
+                    <div class="flex-1 min-w-0">
+                      <p class="text-[13px] font-body font-semibold text-white truncate">{{ opt.name }}</p>
+                      <p class="text-[11px] font-body text-text-2 capitalize">{{ opt.muscleGroup }}</p>
                     </div>
-                    <div class="space-y-1">
-                      <label class="text-[9px] font-body text-text-2 uppercase tracking-wider">Peso (kg)</label>
-                      <input type="number" [(ngModel)]="exercises()[i].weight" min="0" max="999" placeholder="—"
-                             class="w-full bg-card border border-border rounded-lg px-2 py-2 text-[13px] font-body outline-none focus:border-primary/60 text-center" />
-                    </div>
-                  </div>
-                </div>
-              }
-
-              <!-- Volume calculado -->
-              @if (exercises().length > 0 && totalVolume() > 0) {
-                <div class="flex items-center justify-between bg-primary/10 border border-primary/20 rounded-xl px-4 py-3">
-                  <span class="text-[12px] font-body text-text-2">Volume total calculado</span>
-                  <span class="text-[14px] font-mono font-bold text-primary">{{ totalVolume().toLocaleString('pt-BR') }} kg</span>
-                </div>
-              }
-            </div>
-          }
-
-          <!-- ── STEP 4: Preview ── -->
-          @if (step() === 'preview') {
-            <div class="p-5 space-y-4">
-              <p class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Pré-visualização</p>
-
-              <!-- Photo preview -->
-              @if (photoPreview()) {
-                <div class="rounded-2xl overflow-hidden aspect-video bg-card-2">
-                  <img [src]="photoPreview()" class="w-full h-full object-cover" />
-                </div>
-              }
-
-              <!-- Caption -->
-              @if (caption) {
-                <p class="text-[13px] font-body text-white leading-relaxed">{{ caption }}</p>
-              }
-
-              <!-- Workout card preview -->
-              <div class="bg-card-2 border border-border rounded-xl p-4 space-y-3">
-                <div class="flex items-center justify-between">
-                  <div>
-                    <p class="text-[10px] text-text-2 font-body uppercase tracking-widest">Treino concluído</p>
-                    <p class="text-[17px] font-display font-bold text-white">{{ workoutName || 'Sem nome' }}</p>
-                  </div>
-                  <div class="bg-primary/20 border border-primary/30 rounded-lg px-2 py-1 text-right">
-                    <p class="text-[16px] font-display font-bold text-primary leading-none">{{ duration || 0 }}'</p>
-                    <p class="text-[9px] font-body text-primary/70">duração</p>
-                  </div>
-                </div>
-                <div class="flex gap-4 text-[12px] font-body text-text-2">
-                  <span class="font-mono font-semibold text-white">{{ totalVolume().toLocaleString('pt-BR') }}</span> kg vol.
-                  <span>·</span>
-                  <span class="font-mono font-semibold text-white">{{ calories || 0 }}</span> kcal
-                  <span>·</span>
-                  <span class="font-mono font-semibold text-white">{{ exercises().length }}</span> exerc.
-                </div>
+                    @if (isSelected(opt)) {
+                      <div class="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#080C10" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      </div>
+                    }
+                  </button>
+                }
               </div>
+            } @else {
+              <div class="bg-card-2 border border-dashed border-border rounded-xl p-4 text-center">
+                <p class="text-[12px] font-body text-text-2">
+                  Nenhum treino cadastrado. Monte seu programa em <span class="text-primary">Meu Treino</span>.
+                </p>
+              </div>
+            }
+          </div>
 
-              <!-- Error -->
-              @if (error()) {
-                <p class="text-danger text-[12px] font-body text-center">{{ error() }}</p>
-              }
-            </div>
+          <!-- Error -->
+          @if (error()) {
+            <p class="text-danger text-[12px] font-body text-center">{{ error() }}</p>
           }
-
         </div>
 
         <!-- Loading overlay -->
@@ -304,47 +157,55 @@ type Step = 'photo' | 'workout' | 'exercises' | 'preview';
   `,
 })
 export class NewPostModalComponent {
-  private postService = inject(PostService);
+  private postService    = inject(PostService);
+  private workoutService = inject(WorkoutService);
 
   onClose   = output<void>();
   onPublish = output<WorkoutPost>();
 
-  // Steps
-  readonly steps: Step[] = ['photo', 'workout', 'exercises', 'preview'];
-  step      = signal<Step>('photo');
-  stepIndex = signal(0);
+  photoFile     = signal<File | null>(null);
+  photoPreview  = signal('');
+  caption       = '';
+  selectedWorkout = signal<WorkoutOption | null>(null);
 
-  // Photo
-  photoFile    = signal<File | null>(null);
-  photoPreview = signal('');
-  caption      = '';
-
-  // Workout
-  muscleGroups = MUSCLE_GROUPS;
-  workoutName  = '';
-  muscleGroup  = '';
-  duration     = 60;
-  calories     = 0;
-
-  // Exercises
-  exercises = signal<WorkoutExercise[]>([]);
-
-  // State
   publishing = signal(false);
   error      = signal('');
 
-  totalVolume = () => {
-    return this.exercises().reduce((sum, ex) => {
-      return sum + (ex.sets * ex.reps * (ex.weight ?? 0));
-    }, 0);
-  };
+  workoutOptions = computed<WorkoutOption[]>(() => {
+    const today = this.workoutService.todayWorkout();
+    const program = this.workoutService.program();
+    const opts: WorkoutOption[] = [];
+    const seen = new Set<string>();
 
-  canAdvance(): boolean {
-    if (this.step() === 'photo')      return true; // photo is optional
-    if (this.step() === 'workout')    return !!this.workoutName.trim() && !!this.muscleGroup && this.duration > 0;
-    if (this.step() === 'exercises')  return this.exercises().length > 0;
-    if (this.step() === 'preview')    return !this.publishing();
-    return false;
+    if (today) {
+      opts.push({ name: today.name, muscleGroup: today.muscleGroup });
+      seen.add(today.name);
+    }
+    if (program) {
+      for (const p of program.plans) {
+        if (!seen.has(p.name)) {
+          opts.push({ name: p.name, muscleGroup: p.muscleGroup });
+          seen.add(p.name);
+        }
+      }
+    }
+    return opts;
+  });
+
+  canPublish(): boolean {
+    return !!this.photoFile() || !!this.caption.trim() || !!this.selectedWorkout();
+  }
+
+  muscleEmoji(mg: string): string {
+    return MUSCLE_EMOJI[mg] ?? '💪';
+  }
+
+  isSelected(opt: WorkoutOption): boolean {
+    return this.selectedWorkout()?.name === opt.name;
+  }
+
+  toggleWorkout(opt: WorkoutOption): void {
+    this.selectedWorkout.set(this.isSelected(opt) ? null : opt);
   }
 
   onPhotoSelected(event: Event): void {
@@ -362,39 +223,12 @@ export class NewPostModalComponent {
     this.photoPreview.set('');
   }
 
-  addExercise(): void {
-    this.exercises.update(list => [...list, { name: '', sets: 3, reps: 12, weight: undefined }]);
-  }
-
-  removeExercise(index: number): void {
-    this.exercises.update(list => list.filter((_, i) => i !== index));
-  }
-
-  next(): void {
-    if (!this.canAdvance()) return;
-
-    if (this.step() === 'preview') {
-      this.publish();
-      return;
-    }
-
-    const idx = this.steps.indexOf(this.step());
-    this.step.set(this.steps[idx + 1]);
-    this.stepIndex.set(idx + 1);
-  }
-
-  back(): void {
-    const idx = this.steps.indexOf(this.step());
-    if (idx === 0) { this.onClose.emit(); return; }
-    this.step.set(this.steps[idx - 1]);
-    this.stepIndex.set(idx - 1);
-  }
-
   onBackdrop(event: MouseEvent): void {
     if (event.target === event.currentTarget) this.onClose.emit();
   }
 
-  private async publish(): Promise<void> {
+  async publish(): Promise<void> {
+    if (!this.canPublish() || this.publishing()) return;
     this.publishing.set(true);
     this.error.set('');
 
@@ -402,14 +236,7 @@ export class NewPostModalComponent {
       const post = await this.postService.createPost({
         photo:   this.photoFile(),
         caption: this.caption,
-        workout: {
-          name:          this.workoutName,
-          muscleGroup:   this.muscleGroup,
-          duration:      this.duration,
-          exercises:     this.exercises().filter(e => e.name.trim()),
-          totalVolume:   this.totalVolume(),
-          caloriesBurned: this.calories,
-        },
+        workout: this.selectedWorkout(),
       });
 
       this.onPublish.emit(post);

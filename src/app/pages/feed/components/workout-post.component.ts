@@ -4,13 +4,8 @@ import { WorkoutPost } from '../../../core/models/workout-post.model';
 import { AuthService } from '../../../core/services/auth.service';
 
 const MUSCLE_ICONS: Record<string, string> = {
-  peito:   '🫁',
-  costas:  '🔙',
-  pernas:  '🦵',
-  ombros:  '💪',
-  biceps:  '💪',
-  triceps: '🤜',
-  abdomen: '⚡',
+  peito:'🫁', costas:'🔙', pernas:'🦵', ombros:'💪',
+  biceps:'💪', triceps:'🤜', abdomen:'⚡', full:'🔥',
 };
 
 const MUSCLE_COLORS: Record<string, string> = {
@@ -30,7 +25,6 @@ const MUSCLE_COLORS: Record<string, string> = {
       <!-- Header -->
       <div class="flex items-center justify-between px-4 pt-4 pb-3">
         <div class="flex items-center gap-3">
-          <!-- Avatar (clickable -> public profile) -->
           <div class="relative cursor-pointer" (click)="goToProfile()">
             <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center text-sm font-display font-bold overflow-hidden"
                  [style]="'background: linear-gradient(135deg, #00FF8830, #00C2FF20); border-color: #00FF8840'">
@@ -47,7 +41,6 @@ const MUSCLE_COLORS: Record<string, string> = {
             }
           </div>
 
-          <!-- Name + time -->
           <div>
             <div class="flex items-center gap-2">
               <span class="text-[13px] font-body font-semibold text-white cursor-pointer hover:text-primary transition-colors"
@@ -76,10 +69,8 @@ const MUSCLE_COLORS: Record<string, string> = {
           </button>
 
           @if (menuOpen()) {
-            <!-- Backdrop to close -->
             <div class="fixed inset-0 z-10" (click)="menuOpen.set(false)"></div>
 
-            <!-- Dropdown -->
             <div class="absolute right-0 top-7 z-20 bg-card border border-border rounded-xl shadow-card overflow-hidden min-w-[140px] animate-fade-in">
               @if (isOwner()) {
                 <button (click)="confirmDelete()"
@@ -101,7 +92,6 @@ const MUSCLE_COLORS: Record<string, string> = {
             </div>
           }
 
-          <!-- Delete confirmation overlay -->
           @if (confirmingDelete()) {
             <div class="fixed inset-0 z-30 flex items-center justify-center px-6" style="background:rgba(8,12,16,0.85)" (click)="confirmingDelete.set(false)">
               <div class="bg-card border border-border rounded-2xl p-6 w-full max-w-[320px] animate-slide-up" (click)="$event.stopPropagation()">
@@ -123,86 +113,34 @@ const MUSCLE_COLORS: Record<string, string> = {
         </div>
       </div>
 
-      <!-- Workout photo -->
+      <!-- Photo -->
       @if (post().photo) {
-        <div class="mx-4 mb-3 rounded-xl overflow-hidden" style="max-height:320px">
+        <div class="mx-4 mb-3 rounded-xl overflow-hidden" style="max-height:420px">
           <img [src]="post().photo" alt="foto do treino" class="w-full h-full object-cover" />
         </div>
       }
 
-      <!-- Workout hero banner -->
-      <div class="mx-4 mb-3 rounded-xl p-3 bg-gradient-to-br border border-border relative overflow-hidden"
-           [class]="muscleGradient()">
+      <!-- Caption -->
+      @if (post().caption) {
+        <p class="px-4 pb-3 text-[13px] font-body text-white leading-relaxed whitespace-pre-wrap">{{ post().caption }}</p>
+      }
 
-        <!-- Decorative pattern -->
-        <div class="absolute right-0 top-0 bottom-0 w-24 flex items-center justify-center opacity-10">
-          <span class="text-[64px] font-display font-black select-none">{{ muscleEmoji() }}</span>
-        </div>
-
-        <div class="relative">
-          <!-- Workout name -->
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-[10px] font-body text-text-2 uppercase tracking-widest mb-0.5">Treino concluído</p>
-              <h3 class="text-[18px] font-display font-bold text-white leading-tight">{{ post().workout.name }}</h3>
-            </div>
-            <div class="bg-primary/20 border border-primary/30 rounded-lg px-2 py-1 text-right shrink-0">
-              <p class="text-[18px] font-display font-bold text-primary leading-none">{{ post().workout.duration }}'</p>
-              <p class="text-[9px] font-body text-primary/70">duração</p>
-            </div>
+      <!-- Workout tag (compact, optional) -->
+      @if (post().workout) {
+        <div class="mx-4 mb-3 flex items-center gap-2.5 rounded-xl px-3 py-2.5 bg-gradient-to-r border border-border"
+             [class]="muscleGradient()">
+          <div class="w-8 h-8 rounded-lg bg-bg/50 flex items-center justify-center text-[16px] shrink-0">
+            {{ muscleEmoji() }}
           </div>
-
-          <!-- Stats row -->
-          <div class="flex gap-3 mt-3">
-            <div class="flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="2" stroke-linecap="round">
-                <path d="M6.5 6.5h11M6.5 17.5h11M3 12h18"/>
-              </svg>
-              <span class="text-[12px] font-mono font-semibold text-white">{{ post().workout.totalVolume.toLocaleString('pt-BR') }}</span>
-              <span class="text-[10px] text-text-2 font-body">kg vol.</span>
-            </div>
-            <div class="w-px bg-border"></div>
-            <div class="flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="2" stroke-linecap="round">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-              </svg>
-              <span class="text-[12px] font-mono font-semibold text-white">{{ post().workout.caloriesBurned }}</span>
-              <span class="text-[10px] text-text-2 font-body">kcal</span>
-            </div>
-            <div class="w-px bg-border"></div>
-            <div class="flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="2" stroke-linecap="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
-              <span class="text-[12px] font-mono font-semibold text-white">{{ post().workout.exercises.length }}</span>
-              <span class="text-[10px] text-text-2 font-body">exerc.</span>
-            </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-[10px] font-body text-text-2 uppercase tracking-widest leading-none">Treino concluído</p>
+            <p class="text-[14px] font-display font-bold text-white leading-tight mt-0.5 truncate">{{ post().workout!.name }}</p>
           </div>
         </div>
-      </div>
-
-      <!-- Exercises list -->
-      <div class="px-4 pb-3 space-y-1">
-        @for (ex of post().workout.exercises; track ex.name) {
-          <div class="flex items-center justify-between py-1.5 border-b border-border/50 last:border-0">
-            <div class="flex items-center gap-2">
-              <div class="w-1.5 h-1.5 rounded-full bg-primary/60 shrink-0"></div>
-              <span class="text-[12px] font-body text-white">{{ ex.name }}</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-[11px] font-mono text-text-2">{{ ex.sets }}×{{ ex.reps }}</span>
-              @if (ex.weight) {
-                <span class="text-[11px] font-mono bg-card border border-border rounded px-1.5 py-0.5 text-text-2">{{ ex.weight }}kg</span>
-              }
-            </div>
-          </div>
-        }
-      </div>
+      }
 
       <!-- Actions footer -->
       <div class="flex items-center justify-between px-4 py-3 border-t border-border">
-
-        <!-- Like + Comment -->
         <div class="flex items-center gap-4">
           <button
             (click)="onLike.emit()"
@@ -225,7 +163,6 @@ const MUSCLE_COLORS: Record<string, string> = {
           </button>
         </div>
 
-        <!-- Share -->
         <button class="text-text-2 hover:text-white transition-colors">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -237,7 +174,7 @@ const MUSCLE_COLORS: Record<string, string> = {
   `,
 })
 export class WorkoutPostComponent {
-  post    = input.required<WorkoutPost>();
+  post     = input.required<WorkoutPost>();
   onLike   = output<void>();
   onDelete = output<void>();
 
@@ -270,17 +207,19 @@ export class WorkoutPostComponent {
   }
 
   muscleEmoji(): string {
-    return MUSCLE_ICONS[this.post().workout.muscleGroup] ?? '💪';
+    const mg = this.post().workout?.muscleGroup;
+    return mg ? (MUSCLE_ICONS[mg] ?? '💪') : '💪';
   }
 
   muscleGradient(): string {
-    return MUSCLE_COLORS[this.post().workout.muscleGroup] ?? MUSCLE_COLORS['default'];
+    const mg = this.post().workout?.muscleGroup;
+    return mg ? (MUSCLE_COLORS[mg] ?? MUSCLE_COLORS['default']) : MUSCLE_COLORS['default'];
   }
 
   levelClass(): string {
     const level = this.post().user.level;
     if (level === 'Elite') return 'bg-primary/15 text-primary border border-primary/30';
-    if (level === 'Pro') return 'bg-secondary/15 text-secondary border border-secondary/30';
+    if (level === 'Pro')   return 'bg-secondary/15 text-secondary border border-secondary/30';
     return 'bg-border text-text-2 border border-border-2';
   }
 }

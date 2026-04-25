@@ -24,57 +24,24 @@ const MOCK_POSTS: WorkoutPost[] = [
     user: { name: '', avatar: '', level: 'Elite' },
     timeAgo: 'hoje',
     streak: 7,
-    workout: {
-      name: 'Peito + Tríceps',
-      muscleGroup: 'peito',
-      duration: 68,
-      exercises: [
-        { name: 'Supino Reto',        sets: 4, reps: 10, weight: 80 },
-        { name: 'Crucifixo Inclinado', sets: 3, reps: 12, weight: 22 },
-        { name: 'Tríceps Corda',      sets: 4, reps: 15, weight: 35 },
-        { name: 'Mergulho',           sets: 3, reps: 12 },
-      ],
-      totalVolume: 4280,
-      caloriesBurned: 412,
-    },
+    caption: 'Treino pesado hoje! Foco total no peito e tríceps. 💪',
+    workout: { name: 'Peito + Tríceps', muscleGroup: 'peito' },
     likes: 14, comments: 3, liked: false,
   },
   {
     id: 'p2',
     user: { name: '', avatar: '', level: 'Elite' },
     timeAgo: 'ontem',
-    workout: {
-      name: 'Costas + Bíceps',
-      muscleGroup: 'costas',
-      duration: 55,
-      exercises: [
-        { name: 'Puxada Frente',   sets: 4, reps: 10, weight: 65 },
-        { name: 'Remada Curvada',  sets: 3, reps: 10, weight: 60 },
-        { name: 'Rosca Direta',    sets: 3, reps: 12, weight: 20 },
-        { name: 'Rosca Martelo',   sets: 3, reps: 12, weight: 18 },
-      ],
-      totalVolume: 3640,
-      caloriesBurned: 338,
-    },
+    caption: 'Costas e bíceps fechados!',
+    workout: { name: 'Costas + Bíceps', muscleGroup: 'costas' },
     likes: 9, comments: 2, liked: false,
   },
   {
     id: 'p3',
     user: { name: '', avatar: '', level: 'Elite' },
     timeAgo: '3 dias',
-    workout: {
-      name: 'Pernas',
-      muscleGroup: 'pernas',
-      duration: 72,
-      exercises: [
-        { name: 'Agachamento',       sets: 5, reps: 8,  weight: 100 },
-        { name: 'Leg Press',         sets: 4, reps: 12, weight: 180 },
-        { name: 'Cadeira Extensora', sets: 3, reps: 15, weight: 60  },
-        { name: 'Panturrilha',       sets: 4, reps: 20, weight: 80  },
-      ],
-      totalVolume: 6120,
-      caloriesBurned: 520,
-    },
+    caption: 'Leg day brutal. As pernas vão sentir amanhã!',
+    workout: { name: 'Pernas', muscleGroup: 'pernas' },
     likes: 22, comments: 5, liked: true,
   },
 ];
@@ -193,15 +160,15 @@ const GOAL_LABELS: Record<string, string> = {
               <div class="mt-5 flex items-center gap-0 bg-card-2 border border-border rounded-2xl overflow-hidden w-full max-w-[280px]">
                 <div class="flex-1 flex flex-col items-center py-3 border-r border-border">
                   <span class="text-[18px] font-display font-bold text-white">{{ posts().length }}</span>
-                  <span class="text-[10px] text-text-2 font-body mt-0.5">treinos</span>
+                  <span class="text-[10px] text-text-2 font-body mt-0.5">posts</span>
                 </div>
                 <div class="flex-1 flex flex-col items-center py-3 border-r border-border">
                   <span class="text-[18px] font-display font-bold text-primary">🔥 7</span>
                   <span class="text-[10px] text-text-2 font-body mt-0.5">streak</span>
                 </div>
                 <div class="flex-1 flex flex-col items-center py-3">
-                  <span class="text-[18px] font-display font-bold text-white">{{ totalVolume() }}</span>
-                  <span class="text-[10px] text-text-2 font-body mt-0.5">ton. vol.</span>
+                  <span class="text-[18px] font-display font-bold text-white">Elite</span>
+                  <span class="text-[10px] text-text-2 font-body mt-0.5">nível</span>
                 </div>
               </div>
 
@@ -286,11 +253,6 @@ export class PublicProfileComponent implements OnInit {
   following  = signal(false);
 
   isOwn = computed(() => this.publicUser()?.isOwn ?? false);
-
-  totalVolume = computed(() => {
-    const total = this.posts().reduce((sum, p) => sum + p.workout.totalVolume, 0);
-    return (total / 1000).toFixed(1);
-  });
 
   postsWithUser = computed<WorkoutPost[]>(() =>
     this.posts().map(p => ({
