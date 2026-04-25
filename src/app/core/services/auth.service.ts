@@ -98,8 +98,15 @@ export class AuthService {
   }
 
   async signUp(email: string, password: string): Promise<void> {
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw this.mapError(error);
+
+    // Se a confirmação de email estiver desativada no painel, o signUp já retorna sessão.
+    // Caso ainda esteja exigindo confirmação (sem sessão), fazemos login direto.
+    if (!data.session) {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) throw this.mapError(signInError);
+    }
   }
 
   async signIn(email: string, password: string): Promise<void> {
@@ -135,7 +142,6 @@ export class AuthService {
   private mapError(error: AuthError): Error {
     const messages: Record<string, string> = {
       'Invalid login credentials':                              'Email ou senha incorretos.',
-      'Email not confirmed':                                    'Confirme seu email antes de entrar.',
       'User already registered':                                'Este email já está cadastrado.',
       'Password should be at least 6 characters':               'A senha deve ter ao menos 6 caracteres.',
       'New password should be different from the old password': 'A nova senha deve ser diferente da atual.',

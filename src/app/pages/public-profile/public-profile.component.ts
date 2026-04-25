@@ -3,6 +3,7 @@ import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { PostService } from '../../core/services/post.service';
+import { UserService } from '../../core/services/user.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { WorkoutPostComponent } from '../feed/components/workout-post.component';
 import { WorkoutPost } from '../../core/models/workout-post.model';
@@ -17,34 +18,6 @@ interface PublicUser {
   goal: string;
   isOwn: boolean;
 }
-
-const MOCK_POSTS: WorkoutPost[] = [
-  {
-    id: 'p1',
-    user: { name: '', avatar: '', level: 'Elite' },
-    timeAgo: 'hoje',
-    streak: 7,
-    caption: 'Treino pesado hoje! Foco total no peito e tríceps. 💪',
-    workout: { name: 'Peito + Tríceps', muscleGroup: 'peito' },
-    likes: 14, comments: 3, liked: false,
-  },
-  {
-    id: 'p2',
-    user: { name: '', avatar: '', level: 'Elite' },
-    timeAgo: 'ontem',
-    caption: 'Costas e bíceps fechados!',
-    workout: { name: 'Costas + Bíceps', muscleGroup: 'costas' },
-    likes: 9, comments: 2, liked: false,
-  },
-  {
-    id: 'p3',
-    user: { name: '', avatar: '', level: 'Elite' },
-    timeAgo: '3 dias',
-    caption: 'Leg day brutal. As pernas vão sentir amanhã!',
-    workout: { name: 'Pernas', muscleGroup: 'pernas' },
-    likes: 22, comments: 5, liked: true,
-  },
-];
 
 const GOAL_LABELS: Record<string, string> = {
   hipertrofia:  '💪 Hipertrofia',
@@ -243,6 +216,7 @@ const GOAL_LABELS: Record<string, string> = {
 export class PublicProfileComponent implements OnInit {
   private auth        = inject(AuthService);
   private postService = inject(PostService);
+  private userService = inject(UserService);
   router              = inject(Router);
   location            = inject(Location);
   private route       = inject(ActivatedRoute);
@@ -281,20 +255,19 @@ export class PublicProfileComponent implements OnInit {
     this.loadProfile(handle);
   }
 
-  private loadProfile(handle: string): void {
+  private async loadProfile(handle: string): Promise<void> {
     this.loading.set(true);
 
-    // Check if this is the logged-in user's own profile
-    const me      = this.auth.user();
-    const myMeta  = this.auth.profile();
-    const isOwn   = handle === me?.id
-                 || handle === myMeta.username
-                 || handle === myMeta.full_name;
+    const me     = this.auth.user();
+    const myMeta = this.auth.profile();
+    const isOwn  = handle === me?.id
+                || handle === myMeta.username
+                || handle === myMeta.full_name;
 
-    if (isOwn) {
+    if (isOwn && me) {
       this.publicUser.set({
-        id:       me?.id ?? '',
-        name:     myMeta.full_name || me?.email?.split('@')[0] || 'Você',
+        id:       me.id,
+        name:     myMeta.full_name || me.email?.split('@')[0] || 'Você',
         username: myMeta.username,
         bio:      myMeta.bio,
         avatar:   this.auth.avatarUrl(),
@@ -303,54 +276,79 @@ export class PublicProfileComponent implements OnInit {
         isOwn:    true,
       });
 
-      // Load own posts (mock for now — replace with real Supabase query)
-      this.posts.set(MOCK_POSTS);
+      try {
+        const data = await this.postService.listByUser(me.id);
+        this.posts.set(data);
+      } catch {
+        this.posts.set([]);
+      }
       this.loading.set(false);
       return;
     }
 
-    // For other users: mock data — replace with Supabase query by username/id
-    setTimeout(() => {
-      const mockUsers: Record<string, PublicUser> = {
-        'mariana': {
-          id: 'user-2', name: 'Mariana S.', username: 'mariana',
-          bio: 'Apaixonada por crossfit e nutrição esportiva. 🏋️‍♀️',
-          avatar: '', level: 'Pro', goal: 'hipertrofia', isOwn: false,
-        },
-        'gabriel': {
-          id: 'user-3', name: 'Gabriel R.', username: 'gabriel',
-          bio: 'Iniciando minha jornada fitness em 2024.',
-          avatar: '', level: 'Iniciante', goal: 'saude', isOwn: false,
-        },
-      };
-
-      const found = mockUsers[handle.toLowerCase()];
-      this.publicUser.set(found ?? null);
-
-      if (found) {
-        this.posts.set(MOCK_POSTS.slice(0, 2));
+    // Other users: fetch from API by id or username
+    try {
+      const found = await this.userService.getUser(handle);
+      if (!found) {
+        this.publicUser.set(null);
+        this.posts.set([]);
+        this.loading.set(false);
+        return;
       }
 
+      this.publicUser.set({
+        id:       found.id,
+        name:     found.name,
+        username: found.username ?? '',
+        bio:      found.bio,
+        avatar:   found.avatar,
+        level:    found.level,
+        goal:     found.goal,
+        isOwn:    false,
+      });
+
+      const userPosts = await this.postService.listByUser(found.id);
+      this.posts.set(userPosts);
+    } catch {
+      this.publicUser.set(null);
+      this.posts.set([]);
+    } finally {
       this.loading.set(false);
-    }, 600);
+    }
   }
 
   async deletePost(post: WorkoutPost): Promise<void> {
+    const previous = this.posts();
     this.posts.update(all => all.filter(p => p.id !== post.id));
-    if (post.photo) await this.postService.deletePhoto(post.photo);
+    try {
+      await this.postService.deletePost(post.id);
+    } catch {
+      this.posts.set(previous);
+    }
   }
 
   toggleFollow(): void {
     this.following.update(f => !f);
   }
 
-  toggleLike(postId: string): void {
+  async toggleLike(postId: string): Promise<void> {
     this.posts.update(posts =>
       posts.map(p =>
         p.id === postId
           ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 }
-          : p
-      )
+          : p,
+      ),
     );
+    try {
+      await this.postService.toggleLike(postId);
+    } catch {
+      this.posts.update(posts =>
+        posts.map(p =>
+          p.id === postId
+            ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 }
+            : p,
+        ),
+      );
+    }
   }
 }

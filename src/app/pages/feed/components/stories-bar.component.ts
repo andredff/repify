@@ -1,22 +1,15 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { UserService, PublicUser } from '../../../core/services/user.service';
 
-interface Story {
-  name: string;
-  initial: string;
-  avatar: string;
-  color: string;
-  active: boolean;
-  handle: string;
-}
-
-const MOCK_STORIES: Story[] = [
-  { name: 'Mariana', initial: 'M', avatar: '', handle: 'mariana', color: 'linear-gradient(135deg,#FF3D5A40,#FF6B4A30)', active: true  },
-  { name: 'Gabriel', initial: 'G', avatar: '', handle: 'gabriel', color: 'linear-gradient(135deg,#7C3AED40,#00C2FF30)', active: false },
-  { name: 'Lucas',   initial: 'L', avatar: '', handle: 'lucas',   color: 'linear-gradient(135deg,#F59E0B40,#EF444430)', active: true  },
-  { name: 'Julia',   initial: 'J', avatar: '', handle: 'julia',   color: 'linear-gradient(135deg,#10B98140,#00FF8830)', active: false },
-  { name: 'Pedro',   initial: 'P', avatar: '', handle: 'pedro',   color: 'linear-gradient(135deg,#3B82F640,#7C3AED30)', active: false },
+const COLOR_PALETTE = [
+  'linear-gradient(135deg,#FF3D5A40,#FF6B4A30)',
+  'linear-gradient(135deg,#7C3AED40,#00C2FF30)',
+  'linear-gradient(135deg,#F59E0B40,#EF444430)',
+  'linear-gradient(135deg,#10B98140,#00FF8830)',
+  'linear-gradient(135deg,#3B82F640,#7C3AED30)',
+  'linear-gradient(135deg,#EC489940,#F43F5E30)',
 ];
 
 @Component({
@@ -28,8 +21,6 @@ const MOCK_STORIES: Story[] = [
 
         <!-- Meu story (usuário logado) — sempre primeiro -->
         <div class="flex flex-col items-center gap-1.5 cursor-pointer" (click)="goToMyProfile()">
-
-          <!-- Ring gradiente verde sempre ativo -->
           <div class="p-[2px] rounded-full" style="background: linear-gradient(135deg, #00FF88, #00C2FF)">
             <div class="rounded-full border-2 border-bg overflow-hidden flex items-center justify-center font-display font-bold bg-gradient-to-br from-primary/20 to-secondary/10"
                  style="width:52px; height:52px; font-size:18px">
@@ -40,39 +31,48 @@ const MOCK_STORIES: Story[] = [
               }
             </div>
           </div>
-
           <span class="text-[10px] font-body font-semibold text-primary">Você</span>
         </div>
 
-        <!-- Stories dos outros usuários (mock) -->
-        @for (story of stories; track story.handle) {
-          <div class="flex flex-col items-center gap-1.5 cursor-pointer" (click)="goToProfile(story.handle)">
-            <div class="p-[2px] rounded-full"
-                 [style]="story.active ? 'background: linear-gradient(135deg, #00FF88, #00C2FF)' : 'background: #1A2535'">
-              <div class="rounded-full flex items-center justify-center text-sm font-display font-bold border-2 border-bg overflow-hidden"
-                   [style]="'background:' + story.color + '; width:52px; height:52px'">
-                @if (story.avatar) {
-                  <img [src]="story.avatar" alt="avatar" class="w-full h-full object-cover" />
-                } @else {
-                  {{ story.initial }}
-                }
-              </div>
+        <!-- Stories de outros usuários reais -->
+        @if (loading()) {
+          @for (i of [1, 2, 3, 4]; track i) {
+            <div class="flex flex-col items-center gap-1.5 animate-pulse">
+              <div class="rounded-full bg-card-2 border border-border" style="width:56px; height:56px"></div>
+              <div class="h-2 w-10 rounded bg-card-2"></div>
             </div>
-            <span class="text-[10px] font-body" [class]="story.active ? 'text-white' : 'text-text-2'">
-              {{ story.name }}
-            </span>
-          </div>
+          }
+        } @else {
+          @for (user of users(); track user.id) {
+            <div class="flex flex-col items-center gap-1.5 cursor-pointer" (click)="goToProfile(user)">
+              <div class="p-[2px] rounded-full" style="background: linear-gradient(135deg, #00FF88, #00C2FF)">
+                <div class="rounded-full flex items-center justify-center text-sm font-display font-bold border-2 border-bg overflow-hidden text-white"
+                     [style]="'background:' + colorFor($index) + '; width:52px; height:52px'">
+                  @if (user.avatar) {
+                    <img [src]="user.avatar" alt="avatar" class="w-full h-full object-cover" />
+                  } @else {
+                    {{ initialOf(user) }}
+                  }
+                </div>
+              </div>
+              <span class="text-[10px] font-body text-white max-w-[60px] truncate">
+                {{ displayName(user) }}
+              </span>
+            </div>
+          }
         }
 
       </div>
     </div>
   `,
 })
-export class StoriesBarComponent {
-  private auth   = inject(AuthService);
-  private router = inject(Router);
+export class StoriesBarComponent implements OnInit {
+  private auth        = inject(AuthService);
+  private router      = inject(Router);
+  private userService = inject(UserService);
 
-  stories = MOCK_STORIES;
+  users   = signal<PublicUser[]>([]);
+  loading = signal(false);
 
   myAvatarUrl = computed(() => this.auth.avatarUrl());
 
@@ -82,12 +82,41 @@ export class StoriesBarComponent {
     return (name || email).charAt(0).toUpperCase() || 'U';
   });
 
+  ngOnInit(): void {
+    this.loadUsers();
+  }
+
+  async loadUsers(): Promise<void> {
+    this.loading.set(true);
+    try {
+      const data = await this.userService.listUsers(20);
+      this.users.set(data);
+    } catch {
+      this.users.set([]);
+    } finally {
+      this.loading.set(false);
+    }
+  }
+
+  colorFor(index: number): string {
+    return COLOR_PALETTE[index % COLOR_PALETTE.length];
+  }
+
+  initialOf(user: PublicUser): string {
+    return (user.name || user.email || 'U').charAt(0).toUpperCase();
+  }
+
+  displayName(user: PublicUser): string {
+    return user.name?.split(' ')[0] || user.username || 'User';
+  }
+
   goToMyProfile(): void {
     const handle = this.auth.profile().username || this.auth.user()?.id;
     if (handle) this.router.navigateByUrl(`/u/${handle}`);
   }
 
-  goToProfile(handle: string): void {
+  goToProfile(user: PublicUser): void {
+    const handle = user.username || user.id;
     this.router.navigateByUrl(`/u/${handle}`);
   }
 }

@@ -7,6 +7,8 @@ import { config } from './config';
 import healthRouter  from './routes/health.route';
 import checkinRouter from './routes/checkin.route';
 import profileRouter from './routes/profile.route';
+import postsRouter   from './routes/posts.route';
+import usersRouter   from './routes/users.route';
 
 const app = express();
 
@@ -19,6 +21,8 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/health',       healthRouter);
 app.use('/api/checkin',  checkinRouter);
 app.use('/api/profile',  profileRouter);
+app.use('/api/posts',    postsRouter);
+app.use('/api/users',    usersRouter);
 
 // ── 404 fallback ────────────────────────────────────────────────────────────
 app.use((_req, res) => {

@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { PostService } from '../../core/services/post.service';
@@ -29,21 +29,16 @@ export type { WorkoutPost };
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
 
-      <!-- Fixed header -->
       <app-feed-header [userEmail]="userEmail()" (onLogout)="logout()" />
 
-      <!-- Scrollable content -->
       <main class="flex-1 overflow-y-auto pb-24 pt-[64px]">
 
-        <!-- Stories -->
         <app-stories-bar />
 
-        <!-- Check-in diário -->
         <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
           <app-check-in-card [checkedIn]="checkedIn()" (onCheckIn)="doCheckIn()" />
         </div>
 
-        <!-- Treino do dia -->
         @if (todayWorkout()) {
           <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
             <app-daily-workout-card
@@ -55,21 +50,48 @@ export type { WorkoutPost };
 
         <!-- Feed posts -->
         <div class="px-4 mt-5 space-y-4">
+
+          @if (loading() && posts().length === 0) {
+            <!-- Skeleton -->
+            <div class="bg-card-2 border border-border rounded-2xl p-4 animate-pulse space-y-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-card"></div>
+                <div class="flex-1 space-y-1.5">
+                  <div class="h-3 w-24 bg-card rounded-lg"></div>
+                  <div class="h-2.5 w-16 bg-card rounded-lg"></div>
+                </div>
+              </div>
+              <div class="aspect-video bg-card rounded-xl"></div>
+            </div>
+          }
+
           @for (post of posts(); track post.id; let i = $index) {
             <div class="animate-slide-up" [style.animation-delay]="(0.1 + i * 0.07) + 's'">
               <app-workout-post [post]="post" (onLike)="toggleLike(post.id)" (onDelete)="deletePost(post)" />
             </div>
           }
+
+          @if (!loading() && posts().length === 0) {
+            <div class="bg-card-2 border border-border rounded-2xl p-8 text-center">
+              <p class="text-[32px] mb-2">📭</p>
+              <p class="text-[14px] font-body font-semibold text-white mb-1">Nenhum post ainda</p>
+              <p class="text-[12px] font-body text-text-2">Seja o primeiro a publicar!</p>
+            </div>
+          }
+
+          @if (loadError()) {
+            <div class="bg-danger/10 border border-danger/30 rounded-xl p-3 text-center">
+              <p class="text-[12px] font-body text-danger">{{ loadError() }}</p>
+              <button (click)="loadFeed()" class="mt-2 text-[12px] font-body text-primary underline">Tentar novamente</button>
+            </div>
+          }
         </div>
 
-        <!-- Bottom padding -->
         <div class="h-8"></div>
       </main>
 
-      <!-- Bottom Nav -->
       <app-bottom-nav [active]="'feed'" (onNewPost)="showNewPost.set(true)" />
 
-      <!-- New Post Modal -->
       @if (showNewPost()) {
         <app-new-post-modal (onClose)="showNewPost.set(false)" (onPublish)="addPost($event)" />
       }
@@ -77,55 +99,46 @@ export type { WorkoutPost };
     </div>
   `,
 })
-export class FeedComponent {
-  private auth           = inject(AuthService);
-  private router         = inject(Router);
-  private postService    = inject(PostService);
-  workoutService = inject(WorkoutService);
+export class FeedComponent implements OnInit {
+  private auth        = inject(AuthService);
+  private router      = inject(Router);
+  private postService = inject(PostService);
+  workoutService      = inject(WorkoutService);
 
   userEmail    = computed(() => this.auth.user()?.email ?? '');
   checkedIn    = signal(false);
   showNewPost  = signal(false);
   todayWorkout = computed(() => this.workoutService.todayWorkout());
 
-  posts = signal<WorkoutPost[]>([
-    {
-      id: '1',
-      user: { name: 'André F.', username: 'andre', avatar: '', level: 'Elite' },
-      timeAgo: 'agora',
-      streak: 7,
-      caption: 'Treino pesado hoje! Foco total no peito. 💪',
-      workout: { name: 'Peito + Tríceps', muscleGroup: 'peito' },
-      likes: 14,
-      comments: 3,
-      liked: false,
-    },
-    {
-      id: '2',
-      user: { name: 'Mariana S.', username: 'mariana', avatar: '', level: 'Pro' },
-      timeAgo: '2h',
-      streak: 21,
-      caption: 'Costas e bíceps fechados! Quem mais treinou hoje?',
-      workout: { name: 'Costas + Bíceps', muscleGroup: 'costas' },
-      likes: 31,
-      comments: 7,
-      liked: true,
-    },
-    {
-      id: '3',
-      user: { name: 'Gabriel R.', username: 'gabriel', avatar: '', level: 'Iniciante' },
-      timeAgo: '5h',
-      caption: 'Leg day brutal!',
-      workout: { name: 'Pernas', muscleGroup: 'pernas' },
-      likes: 8,
-      comments: 1,
-      liked: false,
-    },
-  ]);
+  posts     = signal<WorkoutPost[]>([]);
+  loading   = signal(false);
+  loadError = signal('');
+
+  ngOnInit(): void {
+    this.loadFeed();
+  }
+
+  async loadFeed(): Promise<void> {
+    this.loading.set(true);
+    this.loadError.set('');
+    try {
+      const data = await this.postService.listFeed();
+      this.posts.set(data);
+    } catch (err: any) {
+      this.loadError.set(err?.message ?? 'Não foi possível carregar o feed.');
+    } finally {
+      this.loading.set(false);
+    }
+  }
 
   async deletePost(post: WorkoutPost): Promise<void> {
+    const previous = this.posts();
     this.posts.update(all => all.filter(p => p.id !== post.id));
-    if (post.photo) await this.postService.deletePhoto(post.photo);
+    try {
+      await this.postService.deletePost(post.id);
+    } catch {
+      this.posts.set(previous);
+    }
   }
 
   startWorkout(id: string): void {
@@ -141,14 +154,28 @@ export class FeedComponent {
     this.checkedIn.set(true);
   }
 
-  toggleLike(postId: string): void {
+  async toggleLike(postId: string): Promise<void> {
+    // Optimistic toggle
     this.posts.update(posts =>
       posts.map(p =>
         p.id === postId
           ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 }
-          : p
-      )
+          : p,
+      ),
     );
+
+    try {
+      await this.postService.toggleLike(postId);
+    } catch {
+      // Revert on error
+      this.posts.update(posts =>
+        posts.map(p =>
+          p.id === postId
+            ? { ...p, liked: !p.liked, likes: p.liked ? p.likes - 1 : p.likes + 1 }
+            : p,
+        ),
+      );
+    }
   }
 
   async logout(): Promise<void> {
