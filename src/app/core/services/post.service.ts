@@ -63,4 +63,15 @@ export class PostService {
 
     return post;
   }
+
+  async deletePhoto(photoUrl: string): Promise<void> {
+    const user = this.auth.user();
+    if (!user) return;
+    // Extract storage path from the public URL: everything after /object/public/workout-photos/
+    const marker = `/object/public/${BUCKET}/`;
+    const idx = photoUrl.indexOf(marker);
+    if (idx === -1) return;
+    const path = decodeURIComponent(photoUrl.slice(idx + marker.length).split('?')[0]);
+    await supabase.storage.from(BUCKET).remove([path]);
+  }
 }

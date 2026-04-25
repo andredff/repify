@@ -33,5 +33,17 @@ export const routes: Routes = [
       import('./pages/public-profile/public-profile.component').then(m => m.PublicProfileComponent),
     canActivate: [authGuard],
   },
+  {
+    path: 'my-workout',
+    loadComponent: () =>
+      import('./pages/my-workout/my-workout.component').then(m => m.MyWorkoutComponent),
+    canActivate: [authGuard],
+  },
+  {
+    path: 'workout/:id',
+    loadComponent: () =>
+      import('./pages/workout/workout.component').then(m => m.WorkoutComponent),
+    canActivate: [authGuard],
+  },
   { path: '**', redirectTo: '' },
 ];

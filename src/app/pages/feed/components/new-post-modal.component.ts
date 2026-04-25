@@ -420,5 +420,3 @@ export class NewPostModalComponent {
     }
   }
 }
-
-type WorkoutExercise = import('../../../core/models/workout-post.model').WorkoutExercise;

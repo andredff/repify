@@ -1,12 +1,15 @@
 import { Component, inject, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { PostService } from '../../core/services/post.service';
 import { FeedHeaderComponent } from './components/feed-header.component';
 import { CheckInCardComponent } from './components/check-in-card.component';
 import { WorkoutPostComponent } from './components/workout-post.component';
 import { BottomNavComponent } from './components/bottom-nav.component';
 import { StoriesBarComponent } from './components/stories-bar.component';
 import { NewPostModalComponent } from './components/new-post-modal.component';
+import { DailyWorkoutCardComponent } from './components/daily-workout-card.component';
+import { WorkoutService } from '../../core/services/workout.service';
 import { WorkoutPost } from '../../core/models/workout-post.model';
 
 export type { WorkoutPost };
@@ -21,6 +24,7 @@ export type { WorkoutPost };
     BottomNavComponent,
     StoriesBarComponent,
     NewPostModalComponent,
+    DailyWorkoutCardComponent,
   ],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
@@ -39,11 +43,21 @@ export type { WorkoutPost };
           <app-check-in-card [checkedIn]="checkedIn()" (onCheckIn)="doCheckIn()" />
         </div>
 
+        <!-- Treino do dia -->
+        @if (todayWorkout()) {
+          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
+            <app-daily-workout-card
+              [workout]="todayWorkout()!"
+              [finished]="workoutService.todayFinished()"
+              (onStart)="startWorkout($event)" />
+          </div>
+        }
+
         <!-- Feed posts -->
         <div class="px-4 mt-5 space-y-4">
           @for (post of posts(); track post.id; let i = $index) {
             <div class="animate-slide-up" [style.animation-delay]="(0.1 + i * 0.07) + 's'">
-              <app-workout-post [post]="post" (onLike)="toggleLike(post.id)" />
+              <app-workout-post [post]="post" (onLike)="toggleLike(post.id)" (onDelete)="deletePost(post)" />
             </div>
           }
         </div>
@@ -64,12 +78,15 @@ export type { WorkoutPost };
   `,
 })
 export class FeedComponent {
-  private auth = inject(AuthService);
-  private router = inject(Router);
+  private auth           = inject(AuthService);
+  private router         = inject(Router);
+  private postService    = inject(PostService);
+  workoutService = inject(WorkoutService);
 
-  userEmail = computed(() => this.auth.user()?.email ?? '');
-  checkedIn = signal(false);
-  showNewPost = signal(false);
+  userEmail    = computed(() => this.auth.user()?.email ?? '');
+  checkedIn    = signal(false);
+  showNewPost  = signal(false);
+  todayWorkout = computed(() => this.workoutService.todayWorkout());
 
   posts = signal<WorkoutPost[]>([
     {
@@ -138,6 +155,15 @@ export class FeedComponent {
       liked: false,
     },
   ]);
+
+  async deletePost(post: WorkoutPost): Promise<void> {
+    this.posts.update(all => all.filter(p => p.id !== post.id));
+    if (post.photo) await this.postService.deletePhoto(post.photo);
+  }
+
+  startWorkout(id: string): void {
+    this.router.navigateByUrl(`/workout/${id}`);
+  }
 
   addPost(post: WorkoutPost): void {
     this.posts.update(current => [post, ...current]);

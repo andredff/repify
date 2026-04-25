@@ -2,6 +2,7 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { PostService } from '../../core/services/post.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { WorkoutPostComponent } from '../feed/components/workout-post.component';
 import { WorkoutPost } from '../../core/models/workout-post.model';
@@ -248,7 +249,7 @@ const GOAL_LABELS: Record<string, string> = {
             <div class="px-4 space-y-4">
               @for (post of postsWithUser(); track post.id; let i = $index) {
                 <div class="animate-slide-up" [style.animation-delay]="(i * 0.06) + 's'">
-                  <app-workout-post [post]="post" (onLike)="toggleLike(post.id)" />
+                  <app-workout-post [post]="post" (onLike)="toggleLike(post.id)" (onDelete)="deletePost(post)" />
                 </div>
               }
             </div>
@@ -273,10 +274,11 @@ const GOAL_LABELS: Record<string, string> = {
   `,
 })
 export class PublicProfileComponent implements OnInit {
-  private auth  = inject(AuthService);
-  router        = inject(Router);
-  location      = inject(Location);
-  private route = inject(ActivatedRoute);
+  private auth        = inject(AuthService);
+  private postService = inject(PostService);
+  router              = inject(Router);
+  location            = inject(Location);
+  private route       = inject(ActivatedRoute);
 
   loading    = signal(true);
   publicUser = signal<PublicUser | null>(null);
@@ -295,8 +297,10 @@ export class PublicProfileComponent implements OnInit {
       ...p,
       user: {
         ...p.user,
-        name:   this.publicUser()?.name   ?? p.user.name,
-        avatar: this.publicUser()?.avatar ?? p.user.avatar,
+        id:       this.publicUser()?.id     ?? p.user.id,
+        name:     this.publicUser()?.name   ?? p.user.name,
+        username: this.publicUser()?.username ?? p.user.username,
+        avatar:   this.publicUser()?.avatar ?? p.user.avatar,
       },
     }))
   );
@@ -367,6 +371,11 @@ export class PublicProfileComponent implements OnInit {
 
       this.loading.set(false);
     }, 600);
+  }
+
+  async deletePost(post: WorkoutPost): Promise<void> {
+    this.posts.update(all => all.filter(p => p.id !== post.id));
+    if (post.photo) await this.postService.deletePhoto(post.photo);
   }
 
   toggleFollow(): void {

@@ -1,6 +1,7 @@
-import { Component, inject, input, output } from '@angular/core';
+import { Component, inject, input, output, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
+import { AuthService } from '../../../core/services/auth.service';
 
 const MUSCLE_ICONS: Record<string, string> = {
   peito:   '🫁',
@@ -67,11 +68,59 @@ const MUSCLE_COLORS: Record<string, string> = {
         </div>
 
         <!-- More -->
-        <button class="text-text-2 hover:text-white transition-colors p-1">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
-          </svg>
-        </button>
+        <div class="relative">
+          <button (click)="toggleMenu()" class="text-text-2 hover:text-white transition-colors p-1">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+            </svg>
+          </button>
+
+          @if (menuOpen()) {
+            <!-- Backdrop to close -->
+            <div class="fixed inset-0 z-10" (click)="menuOpen.set(false)"></div>
+
+            <!-- Dropdown -->
+            <div class="absolute right-0 top-7 z-20 bg-card border border-border rounded-xl shadow-card overflow-hidden min-w-[140px] animate-fade-in">
+              @if (isOwner()) {
+                <button (click)="confirmDelete()"
+                        class="flex items-center gap-2.5 w-full px-4 py-3 text-left text-[13px] font-body text-danger hover:bg-danger/10 transition-colors">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                  </svg>
+                  Apagar post
+                </button>
+              }
+              <button (click)="menuOpen.set(false)"
+                      class="flex items-center gap-2.5 w-full px-4 py-3 text-left text-[13px] font-body text-text-2 hover:bg-card-2 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+                Compartilhar
+              </button>
+            </div>
+          }
+
+          <!-- Delete confirmation overlay -->
+          @if (confirmingDelete()) {
+            <div class="fixed inset-0 z-30 flex items-center justify-center px-6" style="background:rgba(8,12,16,0.85)" (click)="confirmingDelete.set(false)">
+              <div class="bg-card border border-border rounded-2xl p-6 w-full max-w-[320px] animate-slide-up" (click)="$event.stopPropagation()">
+                <h3 class="text-[16px] font-display font-bold text-white mb-1">Apagar post?</h3>
+                <p class="text-[13px] font-body text-text-2 mb-5">Essa ação não pode ser desfeita.</p>
+                <div class="flex gap-3">
+                  <button (click)="confirmingDelete.set(false)"
+                          class="flex-1 py-2.5 rounded-xl border border-border text-[13px] font-body font-medium text-text-2 hover:text-white transition-colors">
+                    Cancelar
+                  </button>
+                  <button (click)="onDelete.emit()"
+                          class="flex-1 py-2.5 rounded-xl bg-danger/20 border border-danger/30 text-[13px] font-body font-semibold text-danger hover:bg-danger/30 transition-colors">
+                    Apagar
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
       </div>
 
       <!-- Workout photo -->
@@ -188,10 +237,30 @@ const MUSCLE_COLORS: Record<string, string> = {
   `,
 })
 export class WorkoutPostComponent {
-  post = input.required<WorkoutPost>();
-  onLike = output<void>();
+  post    = input.required<WorkoutPost>();
+  onLike   = output<void>();
+  onDelete = output<void>();
 
   private router = inject(Router);
+  private auth   = inject(AuthService);
+
+  menuOpen        = signal(false);
+  confirmingDelete = signal(false);
+
+  isOwner = computed(() => {
+    const uid = this.auth.user()?.id;
+    return !!uid && this.post().user.id === uid;
+  });
+
+  toggleMenu(): void {
+    this.menuOpen.update(v => !v);
+    this.confirmingDelete.set(false);
+  }
+
+  confirmDelete(): void {
+    this.menuOpen.set(false);
+    this.confirmingDelete.set(true);
+  }
 
   goToProfile(): void {
     const username = this.post().user.username;
