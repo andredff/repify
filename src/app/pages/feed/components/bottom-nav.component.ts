@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 interface NavItem {
@@ -33,7 +33,7 @@ interface NavItem {
 
         <!-- CTA central: Treinar -->
         <div class="relative -mt-5">
-          <button class="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-glow hover:shadow-glow-lg transition-all active:scale-95 rotate-0 hover:rotate-6">
+          <button (click)="onNewPost.emit()" class="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-glow hover:shadow-glow-lg transition-all active:scale-95 rotate-0 hover:rotate-6">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#080C10" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
               <line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
@@ -47,6 +47,7 @@ interface NavItem {
 })
 export class BottomNavComponent {
   active = input<string>('feed');
+  onNewPost = output<void>();
 
   navItems: NavItem[] = [
     { key: 'feed',     label: 'Feed',      route: '/feed',      icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>' },

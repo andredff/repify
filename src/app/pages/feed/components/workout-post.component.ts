@@ -74,6 +74,13 @@ const MUSCLE_COLORS: Record<string, string> = {
         </button>
       </div>
 
+      <!-- Workout photo -->
+      @if (post().photo) {
+        <div class="mx-4 mb-3 rounded-xl overflow-hidden" style="max-height:320px">
+          <img [src]="post().photo" alt="foto do treino" class="w-full h-full object-cover" />
+        </div>
+      }
+
       <!-- Workout hero banner -->
       <div class="mx-4 mb-3 rounded-xl p-3 bg-gradient-to-br border border-border relative overflow-hidden"
            [class]="muscleGradient()">

@@ -6,6 +6,7 @@ import { CheckInCardComponent } from './components/check-in-card.component';
 import { WorkoutPostComponent } from './components/workout-post.component';
 import { BottomNavComponent } from './components/bottom-nav.component';
 import { StoriesBarComponent } from './components/stories-bar.component';
+import { NewPostModalComponent } from './components/new-post-modal.component';
 import { WorkoutPost } from '../../core/models/workout-post.model';
 
 export type { WorkoutPost };
@@ -19,6 +20,7 @@ export type { WorkoutPost };
     WorkoutPostComponent,
     BottomNavComponent,
     StoriesBarComponent,
+    NewPostModalComponent,
   ],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
@@ -51,7 +53,12 @@ export type { WorkoutPost };
       </main>
 
       <!-- Bottom Nav -->
-      <app-bottom-nav [active]="'feed'" />
+      <app-bottom-nav [active]="'feed'" (onNewPost)="showNewPost.set(true)" />
+
+      <!-- New Post Modal -->
+      @if (showNewPost()) {
+        <app-new-post-modal (onClose)="showNewPost.set(false)" (onPublish)="addPost($event)" />
+      }
 
     </div>
   `,
@@ -62,6 +69,7 @@ export class FeedComponent {
 
   userEmail = computed(() => this.auth.user()?.email ?? '');
   checkedIn = signal(false);
+  showNewPost = signal(false);
 
   posts = signal<WorkoutPost[]>([
     {
@@ -130,6 +138,11 @@ export class FeedComponent {
       liked: false,
     },
   ]);
+
+  addPost(post: WorkoutPost): void {
+    this.posts.update(current => [post, ...current]);
+    this.showNewPost.set(false);
+  }
 
   doCheckIn(): void {
     this.checkedIn.set(true);
