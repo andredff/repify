@@ -1,0 +1,152 @@
+<div class="min-h-screen flex items-center justify-center p-4">
+
+  <div class="w-full max-w-sm bg-card border border-border rounded-3xl p-6 space-y-6 shadow-lg">
+
+    <!-- LOGO -->
+    <div class="flex justify-center">
+      <img src="logo-transparent.png" alt="Repify" class="h-24 w-auto" />
+    </div>
+
+    <!-- TITLE -->
+    <div class="text-center">
+      <h2 class="text-lg font-semibold">Criar sua conta</h2>
+      <p class="text-sm text-gray-400">Comece sua jornada agora!</p>
+    </div>
+
+    <!-- FORM -->
+    <form [formGroup]="form" (ngSubmit)="register()" class="space-y-4">
+
+      <!-- Email -->
+      <div class="space-y-1">
+        <input
+          type="email"
+          placeholder="E-mail"
+          formControlName="email"
+          class="w-full bg-bg border rounded-xl p-3 outline-none transition-colors"
+          [class.border-border]="email.untouched || email.valid"
+          [class.border-danger]="email.touched && email.invalid"
+        />
+        @if (email.touched && email.hasError('required')) {
+          <p class="text-danger text-xs px-1">E-mail obrigatório</p>
+        } @else if (email.touched && email.hasError('email')) {
+          <p class="text-danger text-xs px-1">E-mail inválido</p>
+        }
+      </div>
+
+      <!-- Senhas -->
+      <div formGroupName="passwords" class="space-y-4">
+
+        <!-- Senha -->
+        <div class="space-y-1">
+          <div class="relative">
+            <input
+              [type]="showPassword() ? 'text' : 'password'"
+              placeholder="Senha"
+              formControlName="password"
+              class="w-full bg-bg border rounded-xl p-3 pr-10 outline-none transition-colors"
+              [class.border-border]="password.untouched || password.valid"
+              [class.border-danger]="password.touched && password.invalid"
+            />
+            <button
+              type="button"
+              (click)="showPassword.update(v => !v)"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              @if (showPassword()) {
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              }
+            </button>
+          </div>
+          @if (password.touched && password.hasError('required')) {
+            <p class="text-danger text-xs px-1">Senha obrigatória</p>
+          } @else if (password.touched && password.hasError('minlength')) {
+            <p class="text-danger text-xs px-1">Mínimo 6 caracteres</p>
+          }
+        </div>
+
+        <!-- Confirmar Senha -->
+        <div class="space-y-1">
+          <div class="relative">
+            <input
+              [type]="showConfirmPassword() ? 'text' : 'password'"
+              placeholder="Confirmar senha"
+              formControlName="confirmPassword"
+              class="w-full bg-bg border rounded-xl p-3 pr-10 outline-none transition-colors"
+              [class.border-border]="confirmPassword.untouched || passwords.valid"
+              [class.border-danger]="confirmPassword.touched && (confirmPassword.invalid || passwords.hasError('passwordsMismatch'))"
+            />
+            <button
+              type="button"
+              (click)="showConfirmPassword.update(v => !v)"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              @if (showConfirmPassword()) {
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              }
+            </button>
+          </div>
+          @if (confirmPassword.touched && passwords.hasError('passwordsMismatch')) {
+            <p class="text-danger text-xs px-1">Senhas não coincidem</p>
+          }
+        </div>
+
+      </div>
+
+      <!-- TERMOS -->
+      <div class="flex items-start gap-2 text-sm text-gray-400">
+        <input
+          type="checkbox"
+          formControlName="acceptedTerms"
+          class="mt-1 accent-primary"
+        />
+        <p>
+          Aceito os
+          <span class="text-primary cursor-pointer">Termos de Uso</span>
+          e
+          <span class="text-primary cursor-pointer">Política de Privacidade</span>
+        </p>
+      </div>
+
+      <!-- ERRO DO SERVIDOR -->
+      @if (serverError()) {
+        <p class="text-danger text-sm text-center">{{ serverError() }}</p>
+      }
+
+      <!-- BOTÃO -->
+      <button
+        type="submit"
+        [disabled]="loading()"
+        class="w-full bg-primary text-black py-3 rounded-xl font-semibold hover:shadow-[0_0_20px_#00FF88] transition disabled:opacity-50"
+      >
+        {{ loading() ? 'Criando conta...' : 'Criar conta' }}
+      </button>
+
+    </form>
+
+    <!-- LOGIN -->
+    <div class="text-center text-sm text-gray-400">
+      Já tem uma conta?
+      <a routerLink="/" class="text-primary cursor-pointer">Entrar</a>
+    </div>
+
+  </div>
+
+</div>

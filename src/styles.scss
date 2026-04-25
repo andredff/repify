@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+body {
+  @apply bg-bg text-white font-body;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { @apply bg-bg; }
+::-webkit-scrollbar-thumb { @apply bg-border-2 rounded-full; }
+
+/* Custom selection */
+::selection { background: #00FF8830; color: #00FF88; }
+
+/* Utilities extras */
+@layer utilities {
+  .text-gradient-green {
+    background: linear-gradient(135deg, #00FF88, #00C2FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .border-glow {
+    border-color: #00FF8860;
+    box-shadow: 0 0 0 1px #00FF8820;
+  }
+
+  .glass {
+    background: rgba(14, 21, 29, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .card-hover {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    &:hover { transform: translateY(-2px); box-shadow: 0 8px 32px #00000080; }
+  }
+
+  .neon-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #00FF88;
+    box-shadow: 0 0 8px #00FF88, 0 0 16px #00FF8860;
+  }
+}
