@@ -6,25 +6,9 @@ import { CheckInCardComponent } from './components/check-in-card.component';
 import { WorkoutPostComponent } from './components/workout-post.component';
 import { BottomNavComponent } from './components/bottom-nav.component';
 import { StoriesBarComponent } from './components/stories-bar.component';
+import { WorkoutPost } from '../../core/models/workout-post.model';
 
-export interface WorkoutPost {
-  id: string;
-  user: { name: string; avatar: string; level: string };
-  timeAgo: string;
-  workout: {
-    name: string;
-    muscleGroup: string;
-    duration: number;
-    exercises: { name: string; sets: number; reps: number; weight?: number }[];
-    totalVolume: number;
-    caloriesBurned: number;
-  };
-  photo?: string;
-  likes: number;
-  comments: number;
-  liked: boolean;
-  streak?: number;
-}
+export type { WorkoutPost };
 
 @Component({
   selector: 'app-feed',
@@ -82,7 +66,7 @@ export class FeedComponent {
   posts = signal<WorkoutPost[]>([
     {
       id: '1',
-      user: { name: 'André F.', avatar: '', level: 'Elite' },
+      user: { name: 'André F.', username: 'andre', avatar: '', level: 'Elite' },
       timeAgo: 'agora',
       streak: 7,
       workout: {
@@ -104,7 +88,7 @@ export class FeedComponent {
     },
     {
       id: '2',
-      user: { name: 'Mariana S.', avatar: '', level: 'Pro' },
+      user: { name: 'Mariana S.', username: 'mariana', avatar: '', level: 'Pro' },
       timeAgo: '2h',
       streak: 21,
       workout: {
@@ -126,7 +110,7 @@ export class FeedComponent {
     },
     {
       id: '3',
-      user: { name: 'Gabriel R.', avatar: '', level: 'Iniciante' },
+      user: { name: 'Gabriel R.', username: 'gabriel', avatar: '', level: 'Iniciante' },
       timeAgo: '5h',
       workout: {
         name: 'Pernas',

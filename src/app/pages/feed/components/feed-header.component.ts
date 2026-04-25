@@ -1,4 +1,6 @@
-import { Component, input, output } from '@angular/core';
+import { Component, inject, input, output, computed } from '@angular/core';
+import { Router } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-feed-header',
@@ -22,12 +24,15 @@ import { Component, input, output } from '@angular/core';
             <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full shadow-glow-sm"></span>
           </button>
 
-          <!-- Avatar / logout -->
+          <!-- Avatar -> meu perfil público -->
           <button
-            (click)="onLogout.emit()"
-            class="w-9 h-9 rounded-full bg-gradient-to-br from-primary/30 to-secondary/20 border border-primary/40 flex items-center justify-center text-xs font-display font-bold text-primary tracking-wide hover:shadow-glow-sm transition-all"
-          >
-            {{ initials() }}
+            (click)="goToMyProfile()"
+            class="w-9 h-9 rounded-full border border-primary/40 overflow-hidden flex items-center justify-center text-xs font-display font-bold text-primary bg-gradient-to-br from-primary/30 to-secondary/20 shrink-0 hover:border-primary hover:shadow-glow-sm transition-all active:scale-90">
+            @if (auth.avatarUrl()) {
+              <img [src]="auth.avatarUrl()" alt="avatar" class="w-full h-full object-cover" />
+            } @else {
+              {{ initials() }}
+            }
           </button>
         </div>
       </div>
@@ -35,12 +40,20 @@ import { Component, input, output } from '@angular/core';
   `,
 })
 export class FeedHeaderComponent {
+  auth    = inject(AuthService);
+  private router = inject(Router);
+
   userEmail = input<string>('');
-  onLogout = output<void>();
+  onLogout  = output<void>();
 
   initials(): string {
     const email = this.userEmail();
     if (!email) return 'U';
     return email.charAt(0).toUpperCase();
+  }
+
+  goToMyProfile(): void {
+    const handle = this.auth.profile().username || this.auth.user()?.id;
+    if (handle) this.router.navigateByUrl(`/u/${handle}`);
   }
 }

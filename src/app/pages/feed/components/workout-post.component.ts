@@ -1,5 +1,6 @@
-import { Component, input, output } from '@angular/core';
-import { WorkoutPost } from '../feed.component';
+import { Component, inject, input, output } from '@angular/core';
+import { Router } from '@angular/router';
+import { WorkoutPost } from '../../../core/models/workout-post.model';
 
 const MUSCLE_ICONS: Record<string, string> = {
   peito:   '🫁',
@@ -28,11 +29,15 @@ const MUSCLE_COLORS: Record<string, string> = {
       <!-- Header -->
       <div class="flex items-center justify-between px-4 pt-4 pb-3">
         <div class="flex items-center gap-3">
-          <!-- Avatar -->
-          <div class="relative">
-            <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center text-sm font-display font-bold"
+          <!-- Avatar (clickable -> public profile) -->
+          <div class="relative cursor-pointer" (click)="goToProfile()">
+            <div class="w-10 h-10 rounded-full border-2 flex items-center justify-center text-sm font-display font-bold overflow-hidden"
                  [style]="'background: linear-gradient(135deg, #00FF8830, #00C2FF20); border-color: #00FF8840'">
-              {{ post().user.name.charAt(0) }}
+              @if (post().user.avatar) {
+                <img [src]="post().user.avatar" alt="avatar" class="w-full h-full object-cover" />
+              } @else {
+                {{ post().user.name.charAt(0) }}
+              }
             </div>
             @if (post().streak) {
               <div class="absolute -bottom-0.5 -right-0.5 bg-bg border border-border rounded-full w-4 h-4 flex items-center justify-center text-[9px]">
@@ -44,7 +49,8 @@ const MUSCLE_COLORS: Record<string, string> = {
           <!-- Name + time -->
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-[13px] font-body font-semibold text-white">{{ post().user.name }}</span>
+              <span class="text-[13px] font-body font-semibold text-white cursor-pointer hover:text-primary transition-colors"
+                    (click)="goToProfile()">{{ post().user.name }}</span>
               <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-md"
                     [class]="levelClass()">
                 {{ post().user.level }}
@@ -177,6 +183,15 @@ const MUSCLE_COLORS: Record<string, string> = {
 export class WorkoutPostComponent {
   post = input.required<WorkoutPost>();
   onLike = output<void>();
+
+  private router = inject(Router);
+
+  goToProfile(): void {
+    const username = this.post().user.username;
+    const id       = this.post().user.id;
+    if (username) this.router.navigateByUrl(`/u/${username}`);
+    else if (id)  this.router.navigateByUrl(`/u/${id}`);
+  }
 
   muscleEmoji(): string {
     return MUSCLE_ICONS[this.post().workout.muscleGroup] ?? '💪';
