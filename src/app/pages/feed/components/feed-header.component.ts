@@ -11,7 +11,7 @@ import { AuthService } from '../../../core/services/auth.service';
 
         <!-- Logo -->
         <div class="flex items-center gap-2">
-          <img src="logo-transparent.png" alt="Repify" class="h-7 w-auto" />
+          <img src="logo-transparent.png" alt="Repify" class="h-9 w-auto" />
         </div>
 
         <!-- Right actions -->

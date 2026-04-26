@@ -553,7 +553,12 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
         <!-- ── GOAL ── -->
         @if (step() === 'goal') {
           <div class="animate-slide-up">
-            <h2 class="text-[26px] font-display font-bold text-white mb-1">Qual é o seu objetivo?</h2>
+            <header class="flex items-center gap-3 mb-6">
+              <button (click)="back()" class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white transition-colors shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <h2 class="text-[20px] font-display font-bold text-white">Objetivo</h2>
+            </header>
             <p class="text-[13px] font-body text-text-2 mb-7">Vamos montar um plano completo pra você.</p>
             <div class="grid grid-cols-2 gap-3">
               @for (opt of goalOptions; track opt.value) {
@@ -583,7 +588,12 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
         <!-- ── LEVEL ── -->
         @if (step() === 'level') {
           <div class="animate-slide-up">
-            <h2 class="text-[26px] font-display font-bold text-white mb-1">Qual é seu nível?</h2>
+            <header class="flex items-center gap-3 mb-6">
+              <button (click)="back()" class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white transition-colors shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <h2 class="text-[20px] font-display font-bold text-white">Nível</h2>
+            </header>
             <p class="text-[13px] font-body text-text-2 mb-7">Isso define intensidade e volume do treino.</p>
             <div class="space-y-3">
               @for (opt of levelOptions; track opt.value) {
@@ -613,7 +623,12 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
         <!-- ── DAYS ── -->
         @if (step() === 'days') {
           <div class="animate-slide-up">
-            <h2 class="text-[26px] font-display font-bold text-white mb-1">Quantos dias por semana?</h2>
+            <header class="flex items-center gap-3 mb-6">
+              <button (click)="back()" class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white transition-colors shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <h2 class="text-[20px] font-display font-bold text-white">Dias por semana</h2>
+            </header>
             <p class="text-[13px] font-body text-text-2 mb-7">Cada dia terá um treino completo e diferente.</p>
             <div class="space-y-3">
               @for (opt of daysOptions; track opt.value) {
@@ -641,21 +656,15 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
         <!-- ── RESULT ── -->
         @if (step() === 'result') {
           <div class="animate-slide-up">
-
-            <!-- Summary header -->
-            <div class="flex items-center gap-3 mb-2">
-              <div class="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              </div>
-              <p class="text-[12px] font-body font-semibold text-primary uppercase tracking-widest">Plano gerado</p>
-            </div>
-            <h2 class="text-[26px] font-display font-bold text-white mb-1">Seu plano está pronto!</h2>
+            <header class="flex items-center gap-3 mb-6">
+              <button (click)="back()" class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white transition-colors shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+              </button>
+              <h2 class="text-[20px] font-display font-bold text-white">Plano gerado</h2>
+            </header>
             <p class="text-[13px] font-body text-text-2 mb-6">
               {{ generated().length }} treinos · {{ wizard().days }}x/semana · {{ goalLabel() }} · {{ levelLabel() }}
             </p>
-
             <div class="space-y-4">
               @for (w of generated(); track w.id; let i = $index) {
                 <div class="rounded-2xl border overflow-hidden relative bg-gradient-to-br"
@@ -724,7 +733,6 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
           <button (click)="next()"
                   [disabled]="!canAdvance()"
                   class="fixed bottom-20 left-1/2 -translate-x-1/2 w-[90%] py-4 rounded-2xl font-display font-bold text-[16px] transition-all bg-card-2 border border-border text-text-2"
-  disabled
                   [class]="canAdvance()
                     ? 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-[0.98]'
                     : 'bg-card-2 text-text-2 border border-border cursor-not-allowed'">
@@ -733,12 +741,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
         </div>
       }
 
-      <button
-  class="fixed bottom-20 left-1/2 -translate-x-1/2 w-[90%] py-4 rounded-2xl font-display font-bold text-[16px] transition-all bg-card-2 border border-border text-text-2"
-  disabled
->
-  Continuar
-</button>
+
 
       <app-bottom-nav [active]="'my-workout'" />
 

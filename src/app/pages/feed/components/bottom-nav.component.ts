@@ -7,7 +7,7 @@ import { RouterLink } from '@angular/router';
   imports: [RouterLink],
   template: `
     <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 glass border-t border-border">
-      <div class="flex items-end justify-around px-1 pt-2 pb-3">
+      <div class="flex items-end justify-around px-1 pt-0 pb-3">
 
         <!-- Feed -->
         <a routerLink="/feed"
