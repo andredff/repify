@@ -38,8 +38,6 @@ services:
   - type: web
     name: repify-web
     runtime: static
-    region: oregon
-    plan: free
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist/repify/browser
     pullRequestPreviewsEnabled: false
