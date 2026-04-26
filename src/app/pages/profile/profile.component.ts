@@ -32,7 +32,7 @@ const MAX_SIZE_MB   = 5;
       />
 
       <!-- Header -->
-      <header class="glass border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-40">
+      <header class="glass border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 safe-top z-40">
         <button (click)="router.navigateByUrl('/feed')"
                 class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white hover:border-border-2 transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

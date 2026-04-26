@@ -31,7 +31,7 @@ export type { WorkoutPost };
 
       <app-feed-header [userEmail]="userEmail()" (onLogout)="logout()" />
 
-      <main class="flex-1 overflow-y-auto pb-24 pt-[64px]">
+      <main class="flex-1 overflow-y-auto pb-24 pt-[64px]" style="padding-top: calc(64px + env(safe-area-inset-top))">
 
         <app-stories-bar />
 

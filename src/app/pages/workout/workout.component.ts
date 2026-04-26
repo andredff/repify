@@ -51,7 +51,7 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
       <!-- Header -->
-      <header class="glass border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 z-40">
+      <header class="glass border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 safe-top z-40">
         <button (click)="location.back()"
                 class="flex items-center gap-2 text-text-2 hover:text-white transition-colors">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

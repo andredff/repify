@@ -6,7 +6,7 @@ import { AuthService } from '../../../core/services/auth.service';
   selector: 'app-feed-header',
   standalone: true,
   template: `
-    <header class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 glass border-b border-border">
+    <header class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 glass border-b border-border safe-top">
       <div class="flex items-center justify-between px-4 py-3">
 
         <!-- Logo -->

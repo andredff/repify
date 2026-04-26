@@ -37,7 +37,7 @@ const MUSCLE_GRADIENT: Record<string, string> = {
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
       <!-- Header -->
-      <header class="glass border-b border-border px-4 py-3 sticky top-0 z-40">
+      <header class="glass border-b border-border px-4 py-3 sticky top-0 safe-top z-40">
         <h1 class="text-[18px] font-display font-bold text-white">Progresso</h1>
         <p class="text-[11px] font-body text-text-2">{{ motivational }}</p>
       </header>

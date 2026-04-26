@@ -36,7 +36,7 @@ const GOAL_LABELS: Record<string, string> = {
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
       <!-- Header -->
-      <header class="glass border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 z-40">
+      <header class="glass border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 safe-top z-40">
         <button (click)="location.back()"
                 class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white transition-colors shrink-0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
