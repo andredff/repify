@@ -84,7 +84,7 @@ router.get('/:handle', requireAuth, async (req: AuthRequest, res: Response) => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function toPublicUser(u: any): PublicUser {
-  const meta = u.user_metadata ?? {};
+  const meta = u.user_metadata ?? u.raw_user_meta_data ?? {};
   return {
     id:           u.id,
     email:        u.email ?? '',

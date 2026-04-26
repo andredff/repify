@@ -149,6 +149,14 @@ const GOAL_LABELS: Record<string, string> = {
                   <span class="text-[18px] font-display font-bold text-white">Elite</span>
                   <span class="text-[10px] text-text-2 font-body mt-0.5">nível</span>
                 </div>
+                @if (publicUser()!.yearly_goal) {
+                  <div class="flex-1 flex flex-col items-center py-3 border-l border-border">
+                    <span class="text-[15px] font-mono font-bold text-primary leading-tight">
+                      {{ publicUser()!.workouts_done ?? 0 }}/{{ publicUser()!.yearly_goal }}
+                    </span>
+                    <span class="text-[10px] text-text-2 font-body mt-0.5">meta</span>
+                  </div>
+                }
               </div>
 
               <!-- Meta anual -->

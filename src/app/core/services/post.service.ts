@@ -135,8 +135,8 @@ export class PostService {
       username:    p.user.username ?? undefined,
       avatar:      p.user.avatar,
       level:       p.user.level,
-      yearlyGoal:  p.user.yearly_goal ?? null,
-      workoutsDone:p.user.workouts_done ?? null,
+      yearlyGoal:  p.user.yearly_goal   != null ? Number(p.user.yearly_goal)   : null,
+      workoutsDone:p.user.workouts_done  != null ? Number(p.user.workouts_done) : null,
     },
     timeAgo:  p.time_ago,
     caption:  p.caption ?? undefined,
@@ -146,4 +146,3 @@ export class PostService {
     comments: p.comments,
     liked:    p.liked,
   });
-}

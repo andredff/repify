@@ -335,7 +335,7 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
 
   return posts.map(p => {
     const u    = userMap.get(p.user_id);
-    const meta = u?.user_metadata ?? {};
+    const meta = u?.user_metadata ?? u?.raw_user_meta_data ?? {};
     return {
       id:          p.id,
       caption:     p.caption,
@@ -352,8 +352,8 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
         username:     meta['username']  || null,
         avatar:       resolveAvatarUrl(meta['avatar_url']),
         level:        'Elite',
-        yearly_goal:  meta['yearly_goal']   ?? null,
-        workouts_done:meta['workouts_done'] ?? null,
+        yearly_goal:  meta['yearly_goal']   != null ? Number(meta['yearly_goal'])   : null,
+        workouts_done:meta['workouts_done'] != null ? Number(meta['workouts_done']) : null,
       },
     };
   });

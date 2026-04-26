@@ -2,6 +2,7 @@ import { Component, inject, signal, output, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PostService } from '../../../core/services/post.service';
 import { WorkoutService } from '../../../core/services/workout.service';
+import { AuthService } from '../../../core/services/auth.service';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 import { ImageCropperComponent } from '../../../shared/image-cropper.component';
 
@@ -136,6 +137,31 @@ interface WorkoutOption {
             }
           </div>
 
+          <!-- Meta anual toggle -->
+          @if (auth.profile().yearly_goal) {
+            <div class="flex items-center justify-between bg-card-2 border border-border rounded-xl px-4 py-3">
+              <div class="flex items-center gap-2.5">
+                <div class="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-[12px] font-body font-semibold text-white">Exibir meta anual</p>
+                  <p class="text-[10px] font-body text-text-2">
+                    {{ auth.profile().workouts_done ?? 0 }}/{{ auth.profile().yearly_goal }} treinos
+                  </p>
+                </div>
+              </div>
+              <button type="button" (click)="showGoal.update(v => !v)"
+                      class="relative w-11 h-6 rounded-full transition-colors duration-200"
+                      [class]="showGoal() ? 'bg-primary' : 'bg-border'">
+                <span class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200"
+                      [class]="showGoal() ? 'translate-x-5' : 'translate-x-0'"></span>
+              </button>
+            </div>
+          }
+
           <!-- Error -->
           @if (error()) {
             <p class="text-danger text-[12px] font-body text-center">{{ error() }}</p>
@@ -160,15 +186,17 @@ interface WorkoutOption {
 export class NewPostModalComponent {
   private postService    = inject(PostService);
   private workoutService = inject(WorkoutService);
+  auth                   = inject(AuthService);
 
   onClose   = output<void>();
   onPublish = output<WorkoutPost>();
 
-  photoFile     = signal<File | null>(null);
-  photoPreview  = signal('');
-  cropSrc       = signal<string | null>(null);
-  caption       = '';
+  photoFile       = signal<File | null>(null);
+  photoPreview    = signal('');
+  cropSrc         = signal<string | null>(null);
+  caption         = '';
   selectedWorkout = signal<WorkoutOption | null>(null);
+  showGoal        = signal(true);
 
   publishing = signal(false);
   error      = signal('');
@@ -246,6 +274,13 @@ export class NewPostModalComponent {
         caption: this.caption,
         workout: this.selectedWorkout(),
       });
+
+      // Inject yearly goal into the freshly created post if user opted in
+      const profile = this.auth.profile();
+      if (this.showGoal() && profile.yearly_goal) {
+        post.user.yearlyGoal   = profile.yearly_goal;
+        post.user.workoutsDone = profile.workouts_done ?? 0;
+      }
 
       this.onPublish.emit(post);
     } catch (err: any) {

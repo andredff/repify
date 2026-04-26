@@ -47,24 +47,26 @@ const MUSCLE_COLORS: Record<string, string> = {
           </div>
 
           <div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 flex-wrap">
               <span class="text-[13px] font-body font-semibold text-white cursor-pointer hover:text-primary transition-colors"
                     (click)="goToProfile()">{{ post().user.name }}</span>
+              <span class="text-text-2 text-[10px] select-none">|</span>
               <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-md"
                     [class]="levelClass()">
                 {{ post().user.level }}
               </span>
+              @if (post().user.yearlyGoal) {
+                <span class="text-text-2 text-[10px] select-none">|</span>
+                <span class="text-[10px] font-mono text-primary font-semibold">
+                  {{ post().user.workoutsDone ?? 0 }}/{{ post().user.yearlyGoal }}
+                </span>
+              }
             </div>
             <div class="flex items-center gap-1.5 mt-0.5">
               <div class="neon-dot" style="width:5px;height:5px;opacity:0.7"></div>
               <span class="text-[11px] text-text-2 font-body">{{ post().timeAgo }}</span>
               @if (post().streak) {
                 <span class="text-[11px] text-text-2 font-body">· 🔥 {{ post().streak }} dias</span>
-              }
-              @if (post().user.yearlyGoal) {
-                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
-                  {{ post().user.workoutsDone ?? 0 }}/{{ post().user.yearlyGoal }}
-                </span>
               }
             </div>
           </div>
