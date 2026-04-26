@@ -1,0 +1,35 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+require("dotenv/config");
+const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
+const helmet_1 = __importDefault(require("helmet"));
+const config_1 = require("./config");
+const health_route_1 = __importDefault(require("./routes/health.route"));
+const checkin_route_1 = __importDefault(require("./routes/checkin.route"));
+const profile_route_1 = __importDefault(require("./routes/profile.route"));
+const posts_route_1 = __importDefault(require("./routes/posts.route"));
+const users_route_1 = __importDefault(require("./routes/users.route"));
+const app = (0, express_1.default)();
+// ── Security & parsing ──────────────────────────────────────────────────────
+app.use((0, helmet_1.default)());
+app.use((0, cors_1.default)({ origin: ['http://localhost:4200', 'http://localhost:4201'] }));
+app.use(express_1.default.json({ limit: '1mb' }));
+// ── Routes ──────────────────────────────────────────────────────────────────
+app.use('/health', health_route_1.default);
+app.use('/api/checkin', checkin_route_1.default);
+app.use('/api/profile', profile_route_1.default);
+app.use('/api/posts', posts_route_1.default);
+app.use('/api/users', users_route_1.default);
+// ── 404 fallback ────────────────────────────────────────────────────────────
+app.use((_req, res) => {
+    res.status(404).json({ error: 'Not found.' });
+});
+// ── Start ────────────────────────────────────────────────────────────────────
+app.listen(config_1.config.port, () => {
+    console.log(`[repify-server] running on http://localhost:${config_1.config.port}`);
+});
+exports.default = app;

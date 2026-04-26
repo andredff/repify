@@ -14,7 +14,20 @@ const app = express();
 
 // ── Security & parsing ──────────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors({ origin: ['http://localhost:4200', 'http://localhost:4201'] }));
+
+const allowedOrigins = [
+  'http://localhost:4200',
+  'http://localhost:4201',
+  ...(process.env['CORS_ORIGINS']?.split(',').map(o => o.trim()).filter(Boolean) ?? []),
+];
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Permite requests sem Origin (curl, mobile webviews) e qualquer origem na whitelist
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS blocked: ${origin}`));
+  },
+}));
 app.use(express.json({ limit: '1mb' }));
 
 // ── Routes ──────────────────────────────────────────────────────────────────
