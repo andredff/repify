@@ -29,8 +29,6 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: SUPABASE_JWT_SECRET
-        sync: false
 
   # ───────────────────────────────────────────────────────────────────────────
   # Frontend Angular (Static Site) — repify-web.onrender.com
@@ -38,15 +36,11 @@ services:
   - type: web
     name: repify-web
     runtime: static
-    buildCommand: npm ci --no-audit --no-fund --prefer-offline && NODE_OPTIONS=--max-old-space-size=460 npm run build
-    staticPublishPath: ./dist/repify/browser
+    branch: production
+    buildCommand: ""
+    staticPublishPath: .
     pullRequestPreviewsEnabled: false
     autoDeploy: true
-    envVars:
-      - key: NODE_VERSION
-        value: 22.11.0
-      - key: NODE_OPTIONS
-        value: --max-old-space-size=460
     headers:
       - path: /ngsw-worker.js
         name: Cache-Control

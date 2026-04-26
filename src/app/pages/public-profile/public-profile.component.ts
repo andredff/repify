@@ -250,9 +250,23 @@ export class PublicProfileComponent implements OnInit {
     return 'bg-border text-text-2 border-border-2';
   }
 
-  ngOnInit(): void {
+  async ngOnInit(): Promise<void> {
     const handle = this.route.snapshot.paramMap.get('handle') ?? '';
+    await this.waitForAuth();
     this.loadProfile(handle);
+  }
+
+  /** Espera o AuthService terminar de restaurar a sessão antes de fazer requests. */
+  private waitForAuth(): Promise<void> {
+    if (this.auth.initialized()) return Promise.resolve();
+    return new Promise(resolve => {
+      const interval = setInterval(() => {
+        if (this.auth.initialized()) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 50);
+    });
   }
 
   private async loadProfile(handle: string): Promise<void> {
@@ -260,9 +274,11 @@ export class PublicProfileComponent implements OnInit {
 
     const me     = this.auth.user();
     const myMeta = this.auth.profile();
-    const isOwn  = handle === me?.id
-                || handle === myMeta.username
-                || handle === myMeta.full_name;
+    const isOwn  = !!me && (
+                     handle === me.id
+                  || handle === myMeta.username
+                  || handle === myMeta.full_name
+                  );
 
     if (isOwn && me) {
       this.publicUser.set({
@@ -279,7 +295,8 @@ export class PublicProfileComponent implements OnInit {
       try {
         const data = await this.postService.listByUser(me.id);
         this.posts.set(data);
-      } catch {
+      } catch (err) {
+        console.warn('[public-profile] failed to load own posts', err);
         this.posts.set([]);
       }
       this.loading.set(false);
@@ -307,9 +324,15 @@ export class PublicProfileComponent implements OnInit {
         isOwn:    false,
       });
 
-      const userPosts = await this.postService.listByUser(found.id);
-      this.posts.set(userPosts);
-    } catch {
+      try {
+        const userPosts = await this.postService.listByUser(found.id);
+        this.posts.set(userPosts);
+      } catch (err) {
+        console.warn('[public-profile] failed to load posts', err);
+        this.posts.set([]);
+      }
+    } catch (err) {
+      console.error('[public-profile] failed to load user', err);
       this.publicUser.set(null);
       this.posts.set([]);
     } finally {
