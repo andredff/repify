@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { WorkoutService, ActiveProgram, StoredPlan, DAY_INDEX_MAP } from '../../core/services/workout.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
+import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
 
 type Step = 'plan' | 'goal' | 'level' | 'days' | 'result';
 type Goal = 'hipertrofia' | 'emagrecimento' | 'forca' | 'condicionamento';
@@ -400,8 +401,11 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
 @Component({
   selector: 'app-my-workout',
   standalone: true,
-  imports: [BottomNavComponent],
+  imports: [BottomNavComponent, NewPostModalComponent],
   template: `
+    @if (showNewPost()) {
+      <app-new-post-modal (onClose)="showNewPost.set(false)" />
+    }
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
       <!-- Header -->
@@ -695,7 +699,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                             <div class="w-1 h-1 rounded-full bg-primary/50 shrink-0"></div>
                             <span class="text-[12px] font-body text-white">{{ ex.name }}</span>
                           </div>
-                          <span class="text-[11px] font-mono text-text-2 shrink-0 ml-2">{{ ex.sets }}× {{ ex.reps }}</span>
+                          <span class="text-[11px] font-mono text-primary shrink-0 ml-2">{{ ex.sets }}× {{ ex.reps }}</span>
                         </div>
                       }
                     </div>
@@ -743,7 +747,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
 
 
 
-      <app-bottom-nav [active]="'my-workout'" />
+      <app-bottom-nav [active]="'my-workout'" (onNewPost)="showNewPost.set(true)" />
 
       <!-- Preview sheet -->
       @if (previewWorkout()) {
@@ -806,6 +810,7 @@ export class MyWorkoutComponent implements OnInit {
   wizard         = signal<WizardState>({ goal: null, level: null, days: null });
   generated      = signal<GeneratedWorkout[]>([]);
   previewWorkout = signal<StoredPlan | GeneratedWorkout | null>(null);
+  showNewPost = signal(false);
 
   stepIndex = computed(() => this.stepKeys.indexOf(this.step() as any));
 

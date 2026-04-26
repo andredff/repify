@@ -4,6 +4,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractContro
 import { AuthService } from '../../core/services/auth.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { CheckinService } from '../../core/services/checkin.service';
+import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   const a = control.get('newPassword')?.value;
@@ -19,8 +20,11 @@ const MAX_SIZE_MB   = 5;
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [ReactiveFormsModule, BottomNavComponent],
+  imports: [ReactiveFormsModule, BottomNavComponent, NewPostModalComponent],
   template: `
+    @if (showNewPost()) {
+      <app-new-post-modal (onClose)="showNewPost.set(false)" />
+    }
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative">
 
       <!-- Hidden file input -->
@@ -414,7 +418,7 @@ const MAX_SIZE_MB   = 5;
 
       </div>
 
-      <app-bottom-nav [active]="'profile'" />
+      <app-bottom-nav [active]="'profile'" (onNewPost)="showNewPost.set(true)" />
     </div>
   `,
 })
@@ -434,6 +438,7 @@ export class ProfileComponent implements OnInit {
   avatarPreview   = signal<string>('');
   avatarUploading = signal(false);
   uploadProgress  = signal(0);
+  showNewPost = signal(false);
   avatarError     = signal('');
   avatarSuccess   = signal(false);
 

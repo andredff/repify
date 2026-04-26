@@ -6,6 +6,7 @@ import { PostService } from '../../core/services/post.service';
 import { UserService } from '../../core/services/user.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { WorkoutPostComponent } from '../feed/components/workout-post.component';
+import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
 import { WorkoutPost } from '../../core/models/workout-post.model';
 
 interface PublicUser {
@@ -31,8 +32,11 @@ const GOAL_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-public-profile',
   standalone: true,
-  imports: [BottomNavComponent, WorkoutPostComponent],
+  imports: [BottomNavComponent, WorkoutPostComponent, NewPostModalComponent],
   template: `
+    @if (showNewPost()) {
+      <app-new-post-modal (onClose)="showNewPost.set(false)" />
+    }
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
       <!-- Header -->
@@ -209,7 +213,7 @@ const GOAL_LABELS: Record<string, string> = {
         </div>
       }
 
-      <app-bottom-nav [active]="isOwn() ? 'profile' : 'feed'" />
+      <app-bottom-nav [active]="isOwn() ? 'profile' : 'feed'" (onNewPost)="showNewPost.set(true)" />
     </div>
   `,
 })
@@ -225,6 +229,7 @@ export class PublicProfileComponent implements OnInit {
   publicUser = signal<PublicUser | null>(null);
   posts      = signal<WorkoutPost[]>([]);
   following  = signal(false);
+  showNewPost = signal(false);
 
   isOwn = computed(() => this.publicUser()?.isOwn ?? false);
 

@@ -1,7 +1,8 @@
-import { Component, inject, computed } from '@angular/core';
+import { Component, inject, computed, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { WorkoutService, LEVELS, ACHIEVEMENTS, WorkoutSession } from '../../core/services/workout.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
+import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
 
 const MOTIVATIONAL: string[] = [
   'O corpo conquista o que a mente acredita. 💪',
@@ -32,8 +33,11 @@ const MUSCLE_GRADIENT: Record<string, string> = {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [BottomNavComponent],
+  imports: [BottomNavComponent, NewPostModalComponent],
   template: `
+    @if (showNewPost()) {
+      <app-new-post-modal (onClose)="showNewPost.set(false)" />
+    }
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
       <!-- Header -->
@@ -202,27 +206,24 @@ const MUSCLE_GRADIENT: Record<string, string> = {
 
       </main>
 
-      <app-bottom-nav [active]="'progress'" />
+      <app-bottom-nav [active]="'progress'" (onNewPost)="showNewPost.set(true)" />
     </div>
   `,
 })
 export class DashboardComponent {
+  showNewPost = signal(false);
   ws     = inject(WorkoutService);
   router = inject(Router);
-
   readonly motivational = MOTIVATIONAL[Math.floor(Math.random() * MOTIVATIONAL.length)];
   readonly achievements = ACHIEVEMENTS;
   readonly total        = ACHIEVEMENTS.length;
-
   isUnlocked(id: string): boolean {
     return this.ws.unlockedAchievements().some(a => a.id === id);
   }
-
-  muscleEmoji(mg: string): string {
-    return MUSCLE_EMOJI[mg] ?? '💪';
+  muscleGradient(muscle: string): string {
+    return MUSCLE_GRADIENT[muscle] || '';
   }
-
-  muscleGradient(mg: string): string {
-    return MUSCLE_GRADIENT[mg] ?? MUSCLE_GRADIENT['full'];
+  muscleEmoji(muscle: string): string {
+    return MUSCLE_EMOJI[muscle] || '';
   }
 }
