@@ -1,7 +1,8 @@
-import { Component, inject, input, output, signal, computed } from '@angular/core';
+import { Component, inject, input, output, signal, computed, effect } from '@angular/core';
 import { Router } from '@angular/router';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 import { AuthService } from '../../../core/services/auth.service';
+import { CommentsSheetComponent } from './comments-sheet.component';
 
 const MUSCLE_ICONS: Record<string, string> = {
   peito:'🫁', costas:'🔙', pernas:'🦵', ombros:'💪',
@@ -19,6 +20,7 @@ const MUSCLE_COLORS: Record<string, string> = {
 @Component({
   selector: 'app-workout-post',
   standalone: true,
+  imports: [CommentsSheetComponent],
   template: `
     <article class="bg-card-2 border border-border rounded-2xl overflow-hidden shadow-card card-hover">
 
@@ -155,11 +157,12 @@ const MUSCLE_COLORS: Record<string, string> = {
             <span class="text-[12px] font-body font-medium">{{ post().likes }}</span>
           </button>
 
-          <button class="flex items-center gap-1.5 text-text-2 hover:text-white transition-colors">
+          <button (click)="showComments.set(true)"
+                  class="flex items-center gap-1.5 text-text-2 hover:text-white transition-colors active:scale-90">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            <span class="text-[12px] font-body font-medium">{{ post().comments }}</span>
+            <span class="text-[12px] font-body font-medium">{{ localComments() }}</span>
           </button>
         </div>
 
@@ -171,6 +174,13 @@ const MUSCLE_COLORS: Record<string, string> = {
         </button>
       </div>
     </article>
+
+    @if (showComments()) {
+      <app-comments-sheet
+        [postId]="post().id"
+        (onClose)="showComments.set(false)"
+        (onCountChange)="localComments.set($event)" />
+    }
   `,
 })
 export class WorkoutPostComponent {
@@ -181,8 +191,14 @@ export class WorkoutPostComponent {
   private router = inject(Router);
   private auth   = inject(AuthService);
 
-  menuOpen        = signal(false);
+  menuOpen         = signal(false);
   confirmingDelete = signal(false);
+  showComments     = signal(false);
+  localComments    = signal(0);
+
+  constructor() {
+    effect(() => this.localComments.set(this.post().comments));
+  }
 
   isOwner = computed(() => {
     const uid = this.auth.user()?.id;

@@ -171,6 +171,110 @@ router.post('/:id/like', requireAuth, async (req: AuthRequest, res: Response) =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/posts/:id/comments — lista comentários do post
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/:id/comments', requireAuth, async (req: AuthRequest, res: Response) => {
+  const postId = req.params['id'];
+  const limit  = Math.min(Number(req.query['limit']) || 50, 100);
+  const offset = Math.max(Number(req.query['offset']) || 0, 0);
+
+  const { data, error } = await supabaseAdmin
+    .from('post_comments')
+    .select('id, body, user_id, created_at')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true })
+    .range(offset, offset + limit - 1);
+
+  if (error) { res.status(500).json({ error: 'Failed to fetch comments.' }); return; }
+
+  const rows = data ?? [];
+  const userIds = Array.from(new Set(rows.map(c => c.user_id)));
+  const authors = await Promise.all(userIds.map(id => supabaseAdmin.auth.admin.getUserById(id)));
+  const userMap = new Map<string, any>();
+  for (const a of authors) {
+    if (a.data?.user) userMap.set(a.data.user.id, a.data.user);
+  }
+
+  const comments = rows.map(c => {
+    const u    = userMap.get(c.user_id);
+    const meta = u?.user_metadata ?? {};
+    return {
+      id:        c.id,
+      body:      c.body,
+      time_ago:  timeAgo(c.created_at),
+      created_at: c.created_at,
+      is_own:    c.user_id === req.userId,
+      user: {
+        id:       c.user_id,
+        name:     meta['full_name'] || u?.email?.split('@')[0] || 'Usuário',
+        username: meta['username'] || null,
+        avatar:   resolveAvatarUrl(meta['avatar_url']),
+      },
+    };
+  });
+
+  res.json({ comments, total: rows.length });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/posts/:id/comments — adiciona comentário
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response) => {
+  const postId = req.params['id'];
+  const body   = (req.body?.body ?? '').trim();
+
+  if (!body || body.length > 500) {
+    res.status(400).json({ error: 'Comentário inválido.' }); return;
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from('post_comments')
+    .insert({ post_id: postId, user_id: req.userId, body })
+    .select('id, body, user_id, created_at')
+    .single();
+
+  if (error) { res.status(500).json({ error: 'Failed to save comment.' }); return; }
+
+  const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(req.userId!);
+  const meta = user?.user_metadata ?? {};
+
+  res.status(201).json({
+    comment: {
+      id:        data.id,
+      body:      data.body,
+      time_ago:  'agora',
+      created_at: data.created_at,
+      is_own:    true,
+      user: {
+        id:       req.userId,
+        name:     meta['full_name'] || user?.email?.split('@')[0] || 'Usuário',
+        username: meta['username'] || null,
+        avatar:   resolveAvatarUrl(meta['avatar_url']),
+      },
+    },
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/posts/:id/comments/:commentId — apaga comentário próprio
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete('/:id/comments/:commentId', requireAuth, async (req: AuthRequest, res: Response) => {
+  const commentId = req.params['commentId'];
+
+  const { data: existing } = await supabaseAdmin
+    .from('post_comments')
+    .select('user_id')
+    .eq('id', commentId)
+    .maybeSingle();
+
+  if (!existing) { res.status(404).json({ error: 'Comment not found.' }); return; }
+  if (existing.user_id !== req.userId) { res.status(403).json({ error: 'Not allowed.' }); return; }
+
+  await supabaseAdmin.from('post_comments').delete().eq('id', commentId);
+  res.status(204).send();
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
