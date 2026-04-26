@@ -429,7 +429,7 @@ export class ShareCardComponent implements AfterViewInit {
 
     const caption = this.showCaption() ? this.post().caption || '' : '';
     const workout = this.post().workout?.name || '';
-    const content = caption || workout || 'Treino concluído 💪';
+    const content = caption || workout || '';
     const contentY = hasPhoto ? photoY + photoH + 52 : photoY;
 
     ctx.fillStyle = '#FFF';
