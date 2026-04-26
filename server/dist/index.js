@@ -16,7 +16,19 @@ const users_route_1 = __importDefault(require("./routes/users.route"));
 const app = (0, express_1.default)();
 // ── Security & parsing ──────────────────────────────────────────────────────
 app.use((0, helmet_1.default)());
-app.use((0, cors_1.default)({ origin: ['http://localhost:4200', 'http://localhost:4201'] }));
+const allowedOrigins = [
+    'http://localhost:4200',
+    'http://localhost:4201',
+    ...(process.env['CORS_ORIGINS']?.split(',').map(o => o.trim()).filter(Boolean) ?? []),
+];
+app.use((0, cors_1.default)({
+    origin: (origin, cb) => {
+        // Permite requests sem Origin (curl, mobile webviews) e qualquer origem na whitelist
+        if (!origin || allowedOrigins.includes(origin))
+            return cb(null, true);
+        cb(new Error(`CORS blocked: ${origin}`));
+    },
+}));
 app.use(express_1.default.json({ limit: '1mb' }));
 // ── Routes ──────────────────────────────────────────────────────────────────
 app.use('/health', health_route_1.default);
