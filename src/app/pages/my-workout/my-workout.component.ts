@@ -456,10 +456,16 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                     <span>{{ todayWorkout()!.totalExercises }} exercícios</span>
                   </div>
                   @if (!workoutService.isFinishedToday(todayWorkout()!.id)) {
-                    <button (click)="startPlan(todayWorkout()!)"
-                            class="w-full py-3 rounded-xl bg-primary text-bg font-display font-bold text-[15px] shadow-glow hover:shadow-glow-lg active:scale-[0.98] transition-all">
-                      Iniciar treino de hoje
-                    </button>
+                    <div class="flex gap-2">
+                      <button (click)="previewWorkout.set(todayWorkout()!)"
+                              class="flex-none px-4 py-3 rounded-xl bg-card border border-border text-text-2 hover:text-white font-body font-semibold text-[13px] transition-all active:scale-[0.98]">
+                        Ver
+                      </button>
+                      <button (click)="startPlan(todayWorkout()!)"
+                              class="flex-1 py-3 rounded-xl bg-primary text-bg font-display font-bold text-[15px] shadow-glow hover:shadow-glow-lg active:scale-[0.98] transition-all">
+                        Iniciar treino de hoje
+                      </button>
+                    </div>
                   } @else {
                     <div class="w-full py-3 rounded-xl bg-primary/10 border border-primary/30 text-center text-primary font-body font-semibold text-[14px]">
                       Treino concluído ✓
@@ -497,16 +503,25 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                         <h4 class="text-[16px] font-display font-bold text-white">{{ w.name }}</h4>
                         <p class="text-[11px] font-body text-text-2 mt-0.5">{{ w.totalExercises }} exercícios · {{ w.estimatedDuration }} min</p>
                       </div>
-                      <button (click)="startPlan(w)"
-                              class="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-body font-semibold transition-all"
-                              [class]="isToday(w.dayIndex) && !workoutService.isFinishedToday(w.id)
-                                ? 'bg-primary text-bg border-primary shadow-glow-sm'
-                                : 'bg-card border-border text-text-2 hover:text-white'">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                          <polygon points="5 3 19 12 5 21 5 3"/>
-                        </svg>
-                        Iniciar
-                      </button>
+                      <div class="shrink-0 flex gap-1.5">
+                        <button (click)="previewWorkout.set(w)"
+                                class="flex items-center gap-1 px-3 py-2 rounded-xl border border-border bg-card text-text-2 hover:text-white text-[12px] font-body font-semibold transition-all active:scale-95">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                          </svg>
+                          Ver
+                        </button>
+                        <button (click)="startPlan(w)"
+                                class="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-body font-semibold transition-all active:scale-95"
+                                [class]="isToday(w.dayIndex) && !workoutService.isFinishedToday(w.id)
+                                  ? 'bg-primary text-bg border-primary shadow-glow-sm'
+                                  : 'bg-card border-border text-text-2 hover:text-white'">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                          </svg>
+                          Iniciar
+                        </button>
+                      </div>
                     </div>
                     <!-- Exercises preview -->
                     <div class="mt-3 space-y-1">
@@ -676,10 +691,19 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                       }
                     </div>
 
-                    <button (click)="startWorkout(w)"
-                            class="w-full py-2.5 rounded-xl bg-primary/15 border border-primary/30 text-primary font-body font-semibold text-[13px] hover:bg-primary/25 active:scale-[0.98] transition-all">
-                      Iniciar treino
-                    </button>
+                    <div class="flex gap-2">
+                      <button (click)="previewWorkout.set(w)"
+                              class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border bg-card text-text-2 hover:text-white text-[13px] font-body font-semibold transition-all active:scale-95">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Ver
+                      </button>
+                      <button (click)="startWorkout(w)"
+                              class="flex-1 py-2.5 rounded-xl bg-primary/15 border border-primary/30 text-primary font-body font-semibold text-[13px] hover:bg-primary/25 active:scale-[0.98] transition-all">
+                        Iniciar treino
+                      </button>
+                    </div>
                   </div>
                 </div>
               }
@@ -709,6 +733,51 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
       }
 
       <app-bottom-nav [active]="'my-workout'" />
+
+      <!-- Preview sheet -->
+      @if (previewWorkout()) {
+        <div class="fixed inset-0 z-50 flex flex-col justify-end max-w-[430px] mx-auto">
+          <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" (click)="previewWorkout.set(null)"></div>
+          <div class="relative bg-card border-t border-border rounded-t-2xl flex flex-col animate-slide-up"
+               style="max-height: 85dvh">
+            <!-- Handle + header -->
+            <div class="flex flex-col items-center pt-3 pb-0 shrink-0">
+              <div class="w-10 h-1 bg-border-2 rounded-full mb-3"></div>
+              <div class="w-full flex items-center justify-between px-5 pb-3 border-b border-border">
+                <div>
+                  <p class="text-[15px] font-display font-bold text-white">{{ previewWorkout()!.name }}</p>
+                  <p class="text-[11px] text-text-2 font-body mt-0.5">
+                    {{ previewWorkout()!.totalExercises }} exercícios · {{ previewWorkout()!.estimatedDuration }} min · {{ previewWorkout()!.difficulty }}
+                  </p>
+                </div>
+                <button (click)="previewWorkout.set(null)" class="text-text-2 hover:text-white transition-colors">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <!-- Exercise list -->
+            <div class="flex-1 overflow-y-auto px-4 py-4 space-y-2">
+              @for (ex of previewWorkout()!.exercises; track ex.id; let i = $index) {
+                <div class="flex items-center gap-3 bg-card-2 border border-border rounded-xl px-4 py-3">
+                  <span class="text-[11px] font-mono text-text-2 w-5 shrink-0">{{ i + 1 }}</span>
+                  <span class="flex-1 text-[14px] font-body text-white">{{ ex.name }}</span>
+                  <span class="text-[12px] font-mono text-primary shrink-0">{{ ex.sets }}× {{ ex.reps }}</span>
+                </div>
+              }
+            </div>
+            <!-- CTA -->
+            <div class="shrink-0 px-4 py-4 border-t border-border"
+                 style="padding-bottom: calc(16px + env(safe-area-inset-bottom))">
+              <button (click)="startPlan(previewWorkout()!); previewWorkout.set(null)"
+                      class="w-full py-3.5 rounded-xl bg-primary text-bg font-display font-bold text-[15px] shadow-glow hover:shadow-glow-lg active:scale-[0.98] transition-all">
+                Iniciar treino
+              </button>
+            </div>
+          </div>
+        </div>
+      }
     </div>
   `,
 })
@@ -722,9 +791,10 @@ export class MyWorkoutComponent implements OnInit {
   readonly levelOptions = LEVEL_OPTIONS;
   readonly daysOptions  = DAYS_OPTIONS;
 
-  step      = signal<Step>('goal');
-  wizard    = signal<WizardState>({ goal: null, level: null, days: null });
-  generated = signal<GeneratedWorkout[]>([]);
+  step           = signal<Step>('goal');
+  wizard         = signal<WizardState>({ goal: null, level: null, days: null });
+  generated      = signal<GeneratedWorkout[]>([]);
+  previewWorkout = signal<StoredPlan | GeneratedWorkout | null>(null);
 
   stepIndex = computed(() => this.stepKeys.indexOf(this.step() as any));
 
