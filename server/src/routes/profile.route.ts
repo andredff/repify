@@ -6,12 +6,14 @@ import { supabaseAdmin } from '../supabase';
 const router = Router();
 
 const ProfileSchema = z.object({
-  full_name: z.string().max(60).optional(),
-  username:  z.string().max(30).regex(/^[a-z0-9_.]*$/).optional(),
-  bio:       z.string().max(500).optional(),
-  weight:    z.number().min(20).max(400).nullable().optional(),
-  height:    z.number().min(50).max(300).nullable().optional(),
-  goal:      z.string().max(50).optional(),
+  full_name:     z.string().max(60).optional(),
+  username:      z.string().max(30).regex(/^[a-z0-9_.]*$/).optional(),
+  bio:           z.string().max(500).optional(),
+  weight:        z.number().min(20).max(400).nullable().optional(),
+  height:        z.number().min(50).max(300).nullable().optional(),
+  goal:          z.string().max(50).optional(),
+  yearly_goal:   z.number().int().min(1).max(999).nullable().optional(),
+  workouts_done: z.number().int().min(0).max(9999).nullable().optional(),
 });
 
 // GET /api/profile/me

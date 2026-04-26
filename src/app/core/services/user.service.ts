@@ -11,6 +11,8 @@ export interface PublicUser {
   avatar: string;
   goal: string;
   level: string;
+  yearly_goal: number | null;
+  workouts_done: number | null;
   created_at: string;
 }
 

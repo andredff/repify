@@ -17,6 +17,8 @@ interface PublicUser {
   avatar: string;
   level: string;
   goal: string;
+  yearly_goal: number | null;
+  workouts_done: number | null;
   isOwn: boolean;
 }
 
@@ -149,6 +151,23 @@ const GOAL_LABELS: Record<string, string> = {
                 </div>
               </div>
 
+              <!-- Meta anual -->
+              @if (publicUser()!.yearly_goal) {
+                <div class="mt-4 w-full max-w-[280px] space-y-1.5">
+                  <div class="flex justify-between items-center">
+                    <span class="text-[11px] font-body text-text-2">Meta anual</span>
+                    <span class="text-[11px] font-mono font-semibold text-primary">
+                      {{ publicUser()!.workouts_done ?? 0 }}/{{ publicUser()!.yearly_goal }} treinos
+                    </span>
+                  </div>
+                  <div class="h-1.5 bg-border rounded-full overflow-hidden">
+                    <div class="h-full bg-primary rounded-full transition-all duration-500"
+                         [style.width]="yearlyGoalPct() + '%'"></div>
+                  </div>
+                  <p class="text-[10px] text-text-2 font-body text-right">{{ yearlyGoalPct() }}% concluído</p>
+                </div>
+              }
+
               <!-- Follow / Message (only if not own profile) -->
               @if (!publicUser()!.isOwn) {
                 <div class="flex gap-2 mt-4 w-full max-w-[280px]">
@@ -248,6 +267,13 @@ export class PublicProfileComponent implements OnInit {
 
   goalLabel = computed(() => GOAL_LABELS[this.publicUser()?.goal ?? ''] ?? '');
 
+  yearlyGoalPct = computed(() => {
+    const done = Number(this.publicUser()?.workouts_done ?? 0);
+    const goal = Number(this.publicUser()?.yearly_goal  ?? 0);
+    if (!goal) return 0;
+    return Math.min(Math.round((done / goal) * 100), 100);
+  });
+
   levelBadgeClass(): string {
     const level = this.publicUser()?.level ?? '';
     if (level === 'Elite') return 'bg-primary/15 text-primary border-primary/30';
@@ -287,14 +313,16 @@ export class PublicProfileComponent implements OnInit {
 
     if (isOwn && me) {
       this.publicUser.set({
-        id:       me.id,
-        name:     myMeta.full_name || me.email?.split('@')[0] || 'Você',
-        username: myMeta.username,
-        bio:      myMeta.bio,
-        avatar:   this.auth.avatarUrl(),
-        level:    'Elite',
-        goal:     myMeta.goal,
-        isOwn:    true,
+        id:           me.id,
+        name:         myMeta.full_name || me.email?.split('@')[0] || 'Você',
+        username:     myMeta.username,
+        bio:          myMeta.bio,
+        avatar:       this.auth.avatarUrl(),
+        level:        'Elite',
+        goal:         myMeta.goal,
+        yearly_goal:  myMeta.yearly_goal,
+        workouts_done:myMeta.workouts_done,
+        isOwn:        true,
       });
 
       try {
@@ -319,14 +347,16 @@ export class PublicProfileComponent implements OnInit {
       }
 
       this.publicUser.set({
-        id:       found.id,
-        name:     found.name,
-        username: found.username ?? '',
-        bio:      found.bio,
-        avatar:   found.avatar,
-        level:    found.level,
-        goal:     found.goal,
-        isOwn:    false,
+        id:           found.id,
+        name:         found.name,
+        username:     found.username ?? '',
+        bio:          found.bio,
+        avatar:       found.avatar,
+        level:        found.level,
+        goal:         found.goal,
+        yearly_goal:  found.yearly_goal,
+        workouts_done:found.workouts_done,
+        isOwn:        false,
       });
 
       try {

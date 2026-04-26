@@ -1,7 +1,9 @@
 import { Component, inject, input, output, signal, computed, effect } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 import { AuthService } from '../../../core/services/auth.service';
+import { PostService } from '../../../core/services/post.service';
 import { CommentsSheetComponent } from './comments-sheet.component';
 import { ShareCardComponent } from './share-card.component';
 
@@ -21,7 +23,7 @@ const MUSCLE_COLORS: Record<string, string> = {
 @Component({
   selector: 'app-workout-post',
   standalone: true,
-  imports: [CommentsSheetComponent, ShareCardComponent],
+  imports: [CommentsSheetComponent, ShareCardComponent, FormsModule],
   template: `
     <article class="bg-card-2 border border-border rounded-2xl overflow-hidden shadow-card card-hover">
 
@@ -59,6 +61,11 @@ const MUSCLE_COLORS: Record<string, string> = {
               @if (post().streak) {
                 <span class="text-[11px] text-text-2 font-body">· 🔥 {{ post().streak }} dias</span>
               }
+              @if (post().user.yearlyGoal) {
+                <span class="text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+                  {{ post().user.workoutsDone ?? 0 }}/{{ post().user.yearlyGoal }}
+                </span>
+              }
             </div>
           </div>
         </div>
@@ -76,6 +83,13 @@ const MUSCLE_COLORS: Record<string, string> = {
 
             <div class="absolute right-0 top-7 z-20 bg-card border border-border rounded-xl shadow-card overflow-hidden min-w-[140px] animate-fade-in">
               @if (isOwner()) {
+                <button (click)="openEdit()"
+                        class="flex items-center gap-2.5 w-full px-4 py-3 text-left text-[13px] font-body text-text-2 hover:bg-card-2 transition-colors">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                  Editar
+                </button>
                 <button (click)="confirmDelete()"
                         class="flex items-center gap-2.5 w-full px-4 py-3 text-left text-[13px] font-body text-danger hover:bg-danger/10 transition-colors">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -186,6 +200,33 @@ const MUSCLE_COLORS: Record<string, string> = {
     @if (showShareCard()) {
       <app-share-card [post]="post()" (onClose)="showShareCard.set(false)" />
     }
+
+    @if (editing()) {
+      <div class="fixed inset-0 z-[60] flex items-center justify-center px-5 max-w-[430px] mx-auto"
+           style="background:rgba(8,12,16,0.85)" (click)="editing.set(false)">
+        <div class="w-full bg-card border border-border rounded-2xl p-5 animate-slide-up" (click)="$event.stopPropagation()">
+          <p class="text-[15px] font-display font-bold text-white mb-3">Editar descrição</p>
+          <textarea [(ngModel)]="editDraft"
+                    rows="4"
+                    maxlength="500"
+                    placeholder="Descrição do post..."
+                    class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[13px] font-body text-white placeholder:text-muted outline-none resize-none focus:border-primary/50 transition-colors leading-relaxed">
+          </textarea>
+          <p class="text-[10px] text-text-2 text-right mt-1 mb-4">{{ editDraft.length }}/500</p>
+          <div class="flex gap-3">
+            <button (click)="editing.set(false)"
+                    class="flex-1 py-2.5 rounded-xl border border-border text-[13px] font-body text-text-2 hover:text-white transition-colors">
+              Cancelar
+            </button>
+            <button (click)="saveEdit()"
+                    [disabled]="editSaving()"
+                    class="flex-1 py-2.5 rounded-xl bg-primary text-bg text-[13px] font-body font-semibold shadow-glow-sm active:scale-[0.98] transition-all disabled:opacity-60">
+              {{ editSaving() ? 'Salvando...' : 'Salvar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   `,
 })
 export class WorkoutPostComponent {
@@ -193,14 +234,18 @@ export class WorkoutPostComponent {
   onLike   = output<void>();
   onDelete = output<void>();
 
-  private router = inject(Router);
-  private auth   = inject(AuthService);
+  private router      = inject(Router);
+  private auth        = inject(AuthService);
+  private postService = inject(PostService);
 
   menuOpen         = signal(false);
   confirmingDelete = signal(false);
   showComments     = signal(false);
   showShareCard    = signal(false);
   localComments    = signal(0);
+  editing          = signal(false);
+  editSaving       = signal(false);
+  editDraft        = '';
 
   constructor() {
     effect(() => this.localComments.set(this.post().comments));
@@ -219,6 +264,23 @@ export class WorkoutPostComponent {
   confirmDelete(): void {
     this.menuOpen.set(false);
     this.confirmingDelete.set(true);
+  }
+
+  openEdit(): void {
+    this.editDraft = this.post().caption ?? '';
+    this.menuOpen.set(false);
+    this.editing.set(true);
+  }
+
+  async saveEdit(): Promise<void> {
+    if (this.editSaving()) return;
+    this.editSaving.set(true);
+    try {
+      await this.postService.updateCaption(this.post().id, this.editDraft);
+      (this.post() as any).caption = this.editDraft;
+      this.editing.set(false);
+    } catch { /* silent */ }
+    finally { this.editSaving.set(false); }
   }
 
   goToProfile(): void {

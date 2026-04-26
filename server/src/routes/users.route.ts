@@ -13,6 +13,8 @@ interface PublicUser {
   avatar: string;
   goal: string;
   level: string;
+  yearly_goal: number | null;
+  workouts_done: number | null;
   created_at: string;
 }
 
@@ -84,15 +86,17 @@ router.get('/:handle', requireAuth, async (req: AuthRequest, res: Response) => {
 function toPublicUser(u: any): PublicUser {
   const meta = u.user_metadata ?? {};
   return {
-    id:         u.id,
-    email:      u.email ?? '',
-    name:       meta['full_name'] || u.email?.split('@')[0] || 'Usuário',
-    username:   meta['username']  || null,
-    bio:        meta['bio']       || '',
-    avatar:     resolveAvatarUrl(meta['avatar_url']),
-    goal:       meta['goal']      || '',
-    level:      'Elite',
-    created_at: u.created_at,
+    id:           u.id,
+    email:        u.email ?? '',
+    name:         meta['full_name'] || u.email?.split('@')[0] || 'Usuário',
+    username:     meta['username']  || null,
+    bio:          meta['bio']       || '',
+    avatar:       resolveAvatarUrl(meta['avatar_url']),
+    goal:         meta['goal']      || '',
+    level:        'Elite',
+    yearly_goal:  meta['yearly_goal']   ?? null,
+    workouts_done:meta['workouts_done'] ?? null,
+    created_at:   u.created_at,
   };
 }
 

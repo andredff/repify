@@ -10,6 +10,8 @@ export interface UserProfile {
   height: number | null;
   goal: string;
   avatar_url: string;
+  yearly_goal: number | null;
+  workouts_done: number | null;
 }
 
 const AVATAR_BUCKET = 'avatars';
@@ -29,13 +31,15 @@ export class AuthService {
   readonly profile = computed<UserProfile>(() => {
     const meta = this._session()?.user?.user_metadata ?? {};
     return {
-      full_name:  meta['full_name']  ?? '',
-      username:   meta['username']   ?? '',
-      bio:        meta['bio']        ?? '',
-      weight:     meta['weight']     ?? null,
-      height:     meta['height']     ?? null,
-      goal:       meta['goal']       ?? '',
-      avatar_url: meta['avatar_url'] ?? '',
+      full_name:    meta['full_name']    ?? '',
+      username:     meta['username']     ?? '',
+      bio:          meta['bio']          ?? '',
+      weight:       meta['weight']       ?? null,
+      height:       meta['height']       ?? null,
+      goal:         meta['goal']         ?? '',
+      avatar_url:   meta['avatar_url']   ?? '',
+      yearly_goal:  meta['yearly_goal']  ?? null,
+      workouts_done:meta['workouts_done']?? null,
     };
   });
 

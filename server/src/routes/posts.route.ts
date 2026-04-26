@@ -134,6 +134,25 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/posts/:id — editar descrição (dono apenas)
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  const id      = req.params['id'];
+  const caption = (req.body?.caption ?? '').toString().trim().slice(0, 500);
+
+  const { data: existing, error: fetchErr } = await supabaseAdmin
+    .from('posts').select('user_id').eq('id', id).maybeSingle();
+
+  if (fetchErr || !existing) { res.status(404).json({ error: 'Post not found.' }); return; }
+  if (existing.user_id !== req.userId) { res.status(403).json({ error: 'Not allowed.' }); return; }
+
+  const { error } = await supabaseAdmin.from('posts').update({ caption }).eq('id', id);
+  if (error) { res.status(500).json({ error: 'Failed to update post.' }); return; }
+
+  res.json({ caption });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/posts/:id/like — toggle like
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/:id/like', requireAuth, async (req: AuthRequest, res: Response) => {
@@ -328,11 +347,13 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
       created_at:  p.created_at,
       time_ago:    timeAgo(p.created_at),
       user: {
-        id:        p.user_id,
-        name:      meta['full_name'] || u?.email?.split('@')[0] || 'Usuário',
-        username:  meta['username']  || null,
-        avatar:    resolveAvatarUrl(meta['avatar_url']),
-        level:     'Elite',
+        id:           p.user_id,
+        name:         meta['full_name'] || u?.email?.split('@')[0] || 'Usuário',
+        username:     meta['username']  || null,
+        avatar:       resolveAvatarUrl(meta['avatar_url']),
+        level:        'Elite',
+        yearly_goal:  meta['yearly_goal']   ?? null,
+        workouts_done:meta['workouts_done'] ?? null,
       },
     };
   });

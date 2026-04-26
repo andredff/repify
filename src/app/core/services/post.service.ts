@@ -26,6 +26,8 @@ interface ApiPost {
     username: string | null;
     avatar: string;
     level: string;
+    yearly_goal: number | null;
+    workouts_done: number | null;
   };
 }
 
@@ -91,6 +93,15 @@ export class PostService {
     return this.mapApiToPost(post);
   }
 
+  async updateCaption(postId: string, caption: string): Promise<void> {
+    const res = await this.fetch(`/api/posts/${encodeURIComponent(postId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ caption }),
+    });
+    if (!res.ok) throw new Error('Falha ao editar post.');
+  }
+
   async deletePost(postId: string): Promise<void> {
     const res = await this.fetch(`/api/posts/${encodeURIComponent(postId)}`, { method: 'DELETE' });
     if (!res.ok && res.status !== 204) {
@@ -119,11 +130,13 @@ export class PostService {
   private mapApiToPost = (p: ApiPost): WorkoutPost => ({
     id:       p.id,
     user: {
-      id:       p.user.id,
-      name:     p.user.name,
-      username: p.user.username ?? undefined,
-      avatar:   p.user.avatar,
-      level:    p.user.level,
+      id:          p.user.id,
+      name:        p.user.name,
+      username:    p.user.username ?? undefined,
+      avatar:      p.user.avatar,
+      level:       p.user.level,
+      yearlyGoal:  p.user.yearly_goal ?? null,
+      workoutsDone:p.user.workouts_done ?? null,
     },
     timeAgo:  p.time_ago,
     caption:  p.caption ?? undefined,

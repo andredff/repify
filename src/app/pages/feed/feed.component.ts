@@ -57,6 +57,23 @@ export type { WorkoutPost };
 
         <app-stories-bar />
 
+        @if (auth.profile().yearly_goal) {
+          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.03s">
+            <div class="bg-card-2 border border-border rounded-xl px-4 py-3 space-y-1.5">
+              <div class="flex justify-between items-center">
+                <span class="text-[11px] font-body text-text-2">Meta anual de treinos</span>
+                <span class="text-[11px] font-mono font-semibold text-primary">
+                  {{ auth.profile().workouts_done ?? 0 }}/{{ auth.profile().yearly_goal }}
+                </span>
+              </div>
+              <div class="h-1.5 bg-border rounded-full overflow-hidden">
+                <div class="h-full bg-primary rounded-full transition-all duration-500"
+                     [style.width]="yearlyGoalPct() + '%'"></div>
+              </div>
+            </div>
+          </div>
+        }
+
         <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
           <app-check-in-card />
         </div>
@@ -128,14 +145,20 @@ export type { WorkoutPost };
   `,
 })
 export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
-  private auth        = inject(AuthService);
+  auth                = inject(AuthService);
   router              = inject(Router);
   private postService = inject(PostService);
   workoutService      = inject(WorkoutService);
 
   @ViewChild('mainScroll') private mainScrollRef!: ElementRef<HTMLElement>;
 
-  userEmail    = computed(() => this.auth.user()?.email ?? '');
+  userEmail      = computed(() => this.auth.user()?.email ?? '');
+  yearlyGoalPct  = computed(() => {
+    const done = Number(this.auth.profile().workouts_done ?? 0);
+    const goal = Number(this.auth.profile().yearly_goal  ?? 0);
+    if (!goal) return 0;
+    return Math.min(Math.round((done / goal) * 100), 100);
+  });
   showNewPost  = signal(false);
   todayWorkout = computed(() => this.workoutService.todayWorkout());
 

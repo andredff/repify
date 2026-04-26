@@ -159,6 +159,23 @@ const MAX_SIZE_MB   = 5;
             </div>
           </div>
 
+          <!-- Meta anual (hero) -->
+          @if (auth.profile().yearly_goal) {
+            <div class="mt-4 w-full z-10 px-2 space-y-1.5">
+              <div class="flex justify-between items-center">
+                <span class="text-[11px] font-body text-text-2">Meta anual</span>
+                <span class="text-[11px] font-mono font-semibold text-primary">
+                  {{ auth.profile().workouts_done ?? 0 }} / {{ auth.profile().yearly_goal }} treinos
+                </span>
+              </div>
+              <div class="h-1.5 bg-border rounded-full overflow-hidden">
+                <div class="h-full bg-primary rounded-full transition-all duration-500"
+                     [style.width]="heroProgressPct() + '%'"></div>
+              </div>
+              <p class="text-[10px] text-text-2 font-body text-right">{{ heroProgressPct() }}% concluído</p>
+            </div>
+          }
+
           <!-- Avatar hint -->
           <p class="mt-3 text-[10px] text-text-2 font-body z-10">
             JPG, PNG ou WEBP · máx {{ MAX_SIZE_MB }}MB
@@ -261,6 +278,53 @@ const MAX_SIZE_MB   = 5;
                   <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">cm</span>
                 </div>
               </div>
+            </div>
+
+            <!-- Meta anual -->
+            <div class="bg-card-2 border border-border rounded-2xl p-4 space-y-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-[13px] font-body font-semibold text-white">Meta anual de treinos</p>
+                  <p class="text-[11px] text-text-2 font-body">Progresso exibido nas suas postagens</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Meta do ano</label>
+                  <div class="relative">
+                    <input type="number" formControlName="yearly_goal" placeholder="100" min="1" max="999"
+                           class="w-full bg-card border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted focus:border-primary/60 pr-16" />
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">treinos</span>
+                  </div>
+                </div>
+                <div class="space-y-1.5">
+                  <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Já realizados</label>
+                  <div class="relative">
+                    <input type="number" formControlName="workouts_done" placeholder="0" min="0" max="9999"
+                           class="w-full bg-card border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted focus:border-primary/60 pr-16" />
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">treinos</span>
+                  </div>
+                </div>
+              </div>
+              @if (profileForm.get('yearly_goal')?.value && profileForm.get('workouts_done')?.value != null) {
+                <div class="space-y-1">
+                  <div class="flex justify-between text-[11px] font-body">
+                    <span class="text-text-2">Progresso</span>
+                    <span class="text-primary font-semibold">
+                      {{ profileForm.get('workouts_done')?.value }} / {{ profileForm.get('yearly_goal')?.value }}
+                    </span>
+                  </div>
+                  <div class="h-1.5 bg-border rounded-full overflow-hidden">
+                    <div class="h-full bg-primary rounded-full transition-all"
+                         [style.width]="progressPct() + '%'"></div>
+                  </div>
+                </div>
+              }
             </div>
 
             <div class="space-y-1.5">
@@ -505,15 +569,31 @@ export class ProfileComponent implements OnInit {
   strengthTextColor = computed(() => ['text-danger','text-danger','text-yellow-400','text-secondary','text-primary'][this.passwordStrength()]);
   strengthLabel     = computed(() => ['Muito fraca','Fraca','Média','Forte','Muito forte'][this.passwordStrength()] ?? '');
 
+  heroProgressPct = computed(() => {
+    const done = Number(this.auth.profile().workouts_done ?? 0);
+    const goal = Number(this.auth.profile().yearly_goal ?? 0);
+    if (!goal) return 0;
+    return Math.min(Math.round((done / goal) * 100), 100);
+  });
+
+  progressPct = computed(() => {
+    const done = Number(this.profileForm?.get('workouts_done')?.value);
+    const goal = Number(this.profileForm?.get('yearly_goal')?.value);
+    if (!goal || !done) return 0;
+    return Math.min(Math.round((done / goal) * 100), 100);
+  });
+
   ngOnInit(): void {
     const p = this.auth.profile();
     this.profileForm = this.fb.group({
-      full_name: [p.full_name, [Validators.maxLength(60)]],
-      username:  [p.username,  [Validators.maxLength(30), Validators.pattern(/^[a-z0-9_.]*$/)]],
-      bio:       [p.bio,       [Validators.maxLength(120)]],
-      goal:      [p.goal],
-      weight:    [p.weight,    [Validators.min(20), Validators.max(400)]],
-      height:    [p.height,    [Validators.min(50), Validators.max(300)]],
+      full_name:    [p.full_name,    [Validators.maxLength(60)]],
+      username:     [p.username,     [Validators.maxLength(30), Validators.pattern(/^[a-z0-9_.]*$/)]],
+      bio:          [p.bio,          [Validators.maxLength(120)]],
+      goal:         [p.goal],
+      weight:       [p.weight,       [Validators.min(20), Validators.max(400)]],
+      height:       [p.height,       [Validators.min(50), Validators.max(300)]],
+      yearly_goal:  [p.yearly_goal,  [Validators.min(1), Validators.max(999)]],
+      workouts_done:[p.workouts_done,[Validators.min(0), Validators.max(9999)]],
     });
     this.emailForm = this.fb.group({
       newEmail: ['', [Validators.required, Validators.email]],
