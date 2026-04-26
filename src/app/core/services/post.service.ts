@@ -146,3 +146,4 @@ export class PostService {
     comments: p.comments,
     liked:    p.liked,
   });
+}
