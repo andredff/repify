@@ -76,8 +76,8 @@ const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                 <div class="h-full bg-primary rounded-full animate-bar-grow" style="width:100%"></div>
               }
             </div>
-            <span class="text-[9px] font-body"
-                  [class]="day.today ? 'text-primary font-semibold' : (day.done ? 'text-text-2' : 'text-border-2')">
+            <span class="text-[8px] font-body"
+                  [class]="day.today ? 'text-primary font-semibold' : (day.done ? 'text-text-2' : 'text-text-2/50')">
               {{ day.short }}
             </span>
           </div>
