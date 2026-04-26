@@ -355,6 +355,32 @@ const MAX_SIZE_MB   = 5;
               </form>
             </div>
 
+            <!-- Convidar amigos -->
+            <div class="bg-card-2 border border-border rounded-2xl p-4">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                    <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
+                  </svg>
+                </div>
+                <div>
+                  <p class="text-[13px] font-body font-semibold text-white">Convidar amigos</p>
+                  <p class="text-[11px] text-text-2 font-body">Chame seus amigos para treinar juntos 💪</p>
+                </div>
+              </div>
+              <div class="flex gap-2">
+                <div class="flex-1 bg-card border border-border rounded-xl px-3 py-2 text-[11px] font-mono text-text-2 truncate flex items-center">
+                  {{ inviteUrl }}
+                </div>
+                <button (click)="shareInvite()"
+                        class="px-4 py-2 rounded-xl text-[12px] font-body font-semibold transition-all active:scale-95"
+                        [class]="copied() ? 'bg-primary/20 border border-primary/40 text-primary' : 'bg-primary text-bg shadow-glow-sm'">
+                  {{ copied() ? 'Copiado!' : 'Convidar' }}
+                </button>
+              </div>
+            </div>
+
             <div class="bg-danger/5 border border-danger/20 rounded-2xl p-4">
               <p class="text-[12px] font-body font-semibold text-danger mb-1">Zona de perigo</p>
               <p class="text-[11px] text-text-2 font-body mb-3">Esta ação é irreversível e apagará todos os seus dados.</p>
@@ -378,6 +404,8 @@ export class ProfileComponent implements OnInit {
   private fb = inject(FormBuilder);
 
   readonly MAX_SIZE_MB = MAX_SIZE_MB;
+  readonly inviteUrl   = 'https://repify.com.br';
+  copied = signal(false);
 
   activeTab = signal<ActiveTab>('info');
 
@@ -566,6 +594,19 @@ export class ProfileComponent implements OnInit {
     } finally {
       this.passwordLoading.set(false);
     }
+  }
+
+  async shareInvite(): Promise<void> {
+    const text = 'Treine, evolua e compartilhe sua jornada fitness no Repify! 💪';
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Repify', text, url: this.inviteUrl });
+        return;
+      } catch { /* usuário cancelou */ }
+    }
+    await navigator.clipboard.writeText(this.inviteUrl);
+    this.copied.set(true);
+    setTimeout(() => this.copied.set(false), 2500);
   }
 
   async logout(): Promise<void> {
