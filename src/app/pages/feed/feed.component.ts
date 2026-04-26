@@ -58,7 +58,7 @@ export type { WorkoutPost };
         <app-stories-bar />
 
         <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
-          <app-check-in-card [checkedIn]="checkedIn()" (onCheckIn)="doCheckIn()" />
+          <app-check-in-card />
         </div>
 
         @if (!workoutService.hasProgram()) {
@@ -136,7 +136,6 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mainScroll') private mainScrollRef!: ElementRef<HTMLElement>;
 
   userEmail    = computed(() => this.auth.user()?.email ?? '');
-  checkedIn    = signal(false);
   showNewPost  = signal(false);
   todayWorkout = computed(() => this.workoutService.todayWorkout());
 
@@ -251,9 +250,6 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showNewPost.set(false);
   }
 
-  doCheckIn(): void {
-    this.checkedIn.set(true);
-  }
 
   async toggleLike(postId: string): Promise<void> {
     // Optimistic toggle
