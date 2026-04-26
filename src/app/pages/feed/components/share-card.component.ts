@@ -179,9 +179,9 @@ export class ShareCardComponent implements AfterViewInit {
     // icon ghost bottom-right
     try {
       const icon = await this.loadImage('/icon.png');
-      const iS = Math.round(W * 0.38);
+      const iS = Math.round(W * 0.72);
       ctx.globalAlpha = 0.055;
-      ctx.drawImage(icon, W - iS + Math.round(iS * 0.18), H - iS + Math.round(iS * 0.18), iS, iS);
+      ctx.drawImage(icon, W - iS + Math.round(iS * 0.22), H - iS + Math.round(iS * 0.22), iS, iS);
       ctx.globalAlpha = 1;
     } catch { ctx.globalAlpha = 1; }
   }
