@@ -1,5 +1,6 @@
 import { Component, input, output, signal, ViewChild, ElementRef, AfterViewInit, effect } from '@angular/core';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
+import { PostService } from '../../../core/services/post.service';
 
 type CardMode = 'post' | 'story';
 
@@ -79,7 +80,7 @@ type CardMode = 'post' | 'story';
               </button>
             </div>
 
-            @if (post().user.yearlyGoal) {
+             @if (post().user.yearlyGoal) {
               <div class="flex items-center justify-between px-4 py-3">
                 <div>
                   <span class="text-[12px] font-body text-white">Meta anual</span>
@@ -92,6 +93,18 @@ type CardMode = 'post' | 'story';
                         [class]="showGoal() ? 'bg-primary' : 'bg-border'">
                   <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
                         [class]="showGoal() ? 'translate-x-5' : 'translate-x-0'"></span>
+                </button>
+              </div>
+            }
+
+            @if (post().caption) {
+              <div class="flex items-center justify-between px-4 py-3">
+                <span class="text-[12px] font-body text-white">Mostrar texto</span>
+                <button type="button" (click)="toggle('caption')"
+                        class="relative w-10 h-5 rounded-full transition-colors duration-200"
+                        [class]="showCaption() ? 'bg-primary' : 'bg-border'">
+                  <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                        [class]="showCaption() ? 'translate-x-5' : 'translate-x-0'"></span>
                 </button>
               </div>
             }
@@ -110,6 +123,9 @@ type CardMode = 'post' | 'story';
               @if (generating()) {
                 <div class="w-4 h-4 rounded-full border-2 border-bg border-t-transparent animate-spin"></div>
                 Gerando...
+              } @else if (copying()) {
+                <div class="w-4 h-4 rounded-full border-2 border-bg border-t-transparent animate-spin"></div>
+                Criando link...
               } @else {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
@@ -138,12 +154,15 @@ export class ShareCardComponent implements AfterViewInit {
   showPhoto = signal(true);
   showUser  = signal(true);
   showGoal  = signal(true);
+  showCaption = signal(true);
+
+  copying    = signal(false);
 
   private redrawPending = false;
 
-  constructor() {
+  constructor(private postService: PostService) {
     effect(() => {
-      // track all toggles + mode — redraw when any changes
+      // track all toggles + mode — redraw quando qualquer coisa muda
       this.showPhoto(); this.showUser(); this.showGoal(); this.mode();
       if (this.redrawPending) return;
       this.redrawPending = true;
@@ -162,10 +181,11 @@ export class ShareCardComponent implements AfterViewInit {
 
   setMode(m: CardMode): void { this.mode.set(m); }
 
-  toggle(opt: 'photo' | 'user' | 'goal'): void {
+  toggle(opt: 'photo' | 'user' | 'goal' | 'caption'): void {
     if (opt === 'photo') this.showPhoto.update(v => !v);
     if (opt === 'user')  this.showUser.update(v => !v);
     if (opt === 'goal')  this.showGoal.update(v => !v);
+    if (opt === 'caption') this.showCaption.update(v => !v);
   }
 
   // ── Shared helpers ──────────────────────────────────────────────────────────
@@ -356,7 +376,7 @@ export class ShareCardComponent implements AfterViewInit {
       ? await this.drawPhoto(ctx, M, photoY, photoSize, photoSize, 24)
       : false;
 
-    const caption = this.post().caption || '';
+    const caption = this.showCaption() ? this.post().caption || '' : '';
     const workout = this.post().workout?.name || '';
     const content = caption || workout || 'Treino concluído 💪';
     const contentY = hasPhoto ? photoY + photoSize + 52 : photoY;
@@ -407,7 +427,7 @@ export class ShareCardComponent implements AfterViewInit {
       ? await this.drawPhoto(ctx, M, photoY, photoW, photoH, 28)
       : false;
 
-    const caption = this.post().caption || '';
+    const caption = this.showCaption() ? this.post().caption || '' : '';
     const workout = this.post().workout?.name || '';
     const content = caption || workout || 'Treino concluído 💪';
     const contentY = hasPhoto ? photoY + photoH + 52 : photoY;
@@ -454,15 +474,26 @@ export class ShareCardComponent implements AfterViewInit {
       const filename = this.mode() === 'story' ? 'repify-story.png' : 'repify-post.png';
       const file = new File([blob], filename, { type: 'image/png' });
 
+      // Gera shortlink para compartilhamento
+      this.copying.set(true);
+      const shortlink = await this.postService.getShortlink(this.post().id);
+      const shareUrl = shortlink || `${window.location.origin}/post/${this.post().id}`;
+      const shareText = `Confira minha publicação no Repify! 💪 ${shareUrl}`;
+
+      this.copying.set(false);
+      this.generating.set(false);
+
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Repify', text: `Confira minha publicação no Repify! 💪 repify.com.br` });
+        await navigator.share({ files: [file], title: 'Repify', text: shareText });
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url; a.download = filename; a.click();
         URL.revokeObjectURL(url);
+        // Copia o link para a área de transferência
+        try { await navigator.clipboard.writeText(shareText); } catch {}
       }
     } catch { /* cancelled */ }
-    finally { this.generating.set(false); }
+    finally { this.generating.set(false); this.copying.set(false); }
   }
 }

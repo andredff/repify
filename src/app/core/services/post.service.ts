@@ -116,6 +116,28 @@ export class PostService {
     return data.liked as boolean;
   }
 
+  async getById(postId: string): Promise<WorkoutPost | null> {
+    const res = await this.fetch(`/api/posts/${encodeURIComponent(postId)}`);
+    if (!res.ok) return null;
+    const { post } = await res.json();
+    return this.mapApiToPost(post);
+  }
+
+  // ─── Shortlink ──────────────────────────────────────────────────────────────
+
+  async getShortlink(postId: string): Promise<string | null> {
+    try {
+      const res = await this.fetch(`/api/posts/${encodeURIComponent(postId)}/shortlink`, {
+        method: 'POST',
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data.shortlink || null;
+    } catch {
+      return null;
+    }
+  }
+
   // ─── Internals ─────────────────────────────────────────────────────────────
 
   private async fetch(path: string, init: RequestInit = {}): Promise<Response> {
