@@ -147,8 +147,9 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   pullHeight = signal(0);
   pullRotation = computed(() => Math.min((this.pullHeight() / 70) * 180, 180));
 
-  private touchStartY = 0;
-  private pulling     = false;
+  private touchStartY  = 0;
+  private pulling      = false;
+  private pullLocked   = false; // true once we confirmed downward drag from top
   private readonly THRESHOLD = 70;
 
   ngOnInit(): void {
@@ -160,37 +161,49 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     el.addEventListener('touchstart', this.onTouchStart, { passive: true });
     el.addEventListener('touchmove',  this.onTouchMove,  { passive: false });
     el.addEventListener('touchend',   this.onTouchEnd,   { passive: true });
+    el.addEventListener('touchcancel', this.onTouchEnd,  { passive: true });
   }
 
   ngOnDestroy(): void {
     const el = this.mainScrollRef?.nativeElement;
     if (!el) return;
-    el.removeEventListener('touchstart', this.onTouchStart);
-    el.removeEventListener('touchmove',  this.onTouchMove);
-    el.removeEventListener('touchend',   this.onTouchEnd);
+    el.removeEventListener('touchstart',  this.onTouchStart);
+    el.removeEventListener('touchmove',   this.onTouchMove);
+    el.removeEventListener('touchend',    this.onTouchEnd);
+    el.removeEventListener('touchcancel', this.onTouchEnd);
   }
 
   private onTouchStart = (e: TouchEvent): void => {
-    const el = this.mainScrollRef.nativeElement;
-    if (el.scrollTop === 0) {
-      this.touchStartY = e.touches[0].clientY;
-      this.pulling = true;
-    }
+    this.touchStartY = e.touches[0].clientY;
+    this.pulling     = false;
+    this.pullLocked  = false;
   };
 
   private onTouchMove = (e: TouchEvent): void => {
-    if (!this.pulling || this.refreshing()) return;
+    if (this.refreshing()) return;
+
+    const el = this.mainScrollRef.nativeElement;
     const dy = e.touches[0].clientY - this.touchStartY;
-    if (dy <= 0) { this.pulling = false; return; }
+
+    // Only engage pull-to-refresh when scroll is truly at top AND moving down
+    if (!this.pullLocked) {
+      if (el.scrollTop > 0 || dy <= 0) return; // let native scroll handle it
+      this.pullLocked = true;
+      this.pulling    = true;
+    }
+
+    if (!this.pulling) return;
+
+    // Prevent native scroll only while we own the gesture
     e.preventDefault();
-    // resistance curve: slows down after threshold
     const height = Math.min(dy * 0.45, this.THRESHOLD + 10);
-    this.pullHeight.set(height);
+    this.pullHeight.set(Math.max(0, height));
   };
 
   private onTouchEnd = (): void => {
     if (!this.pulling) return;
-    this.pulling = false;
+    this.pulling    = false;
+    this.pullLocked = false;
     if (this.pullHeight() >= this.THRESHOLD) {
       this.triggerRefresh();
     } else {

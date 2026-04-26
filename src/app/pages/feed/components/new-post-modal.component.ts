@@ -19,34 +19,25 @@ interface WorkoutOption {
   standalone: true,
   imports: [FormsModule],
   template: `
-    <div class="fixed inset-0 z-50 flex items-end justify-center"
-         (click)="onBackdrop($event)">
+    <div class="fixed inset-0 z-50 flex flex-col max-w-[430px] mx-auto bg-card animate-slide-up">
 
-      <div class="relative w-full max-w-[430px] bg-card border-t border-border rounded-t-3xl overflow-hidden animate-slide-up"
-           style="max-height:92dvh"
-           (click)="$event.stopPropagation()">
+      <!-- Header -->
+      <div class="flex items-center justify-between px-5 border-b border-border shrink-0"
+           style="padding-top: calc(env(safe-area-inset-top) + 12px); padding-bottom: 12px">
+        <button (click)="onClose.emit()" class="text-text-2 hover:text-white transition-colors text-[13px] font-body">
+          Cancelar
+        </button>
+        <p class="text-[14px] font-body font-semibold text-white">Novo post</p>
+        <button
+          (click)="publish()"
+          [disabled]="!canPublish() || publishing()"
+          class="text-[13px] font-body font-semibold text-primary transition-colors disabled:opacity-30">
+          Publicar
+        </button>
+      </div>
 
-        <!-- Handle bar -->
-        <div class="flex justify-center pt-3 pb-1">
-          <div class="w-10 h-1 bg-border-2 rounded-full"></div>
-        </div>
-
-        <!-- Header -->
-        <div class="flex items-center justify-between px-5 py-3 border-b border-border">
-          <button (click)="onClose.emit()" class="text-text-2 hover:text-white transition-colors text-[13px] font-body">
-            Cancelar
-          </button>
-          <p class="text-[14px] font-body font-semibold text-white">Novo post</p>
-          <button
-            (click)="publish()"
-            [disabled]="!canPublish() || publishing()"
-            class="text-[13px] font-body font-semibold text-primary transition-colors disabled:opacity-30">
-            Publicar
-          </button>
-        </div>
-
-        <!-- Scrollable content -->
-        <div class="overflow-y-auto p-5 space-y-5" style="max-height: calc(92dvh - 60px)">
+      <!-- Scrollable content -->
+      <div class="flex-1 overflow-y-auto p-5 space-y-5">
 
           <!-- Hidden file input -->
           <input #photoInput type="file" accept="image/*" class="hidden" (change)="onPhotoSelected($event)" />
@@ -139,22 +130,22 @@ interface WorkoutOption {
           @if (error()) {
             <p class="text-danger text-[12px] font-body text-center">{{ error() }}</p>
           }
-        </div>
-
-        <!-- Loading overlay -->
-        @if (publishing()) {
-          <div class="absolute inset-0 bg-bg/80 flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
-            <div class="w-12 h-12 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center">
-              <svg class="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-              </svg>
-            </div>
-            <p class="text-[13px] font-body text-primary">{{ photoFile() ? 'Enviando foto...' : 'Publicando...' }}</p>
-          </div>
-        }
       </div>
+
+      <!-- Loading overlay -->
+      @if (publishing()) {
+        <div class="absolute inset-0 bg-bg/80 flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
+          <div class="w-12 h-12 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center">
+            <svg class="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+            </svg>
+          </div>
+          <p class="text-[13px] font-body text-primary">{{ photoFile() ? 'Enviando foto...' : 'Publicando...' }}</p>
+        </div>
+      }
     </div>
   `,
+
 })
 export class NewPostModalComponent {
   private postService    = inject(PostService);
