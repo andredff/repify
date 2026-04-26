@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 import { AuthService } from '../../../core/services/auth.service';
 import { CommentsSheetComponent } from './comments-sheet.component';
+import { ShareCardComponent } from './share-card.component';
 
 const MUSCLE_ICONS: Record<string, string> = {
   peito:'🫁', costas:'🔙', pernas:'🦵', ombros:'💪',
@@ -20,7 +21,7 @@ const MUSCLE_COLORS: Record<string, string> = {
 @Component({
   selector: 'app-workout-post',
   standalone: true,
-  imports: [CommentsSheetComponent],
+  imports: [CommentsSheetComponent, ShareCardComponent],
   template: `
     <article class="bg-card-2 border border-border rounded-2xl overflow-hidden shadow-card card-hover">
 
@@ -166,7 +167,7 @@ const MUSCLE_COLORS: Record<string, string> = {
           </button>
         </div>
 
-        <button class="text-text-2 hover:text-white transition-colors">
+        <button (click)="showShareCard.set(true)" class="text-text-2 hover:text-white transition-colors active:scale-90">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
             <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
@@ -181,6 +182,10 @@ const MUSCLE_COLORS: Record<string, string> = {
         (onClose)="showComments.set(false)"
         (onCountChange)="localComments.set($event)" />
     }
+
+    @if (showShareCard()) {
+      <app-share-card [post]="post()" (onClose)="showShareCard.set(false)" />
+    }
   `,
 })
 export class WorkoutPostComponent {
@@ -194,6 +199,7 @@ export class WorkoutPostComponent {
   menuOpen         = signal(false);
   confirmingDelete = signal(false);
   showComments     = signal(false);
+  showShareCard    = signal(false);
   localComments    = signal(0);
 
   constructor() {
