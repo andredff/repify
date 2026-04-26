@@ -13,7 +13,14 @@ import usersRouter   from './routes/users.route';
 const app = express();
 
 // ── Security & parsing ──────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'img-src': ["'self'", 'data:', 'https://*.supabase.co'],
+    },
+  },
+}));
 
 const allowedOrigins = [
   'http://localhost:4200',
