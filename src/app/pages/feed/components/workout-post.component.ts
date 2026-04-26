@@ -100,7 +100,7 @@ const MUSCLE_COLORS: Record<string, string> = {
                   Apagar post
                 </button>
               }
-              <button (click)="menuOpen.set(false)"
+              <button (click)="menuOpen.set(false); showShareCard.set(true)"
                       class="flex items-center gap-2.5 w-full px-4 py-3 text-left text-[13px] font-body text-text-2 hover:bg-card-2 transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>

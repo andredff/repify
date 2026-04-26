@@ -1,4 +1,7 @@
-import { Component, input, output, signal, ViewChild, ElementRef, AfterViewInit, effect } from '@angular/core';
+import {
+  Component, input, output, signal, ViewChild, ElementRef,
+  AfterViewInit, OnDestroy, OnInit, effect, Renderer2, inject,
+} from '@angular/core';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 import { PostService } from '../../../core/services/post.service';
 
@@ -8,161 +11,34 @@ type CardMode = 'post' | 'story';
   selector: 'app-share-card',
   standalone: true,
   template: `
-    <div class="fixed inset-0 z-[60] flex items-end justify-center max-w-[430px] mx-auto">
-      <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" (click)="onClose.emit()"></div>
-
-      <div class="relative w-full bg-card border-t border-border rounded-t-2xl animate-slide-up"
-           style="padding-bottom: calc(20px + env(safe-area-inset-bottom))">
-
-        <!-- Handle -->
-        <div class="flex justify-center pt-3 pb-3">
-          <div class="w-10 h-1 bg-border-2 rounded-full"></div>
-        </div>
-
-        <div class="px-4">
-          <p class="text-[15px] font-display font-bold text-white mb-1">Compartilhar publicação</p>
-          <p class="text-[12px] text-text-2 font-body mb-4">Escolha o formato e salve nas suas redes</p>
-
-          <!-- Mode selector -->
-          <div class="flex bg-card-2 border border-border rounded-xl p-1 gap-1 mb-4">
-            <button (click)="setMode('post')"
-                    class="flex-1 py-2 rounded-lg text-[12px] font-body font-medium transition-all flex items-center justify-center gap-1.5"
-                    [class]="mode() === 'post' ? 'bg-primary text-bg shadow-glow-sm' : 'text-text-2 hover:text-white'">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-              </svg>
-              Post (1:1)
-            </button>
-            <button (click)="setMode('story')"
-                    class="flex-1 py-2 rounded-lg text-[12px] font-body font-medium transition-all flex items-center justify-center gap-1.5"
-                    [class]="mode() === 'story' ? 'bg-primary text-bg shadow-glow-sm' : 'text-text-2 hover:text-white'">
-              <svg width="10" height="14" viewBox="0 0 10 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <rect x="1" y="1" width="8" height="12" rx="1.5"/>
-              </svg>
-              Stories (9:16)
-            </button>
-          </div>
-
-          <!-- Previews -->
-          <div class="flex justify-center mb-4">
-            <canvas #postCanvas width="1080" height="1350"
-                    class="rounded-xl border border-border transition-all"
-                    [style]="mode() === 'post' ? 'width:208px;height:260px;display:block' : 'display:none'">
-            </canvas>
-            <canvas #storyCanvas width="1080" height="1920"
-                    class="rounded-xl border border-border transition-all"
-                    [style]="mode() === 'story' ? 'width:146px;height:260px;display:block' : 'display:none'">
-            </canvas>
-          </div>
-
-          <!-- Options toggles -->
-          <div class="bg-card-2 border border-border rounded-xl divide-y divide-border mb-4">
-
-            @if (post().photo) {
-              <div class="flex items-center justify-between px-4 py-3">
-                <span class="text-[12px] font-body text-white">Incluir foto</span>
-                <button type="button" (click)="toggle('photo')"
-                        class="relative w-10 h-5 rounded-full transition-colors duration-200"
-                        [class]="showPhoto() ? 'bg-primary' : 'bg-border'">
-                  <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
-                        [class]="showPhoto() ? 'translate-x-5' : 'translate-x-0'"></span>
-                </button>
-              </div>
-            }
-
-            <div class="flex items-center justify-between px-4 py-3">
-              <span class="text-[12px] font-body text-white">Incluir nome e @usuário</span>
-              <button type="button" (click)="toggle('user')"
-                      class="relative w-10 h-5 rounded-full transition-colors duration-200"
-                      [class]="showUser() ? 'bg-primary' : 'bg-border'">
-                <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
-                      [class]="showUser() ? 'translate-x-5' : 'translate-x-0'"></span>
-              </button>
-            </div>
-
-             @if (post().user.yearlyGoal) {
-              <div class="flex items-center justify-between px-4 py-3">
-                <div>
-                  <span class="text-[12px] font-body text-white">Meta anual</span>
-                  <span class="text-[11px] font-mono text-primary ml-2">
-                    {{ post().user.workoutsDone ?? 0 }}/{{ post().user.yearlyGoal }}
-                  </span>
-                </div>
-                <button type="button" (click)="toggle('goal')"
-                        class="relative w-10 h-5 rounded-full transition-colors duration-200"
-                        [class]="showGoal() ? 'bg-primary' : 'bg-border'">
-                  <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
-                        [class]="showGoal() ? 'translate-x-5' : 'translate-x-0'"></span>
-                </button>
-              </div>
-            }
-
-            @if (post().caption) {
-              <div class="flex items-center justify-between px-4 py-3">
-                <span class="text-[12px] font-body text-white">Mostrar texto</span>
-                <button type="button" (click)="toggle('caption')"
-                        class="relative w-10 h-5 rounded-full transition-colors duration-200"
-                        [class]="showCaption() ? 'bg-primary' : 'bg-border'">
-                  <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
-                        [class]="showCaption() ? 'translate-x-5' : 'translate-x-0'"></span>
-                </button>
-              </div>
-            }
-
-          </div>
-
-          <!-- Actions -->
-          <div class="flex gap-3">
-            <button (click)="onClose.emit()"
-                    class="flex-none px-4 py-3 rounded-xl border border-border text-[13px] font-body text-text-2 hover:text-white transition-colors">
-              Cancelar
-            </button>
-            <button (click)="share()"
-                    [disabled]="generating()"
-                    class="flex-1 py-3 rounded-xl bg-primary text-bg text-[14px] font-body font-semibold shadow-glow hover:shadow-glow-lg active:scale-[0.98] transition-all disabled:opacity-60 flex items-center justify-center gap-2">
-              @if (generating()) {
-                <div class="w-4 h-4 rounded-full border-2 border-bg border-t-transparent animate-spin"></div>
-                Gerando...
-              } @else if (copying()) {
-                <div class="w-4 h-4 rounded-full border-2 border-bg border-t-transparent animate-spin"></div>
-                Criando link...
-              } @else {
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                  <polyline points="16 6 12 2 8 6"/>
-                  <line x1="12" y1="2" x2="12" y2="15"/>
-                </svg>
-                Salvar / Compartilhar
-              }
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Portal anchor — component moves its host into body -->
+    <ng-container></ng-container>
   `,
 })
-export class ShareCardComponent implements AfterViewInit {
+export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
   post    = input.required<WorkoutPost>();
   onClose = output<void>();
 
-  @ViewChild('postCanvas')  postCanvasRef!:  ElementRef<HTMLCanvasElement>;
-  @ViewChild('storyCanvas') storyCanvasRef!: ElementRef<HTMLCanvasElement>;
+  private postService = inject(PostService);
+  private renderer    = inject(Renderer2);
+  private el          = inject(ElementRef);
 
-  mode       = signal<CardMode>('post');
-  generating = signal(false);
-
-  showPhoto = signal(true);
-  showUser  = signal(true);
-  showGoal  = signal(true);
+  mode        = signal<CardMode>('post');
+  generating  = signal(false);
+  copying     = signal(false);
+  showPhoto   = signal(true);
+  showUser    = signal(true);
+  showGoal    = signal(true);
   showCaption = signal(true);
 
-  copying    = signal(false);
-
+  private panel!: HTMLElement;
+  private postCanvas!: HTMLCanvasElement;
+  private storyCanvas!: HTMLCanvasElement;
   private redrawPending = false;
+  private unlisten!: () => void;
 
-  constructor(private postService: PostService) {
+  constructor() {
     effect(() => {
-      // track all toggles + mode — redraw quando qualquer coisa muda
       this.showPhoto(); this.showUser(); this.showGoal(); this.showCaption(); this.mode();
       if (this.redrawPending) return;
       this.redrawPending = true;
@@ -174,21 +50,242 @@ export class ShareCardComponent implements AfterViewInit {
     });
   }
 
+  ngOnInit(): void {
+    this.buildPanel();
+    document.body.appendChild(this.panel);
+    // block body scroll
+    document.body.style.overflow = 'hidden';
+    // back-button / escape
+    this.unlisten = this.renderer.listen('document', 'keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Escape') this.close();
+    });
+  }
+
   ngAfterViewInit(): void {
     this.drawPost();
     this.drawStory();
   }
 
-  setMode(m: CardMode): void { this.mode.set(m); }
+  ngOnDestroy(): void {
+    if (this.panel?.parentElement) this.panel.parentElement.removeChild(this.panel);
+    document.body.style.overflow = '';
+    this.unlisten?.();
+  }
 
-  toggle(opt: 'photo' | 'user' | 'goal' | 'caption'): void {
-    if (opt === 'photo') this.showPhoto.update(v => !v);
-    if (opt === 'user')  this.showUser.update(v => !v);
-    if (opt === 'goal')  this.showGoal.update(v => !v);
+  // ── Build the full-screen panel in plain DOM ──────────────────────────────
+
+  private buildPanel(): void {
+    const p = document.createElement('div');
+    p.style.cssText = `
+      position:fixed; inset:0; z-index:9999;
+      display:flex; flex-direction:column;
+      background:#080C10;
+      padding-top:env(safe-area-inset-top);
+      padding-bottom:env(safe-area-inset-bottom);
+      font-family:system-ui,sans-serif;
+      animation: shareSlideUp 0.28s cubic-bezier(0.32,0.72,0,1) both;
+    `;
+
+    // inject keyframe once
+    if (!document.getElementById('share-card-kf')) {
+      const style = document.createElement('style');
+      style.id = 'share-card-kf';
+      style.textContent = `
+        @keyframes shareSlideUp {
+          from { transform: translateY(100%); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    const header = this.el_(`
+      <div style="display:flex;align-items:center;justify-content:space-between;
+                  padding:12px 16px;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0">
+        <button id="sc-back" style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+                border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);
+                color:#8896A8;cursor:pointer;transition:color .15s">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <span style="font-size:15px;font-weight:700;color:#fff;letter-spacing:-.3px">Compartilhar</span>
+        <div style="width:36px"></div>
+      </div>
+    `);
+    header.querySelector('#sc-back')!.addEventListener('click', () => this.close());
+
+    // ── Scrollable body ──────────────────────────────────────────────────────
+    const body = document.createElement('div');
+    body.style.cssText = 'flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;';
+
+    // Mode tabs
+    const tabs = this.el_(`
+      <div style="display:flex;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);
+                  border-radius:14px;padding:4px;gap:4px">
+        <button id="tab-post" style="${this.tabStyle(true)}">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="2.5"/>
+          </svg>
+          Post (1:1)
+        </button>
+        <button id="tab-story" style="${this.tabStyle(false)}">
+          <svg width="9" height="13" viewBox="0 0 10 14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <rect x="1" y="1" width="8" height="12" rx="2"/>
+          </svg>
+          Stories (9:16)
+        </button>
+      </div>
+    `);
+    const tabPost  = tabs.querySelector('#tab-post')  as HTMLButtonElement;
+    const tabStory = tabs.querySelector('#tab-story') as HTMLButtonElement;
+    tabPost.addEventListener('click',  () => this.switchMode('post',  tabPost,  tabStory));
+    tabStory.addEventListener('click', () => this.switchMode('story', tabPost,  tabStory));
+
+    // Canvas previews
+    const canvasWrap = document.createElement('div');
+    canvasWrap.style.cssText = 'display:flex;justify-content:center;min-height:300px;align-items:center';
+
+    this.postCanvas  = document.createElement('canvas');
+    this.postCanvas.width  = 1080;
+    this.postCanvas.height = 1350;
+    Object.assign(this.postCanvas.style, {
+      borderRadius:'14px', border:'1px solid rgba(255,255,255,0.08)',
+      width:'240px', height:'300px', display:'block',
+    });
+
+    this.storyCanvas  = document.createElement('canvas');
+    this.storyCanvas.width  = 1080;
+    this.storyCanvas.height = 1920;
+    Object.assign(this.storyCanvas.style, {
+      borderRadius:'14px', border:'1px solid rgba(255,255,255,0.08)',
+      width:'169px', height:'300px', display:'none',
+    });
+
+    canvasWrap.appendChild(this.postCanvas);
+    canvasWrap.appendChild(this.storyCanvas);
+
+    // Toggles
+    const togglesWrap = document.createElement('div');
+    togglesWrap.style.cssText = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;overflow:hidden';
+
+    const post = this.post();
+    const toggleRows: Array<{ label: string; sub?: string; key: 'photo'|'user'|'goal'|'caption'; show: boolean }> = [];
+    if (post.photo)              toggleRows.push({ label: 'Incluir foto',          key: 'photo',   show: true });
+                                 toggleRows.push({ label: 'Nome e @usuário',        key: 'user',    show: true });
+    if (post.user.yearlyGoal)    toggleRows.push({ label: 'Meta anual',
+                                                   sub: `${post.user.workoutsDone ?? 0}/${post.user.yearlyGoal}`,
+                                                   key: 'goal',    show: true });
+    if (post.caption)            toggleRows.push({ label: 'Mostrar texto',          key: 'caption', show: true });
+
+    toggleRows.forEach((row, idx) => {
+      const rowEl = this.buildToggleRow(row.label, row.sub, row.key, row.show);
+      if (idx < toggleRows.length - 1) rowEl.style.borderBottom = '1px solid rgba(255,255,255,0.06)';
+      togglesWrap.appendChild(rowEl);
+    });
+
+    body.appendChild(tabs);
+    body.appendChild(canvasWrap);
+    body.appendChild(togglesWrap);
+
+    // ── Footer ────────────────────────────────────────────────────────────────
+    const footer = this.el_(`
+      <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08);flex-shrink:0">
+        <button id="sc-share" style="width:100%;padding:14px 0;border-radius:14px;
+                background:#00FF88;color:#080C10;font-size:14px;font-weight:700;
+                border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+                box-shadow:0 0 20px rgba(0,255,136,0.3);transition:opacity .15s,transform .1s;letter-spacing:-.2px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+            <polyline points="16 6 12 2 8 6"/>
+            <line x1="12" y1="2" x2="12" y2="15"/>
+          </svg>
+          Salvar / Compartilhar
+        </button>
+      </div>
+    `);
+    const shareBtn = footer.querySelector('#sc-share') as HTMLButtonElement;
+    shareBtn.addEventListener('click', () => this.share(shareBtn));
+    shareBtn.addEventListener('mouseenter', () => { shareBtn.style.opacity = '.85'; });
+    shareBtn.addEventListener('mouseleave', () => { shareBtn.style.opacity = '1'; });
+
+    p.appendChild(header);
+    p.appendChild(body);
+    p.appendChild(footer);
+    this.panel = p;
+  }
+
+  private tabStyle(active: boolean): string {
+    return `flex:1;padding:8px 0;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;
+            display:flex;align-items:center;justify-content:center;gap:6px;border:none;transition:all .18s;
+            ${active
+              ? 'background:#00FF88;color:#080C10;box-shadow:0 0 12px rgba(0,255,136,0.25)'
+              : 'background:transparent;color:#8896A8'}`;
+  }
+
+  private switchMode(mode: CardMode, tabPost: HTMLButtonElement, tabStory: HTMLButtonElement): void {
+    this.mode.set(mode);
+    tabPost.style.cssText  = 'flex:1;' + this.tabStyle(mode === 'post');
+    tabStory.style.cssText = 'flex:1;' + this.tabStyle(mode === 'story');
+    this.postCanvas.style.display  = mode === 'post'  ? 'block' : 'none';
+    this.storyCanvas.style.display = mode === 'story' ? 'block' : 'none';
+  }
+
+  private buildToggleRow(label: string, sub: string | undefined, key: 'photo'|'user'|'goal'|'caption', initialOn: boolean): HTMLElement {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:13px 16px;';
+
+    const labelWrap = document.createElement('div');
+    labelWrap.style.cssText = 'display:flex;align-items:center;gap:8px';
+    const labelEl = document.createElement('span');
+    labelEl.textContent = label;
+    labelEl.style.cssText = 'font-size:13px;color:#fff';
+    labelWrap.appendChild(labelEl);
+    if (sub) {
+      const subEl = document.createElement('span');
+      subEl.textContent = sub;
+      subEl.style.cssText = 'font-size:11px;color:#00FF88;font-weight:600;font-family:monospace';
+      labelWrap.appendChild(subEl);
+    }
+
+    let on = initialOn;
+    const track = document.createElement('div');
+    track.style.cssText = `width:40px;height:22px;border-radius:11px;background:${on ? '#00FF88' : 'rgba(255,255,255,0.12)'};
+                           position:relative;cursor:pointer;transition:background .2s;flex-shrink:0`;
+    const thumb = document.createElement('div');
+    thumb.style.cssText = `position:absolute;top:3px;left:${on ? '19px' : '3px'};width:16px;height:16px;
+                           border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)`;
+    track.appendChild(thumb);
+
+    track.addEventListener('click', () => {
+      on = !on;
+      track.style.background = on ? '#00FF88' : 'rgba(255,255,255,0.12)';
+      thumb.style.left = on ? '19px' : '3px';
+      this.toggle(key);
+    });
+
+    row.appendChild(labelWrap);
+    row.appendChild(track);
+    return row;
+  }
+
+  private el_(html: string): HTMLElement {
+    const div = document.createElement('div');
+    div.innerHTML = html.trim();
+    return div.firstElementChild as HTMLElement;
+  }
+
+  close(): void { this.onClose.emit(); }
+
+  toggle(opt: 'photo'|'user'|'goal'|'caption'): void {
+    if (opt === 'photo')   this.showPhoto.update(v => !v);
+    if (opt === 'user')    this.showUser.update(v => !v);
+    if (opt === 'goal')    this.showGoal.update(v => !v);
     if (opt === 'caption') this.showCaption.update(v => !v);
   }
 
-  // ── Shared helpers ──────────────────────────────────────────────────────────
+  // ── Canvas helpers ──────────────────────────────────────────────────────────
 
   private loadImage(src: string): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
@@ -343,7 +440,6 @@ export class ShareCardComponent implements AfterViewInit {
     ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
     const tw = ctx.measureText(text).width;
     const pad = fontSize * 0.6, h = fontSize * 1.8;
-    // pill background
     ctx.fillStyle = 'rgba(0,255,136,0.12)';
     this.roundRect(ctx, x, y - h * 0.72, tw + pad * 2, h, h / 2); ctx.fill();
     ctx.strokeStyle = 'rgba(0,255,136,0.3)'; ctx.lineWidth = 1.5;
@@ -352,32 +448,28 @@ export class ShareCardComponent implements AfterViewInit {
     ctx.fillText(text, x + pad, y);
   }
 
-  // ── POST 4:5 (1080×1350) ────────────────────────────────────────────────────
+  // ── POST 4:5 (1080×1350) ───────────────────────────────────────────────────
 
   private async drawPost(): Promise<void> {
-    const canvas = this.postCanvasRef?.nativeElement;
+    const canvas = this.postCanvas;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     const W = 1080, H = 1350, M = 72;
 
     await this.drawBackground(ctx, W, H, M);
 
-    const AR = 40;
-    const headerCY = M + AR;
-
-    if (this.showUser()) {
-      await this.drawUserRow(ctx, M, headerCY, AR, 38, 30);
-    }
+    const AR = 40, headerCY = M + AR;
+    if (this.showUser()) await this.drawUserRow(ctx, M, headerCY, AR, 38, 30);
     await this.drawLogo(ctx, W, M, 68, headerCY);
 
     const photoSize = W - M * 2;
-    const photoY = headerCY + AR + 48;
-    const hasPhoto = this.showPhoto()
+    const photoY    = headerCY + AR + 48;
+    const hasPhoto  = this.showPhoto()
       ? await this.drawPhoto(ctx, M, photoY, photoSize, photoSize, 24)
       : false;
 
-    const caption = this.post().caption || '';
-    const workout = this.post().workout?.name || '';
+    const caption  = this.post().caption || '';
+    const workout  = this.post().workout?.name || '';
     const contentY = hasPhoto ? photoY + photoSize + 52 : photoY;
 
     if (this.showCaption() && caption) {
@@ -401,35 +493,31 @@ export class ShareCardComponent implements AfterViewInit {
     }
   }
 
-  // ── STORY 9:16 (1080×1920) ──────────────────────────────────────────────────
+  // ── STORY 9:16 (1080×1920) ─────────────────────────────────────────────────
 
   private async drawStory(): Promise<void> {
-    const canvas = this.storyCanvasRef?.nativeElement;
+    const canvas = this.storyCanvas;
     if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     const W = 1080, H = 1920, M = 80;
 
     await this.drawBackground(ctx, W, H, M);
 
-    const AR = 44;
-    const headerCY = M + AR;
-
-    if (this.showUser()) {
-      await this.drawUserRow(ctx, M, headerCY, AR, 40, 30);
-    }
+    const AR = 44, headerCY = M + AR;
+    if (this.showUser()) await this.drawUserRow(ctx, M, headerCY, AR, 40, 30);
     await this.drawLogo(ctx, W, M, 70, headerCY);
 
-    const photoY = headerCY + AR + 40;
-    const goalH  = this.showGoal() && this.post().user.yearlyGoal ? 100 : 0;
+    const photoY  = headerCY + AR + 40;
+    const goalH   = this.showGoal() && this.post().user.yearlyGoal ? 100 : 0;
     const footerH = 140 + goalH;
-    const photoH = H - photoY - footerH;
-    const photoW = W - M * 2;
+    const photoH  = H - photoY - footerH;
+    const photoW  = W - M * 2;
     const hasPhoto = this.showPhoto()
       ? await this.drawPhoto(ctx, M, photoY, photoW, photoH, 28)
       : false;
 
-    const caption = this.post().caption || '';
-    const workout = this.post().workout?.name || '';
+    const caption  = this.post().caption || '';
+    const workout  = this.post().workout?.name || '';
     const contentY = hasPhoto ? photoY + photoH + 36 : photoY;
 
     if (this.showCaption() && caption) {
@@ -461,41 +549,46 @@ export class ShareCardComponent implements AfterViewInit {
     }
   }
 
-  // ── Share ────────────────────────────────────────────────────────────────────
+  // ── Share ───────────────────────────────────────────────────────────────────
 
-  async share(): Promise<void> {
+  private async share(btn: HTMLButtonElement): Promise<void> {
+    if (this.generating()) return;
     this.generating.set(true);
+    btn.style.opacity = '.6';
+    btn.textContent = 'Gerando...';
+
     try {
-      const canvas = this.mode() === 'story'
-        ? this.storyCanvasRef.nativeElement
-        : this.postCanvasRef.nativeElement;
-
-      const blob = await new Promise<Blob>((res, rej) =>
-        canvas.toBlob(b => b ? res(b) : rej(), 'image/png'));
-
+      const canvas   = this.mode() === 'story' ? this.storyCanvas : this.postCanvas;
       const filename = this.mode() === 'story' ? 'repify-story.png' : 'repify-post.png';
-      const file = new File([blob], filename, { type: 'image/png' });
+      const blob     = await new Promise<Blob>((res, rej) => canvas.toBlob(b => b ? res(b) : rej(), 'image/png'));
+      const file     = new File([blob], filename, { type: 'image/png' });
 
-      // Gera shortlink para compartilhamento
-      this.copying.set(true);
+      btn.textContent = 'Criando link...';
       const shortlink = await this.postService.getShortlink(this.post().id);
-      const shareUrl = shortlink || `${window.location.origin}/post/${this.post().id}`;
+      const shareUrl  = shortlink || `${window.location.origin}/post/${this.post().id}`;
       const shareText = `Confira minha publicação no Repify! 💪 ${shareUrl}`;
-
-      this.copying.set(false);
-      this.generating.set(false);
 
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: 'Repify', text: shareText });
       } else {
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a   = document.createElement('a');
         a.href = url; a.download = filename; a.click();
         URL.revokeObjectURL(url);
-        // Copia o link para a área de transferência
         try { await navigator.clipboard.writeText(shareText); } catch {}
       }
     } catch { /* cancelled */ }
-    finally { this.generating.set(false); this.copying.set(false); }
+    finally {
+      this.generating.set(false);
+      btn.style.opacity = '1';
+      btn.innerHTML = `
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+          <polyline points="16 6 12 2 8 6"/>
+          <line x1="12" y1="2" x2="12" y2="15"/>
+        </svg>
+        Salvar / Compartilhar
+      `;
+    }
   }
 }
