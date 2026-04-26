@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, OnDestroy, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { PostService } from '../../core/services/post.service';
@@ -31,7 +31,27 @@ export type { WorkoutPost };
 
       <app-feed-header [userEmail]="userEmail()" (onLogout)="logout()" />
 
-      <main class="flex-1 overflow-y-auto pb-24 pt-[64px]" style="padding-top: calc(64px + env(safe-area-inset-top))">
+      <main #mainScroll class="flex-1 overflow-y-auto pb-24 pt-[64px]" style="padding-top: calc(64px + env(safe-area-inset-top))">
+
+        <!-- Pull to refresh indicator -->
+        <div class="overflow-hidden transition-all duration-200 ease-out"
+             [style.height.px]="pullHeight()">
+          <div class="flex items-center justify-center h-14"
+               [class.opacity-0]="pullHeight() < 20"
+               [class.opacity-100]="pullHeight() >= 20">
+            @if (refreshing()) {
+              <div class="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+            } @else {
+              <svg class="transition-transform duration-200"
+                   [style.transform]="'rotate(' + pullRotation() + 'deg)'"
+                   width="20" height="20" viewBox="0 0 24 24" fill="none"
+                   stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="1 4 1 10 7 10"/>
+                <path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+              </svg>
+            }
+          </div>
+        </div>
 
         <app-stories-bar />
 
@@ -99,23 +119,83 @@ export type { WorkoutPost };
     </div>
   `,
 })
-export class FeedComponent implements OnInit {
+export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   private auth        = inject(AuthService);
   private router      = inject(Router);
   private postService = inject(PostService);
   workoutService      = inject(WorkoutService);
+
+  @ViewChild('mainScroll') private mainScrollRef!: ElementRef<HTMLElement>;
 
   userEmail    = computed(() => this.auth.user()?.email ?? '');
   checkedIn    = signal(false);
   showNewPost  = signal(false);
   todayWorkout = computed(() => this.workoutService.todayWorkout());
 
-  posts     = signal<WorkoutPost[]>([]);
-  loading   = signal(false);
-  loadError = signal('');
+  posts      = signal<WorkoutPost[]>([]);
+  loading    = signal(false);
+  loadError  = signal('');
+  refreshing = signal(false);
+  pullHeight = signal(0);
+  pullRotation = computed(() => Math.min((this.pullHeight() / 70) * 180, 180));
+
+  private touchStartY = 0;
+  private pulling     = false;
+  private readonly THRESHOLD = 70;
 
   ngOnInit(): void {
     this.loadFeed();
+  }
+
+  ngAfterViewInit(): void {
+    const el = this.mainScrollRef.nativeElement;
+    el.addEventListener('touchstart', this.onTouchStart, { passive: true });
+    el.addEventListener('touchmove',  this.onTouchMove,  { passive: false });
+    el.addEventListener('touchend',   this.onTouchEnd,   { passive: true });
+  }
+
+  ngOnDestroy(): void {
+    const el = this.mainScrollRef?.nativeElement;
+    if (!el) return;
+    el.removeEventListener('touchstart', this.onTouchStart);
+    el.removeEventListener('touchmove',  this.onTouchMove);
+    el.removeEventListener('touchend',   this.onTouchEnd);
+  }
+
+  private onTouchStart = (e: TouchEvent): void => {
+    const el = this.mainScrollRef.nativeElement;
+    if (el.scrollTop === 0) {
+      this.touchStartY = e.touches[0].clientY;
+      this.pulling = true;
+    }
+  };
+
+  private onTouchMove = (e: TouchEvent): void => {
+    if (!this.pulling || this.refreshing()) return;
+    const dy = e.touches[0].clientY - this.touchStartY;
+    if (dy <= 0) { this.pulling = false; return; }
+    e.preventDefault();
+    // resistance curve: slows down after threshold
+    const height = Math.min(dy * 0.45, this.THRESHOLD + 10);
+    this.pullHeight.set(height);
+  };
+
+  private onTouchEnd = (): void => {
+    if (!this.pulling) return;
+    this.pulling = false;
+    if (this.pullHeight() >= this.THRESHOLD) {
+      this.triggerRefresh();
+    } else {
+      this.pullHeight.set(0);
+    }
+  };
+
+  private async triggerRefresh(): Promise<void> {
+    this.refreshing.set(true);
+    this.pullHeight.set(56);
+    await this.loadFeed();
+    this.refreshing.set(false);
+    this.pullHeight.set(0);
   }
 
   async loadFeed(): Promise<void> {
