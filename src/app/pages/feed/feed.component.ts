@@ -9,6 +9,7 @@ import { BottomNavComponent } from './components/bottom-nav.component';
 import { StoriesBarComponent } from './components/stories-bar.component';
 import { NewPostModalComponent } from './components/new-post-modal.component';
 import { DailyWorkoutCardComponent } from './components/daily-workout-card.component';
+import { SetupWorkoutCardComponent } from './components/setup-workout-card.component';
 import { WorkoutService } from '../../core/services/workout.service';
 import { WorkoutPost } from '../../core/models/workout-post.model';
 
@@ -25,6 +26,7 @@ export type { WorkoutPost };
     StoriesBarComponent,
     NewPostModalComponent,
     DailyWorkoutCardComponent,
+    SetupWorkoutCardComponent,
   ],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
@@ -58,6 +60,12 @@ export type { WorkoutPost };
         <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
           <app-check-in-card [checkedIn]="checkedIn()" (onCheckIn)="doCheckIn()" />
         </div>
+
+        @if (!workoutService.hasProgram()) {
+          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.08s">
+            <app-setup-workout-card (onSetup)="router.navigateByUrl('/my-workout')" />
+          </div>
+        }
 
         @if (todayWorkout()) {
           <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
@@ -121,7 +129,7 @@ export type { WorkoutPost };
 })
 export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   private auth        = inject(AuthService);
-  private router      = inject(Router);
+  router              = inject(Router);
   private postService = inject(PostService);
   workoutService      = inject(WorkoutService);
 

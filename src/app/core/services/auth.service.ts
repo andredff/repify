@@ -47,10 +47,11 @@ export class AuthService {
     supabase.auth.onAuthStateChange((_event, session) => {
       this._session.set(session);
 
-      // Resolve public avatar URL when session is restored
       const avatarPath = session?.user?.user_metadata?.['avatar_url'];
       if (avatarPath) {
         this._resolveAvatarUrl(avatarPath);
+      } else {
+        this._avatarUrl.set('');
       }
 
       if (!this._initialized()) {
