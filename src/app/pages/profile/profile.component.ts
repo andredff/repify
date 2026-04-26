@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
+import { CheckinService } from '../../core/services/checkin.service';
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   const a = control.get('newPassword')?.value;
@@ -127,13 +128,13 @@ const MAX_SIZE_MB   = 5;
           <!-- Stats strip -->
           <div class="mt-4 flex gap-4 z-10">
             <div class="flex flex-col items-center">
-              <span class="text-[18px] font-display font-bold text-primary">🔥 7</span>
+              <span class="text-[18px] font-display font-bold text-primary">🔥 {{ checkin.streak() }}</span>
               <span class="text-[10px] text-text-2 font-body">streak</span>
             </div>
             <div class="w-px bg-border"></div>
             <div class="flex flex-col items-center">
-              <span class="text-[18px] font-display font-bold text-white">42</span>
-              <span class="text-[10px] text-text-2 font-body">treinos</span>
+              <span class="text-[18px] font-display font-bold text-white">{{ checkin.dates().length }}</span>
+              <span class="text-[10px] text-text-2 font-body">check-ins</span>
             </div>
             <div class="w-px bg-border"></div>
             <div class="flex flex-col items-center">
@@ -419,6 +420,7 @@ const MAX_SIZE_MB   = 5;
 })
 export class ProfileComponent implements OnInit {
   auth    = inject(AuthService);
+  checkin = inject(CheckinService);
   router  = inject(Router);
   private fb = inject(FormBuilder);
 
