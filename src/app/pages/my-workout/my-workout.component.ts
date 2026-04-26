@@ -723,7 +723,8 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
         <div class="sticky bottom-0 px-4 pb-8 pt-4 glass border-t border-border">
           <button (click)="next()"
                   [disabled]="!canAdvance()"
-                  class="w-full py-4 rounded-2xl font-display font-bold text-[16px] transition-all"
+                  class="fixed bottom-20 left-1/2 -translate-x-1/2 w-[90%] py-4 rounded-2xl font-display font-bold text-[16px] transition-all bg-card-2 border border-border text-text-2"
+  disabled
                   [class]="canAdvance()
                     ? 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-[0.98]'
                     : 'bg-card-2 text-text-2 border border-border cursor-not-allowed'">
@@ -731,6 +732,13 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
           </button>
         </div>
       }
+
+      <button
+  class="fixed bottom-20 left-1/2 -translate-x-1/2 w-[90%] py-4 rounded-2xl font-display font-bold text-[16px] transition-all bg-card-2 border border-border text-text-2"
+  disabled
+>
+  Continuar
+</button>
 
       <app-bottom-nav [active]="'my-workout'" />
 
