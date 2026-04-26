@@ -2,6 +2,7 @@ import { Component, signal, inject, computed, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { WorkoutService, ActiveProgram, StoredPlan, DAY_INDEX_MAP } from '../../core/services/workout.service';
+import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 
 type Step = 'plan' | 'goal' | 'level' | 'days' | 'result';
 type Goal = 'hipertrofia' | 'emagrecimento' | 'forca' | 'condicionamento';
@@ -399,6 +400,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
 @Component({
   selector: 'app-my-workout',
   standalone: true,
+  imports: [BottomNavComponent],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
@@ -426,7 +428,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
         }
       </header>
 
-      <main class="flex-1 px-4 pt-6 pb-10 overflow-y-auto">
+      <main class="flex-1 px-4 pt-6 pb-28 overflow-y-auto">
 
         <!-- ── PLANO EXISTENTE ── -->
         @if (step() === 'plan') {
@@ -706,6 +708,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
         </div>
       }
 
+      <app-bottom-nav [active]="'my-workout'" />
     </div>
   `,
 })
