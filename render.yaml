@@ -24,7 +24,7 @@ services:
       - key: PORT
         value: 10000
       - key: CORS_ORIGINS
-        value: https://repify-web.onrender.com
+        value: https://repify-web.onrender.com,https://repify.com.br,https://www.repify.com.br
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
