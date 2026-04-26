@@ -163,7 +163,7 @@ export class ShareCardComponent implements AfterViewInit {
   constructor(private postService: PostService) {
     effect(() => {
       // track all toggles + mode — redraw quando qualquer coisa muda
-      this.showPhoto(); this.showUser(); this.showGoal(); this.mode();
+      this.showPhoto(); this.showUser(); this.showGoal(); this.showCaption(); this.mode();
       if (this.redrawPending) return;
       this.redrawPending = true;
       Promise.resolve().then(() => {
@@ -376,16 +376,17 @@ export class ShareCardComponent implements AfterViewInit {
       ? await this.drawPhoto(ctx, M, photoY, photoSize, photoSize, 24)
       : false;
 
-    const caption = this.showCaption() ? this.post().caption || '' : '';
+    const caption = this.post().caption || '';
     const workout = this.post().workout?.name || '';
-    const content = caption || workout || 'Treino concluído 💪';
     const contentY = hasPhoto ? photoY + photoSize + 52 : photoY;
 
-    ctx.fillStyle = '#FFF';
-    ctx.font = `${hasPhoto ? 38 : 48}px system-ui, sans-serif`;
-    this.wrapText(ctx, content, M, contentY, W - M * 2, hasPhoto ? 58 : 70, 3);
+    if (this.showCaption() && caption) {
+      ctx.fillStyle = '#FFF';
+      ctx.font = `${hasPhoto ? 38 : 48}px system-ui, sans-serif`;
+      this.wrapText(ctx, caption, M, contentY, W - M * 2, hasPhoto ? 58 : 70, 3);
+    }
 
-    if (caption && workout) {
+    if (workout) {
       const tagY = H - M - (this.showGoal() && this.post().user.yearlyGoal ? 160 : 80);
       ctx.fillStyle = 'rgba(0,255,136,0.09)';
       this.roundRect(ctx, M, tagY, W - M * 2, 60, 16); ctx.fill();
@@ -418,27 +419,28 @@ export class ShareCardComponent implements AfterViewInit {
     }
     await this.drawLogo(ctx, W, M, 70, headerCY);
 
-    const photoY = headerCY + AR + 60;
+    const photoY = headerCY + AR + 40;
     const goalH  = this.showGoal() && this.post().user.yearlyGoal ? 100 : 0;
-    const footerH = 280 + goalH;
+    const footerH = 140 + goalH;
     const photoH = H - photoY - footerH;
     const photoW = W - M * 2;
     const hasPhoto = this.showPhoto()
       ? await this.drawPhoto(ctx, M, photoY, photoW, photoH, 28)
       : false;
 
-    const caption = this.showCaption() ? this.post().caption || '' : '';
+    const caption = this.post().caption || '';
     const workout = this.post().workout?.name || '';
-    const content = caption || workout || '';
-    const contentY = hasPhoto ? photoY + photoH + 52 : photoY;
+    const contentY = hasPhoto ? photoY + photoH + 36 : photoY;
 
-    ctx.fillStyle = '#FFF';
-    ctx.font = '34px system-ui, sans-serif';
-    ctx.textAlign = 'left';
-    this.wrapText(ctx, content, M, contentY, photoW, 52, 3);
+    if (this.showCaption() && caption) {
+      ctx.fillStyle = '#FFF';
+      ctx.font = '30px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      this.wrapText(ctx, caption, M, contentY, photoW, 44, 2);
+    }
 
-    if (workout && caption) {
-      const tagY = H - M - 120 - goalH;
+    if (workout) {
+      const tagY = H - M - 80 - goalH;
       ctx.fillStyle = 'rgba(0,255,136,0.1)';
       this.roundRect(ctx, M, tagY, W - M * 2, 72, 20); ctx.fill();
       ctx.strokeStyle = 'rgba(0,255,136,0.25)'; ctx.lineWidth = 1;
