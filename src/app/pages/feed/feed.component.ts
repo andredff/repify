@@ -12,8 +12,10 @@ import { DailyWorkoutCardComponent } from './components/daily-workout-card.compo
 import { SetupWorkoutCardComponent } from './components/setup-workout-card.component';
 import { WorkoutService } from '../../core/services/workout.service';
 import { WorkoutPost } from '../../core/models/workout-post.model';
+import { DecimalPipe } from '@angular/common';
 import { WalkModalComponent } from './components/walk-modal.component';
 import { WalkCardComponent } from './components/walk-card.component';
+import { WalkService } from '../../core/services/walk.service';
 
 export type { WorkoutPost };
 
@@ -31,6 +33,7 @@ export type { WorkoutPost };
     SetupWorkoutCardComponent,
     WalkModalComponent,
     WalkCardComponent,
+    DecimalPipe,
   ],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
@@ -149,6 +152,23 @@ export type { WorkoutPost };
         <app-new-post-modal (onClose)="showNewPost.set(false)" (onPublish)="addPost($event)" />
       }
 
+      <!-- Floating walk bar (visible when a walk is active and modal is closed) -->
+      @if (walkSvc.isActive() && !showWalk()) {
+        <div (click)="showWalk.set(true)"
+             class="fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl border border-primary/40 bg-bg/90 backdrop-blur-md shadow-glow cursor-pointer active:scale-95 transition-all"
+             style="bottom:calc(72px + env(safe-area-inset-bottom));max-width:390px;width:calc(100% - 32px)">
+          <div class="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0"></div>
+          <span class="text-[13px] font-display font-bold text-white tracking-tight">🚶 {{ walkSvc.formattedTime() }}</span>
+          @if (walkSvc.activeGpsMode() && walkSvc.liveKm() > 0) {
+            <span class="text-[12px] font-body text-text-2">· {{ walkSvc.liveKm() | number:'1.1-2' }} km</span>
+          }
+          @if (walkSvc.activePhase() === 'paused') {
+            <span class="text-[11px] font-body text-text-2 italic">pausado</span>
+          }
+          <span class="ml-auto text-[11px] font-body text-primary">Abrir →</span>
+        </div>
+      }
+
       @if (showWalk()) {
         <app-walk-modal (onClose)="showWalk.set(false)" (onPublish)="addPost($event)" />
       }
@@ -161,6 +181,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   router              = inject(Router);
   private postService = inject(PostService);
   workoutService      = inject(WorkoutService);
+  walkSvc             = inject(WalkService);
 
   @ViewChild('mainScroll') private mainScrollRef!: ElementRef<HTMLElement>;
 

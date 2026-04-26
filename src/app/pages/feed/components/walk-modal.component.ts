@@ -1,16 +1,14 @@
 import {
   Component, output, inject, signal, computed,
-  OnInit, OnDestroy, NgZone, ViewChild, ElementRef, AfterViewInit,
+  OnInit, OnDestroy, ViewChild, ElementRef,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DecimalPipe } from '@angular/common';
 import { WalkService, GeoPoint } from '../../../core/services/walk.service';
 import { PostService } from '../../../core/services/post.service';
 import { CheckinService } from '../../../core/services/checkin.service';
-import { AuthService } from '../../../core/services/auth.service';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 
-type Phase = 'setup' | 'running' | 'paused' | 'done';
 
 @Component({
   selector: 'app-walk-modal',
@@ -40,28 +38,28 @@ type Phase = 'setup' | 'running' | 'paused' | 'done';
       <div class="flex-1 overflow-y-auto">
 
         <!-- ═══════════════════ SETUP ═══════════════════ -->
-        @if (phase() === 'setup') {
+        @if (viewPhase() === 'setup') {
           <div class="px-4 py-6 flex flex-col gap-5">
 
             <div class="bg-card-2 border border-border rounded-2xl p-5 space-y-4">
               <p class="text-[13px] font-body font-semibold text-white">Modo de rastreamento</p>
               <div class="flex gap-3">
-                <button (click)="gpsMode.set(false)"
+                <button (click)="setupGpsMode.set(false)"
                         class="flex-1 flex flex-col items-center gap-2 py-4 rounded-xl border transition-all"
-                        [class]="!gpsMode() ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-border-2'">
+                        [class]="!setupGpsMode() ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-border-2'">
                   <span class="text-2xl">⏱️</span>
-                  <span class="text-[12px] font-body font-semibold" [class]="!gpsMode() ? 'text-primary' : 'text-text-2'">Manual</span>
+                  <span class="text-[12px] font-body font-semibold" [class]="!setupGpsMode() ? 'text-primary' : 'text-text-2'">Manual</span>
                   <span class="text-[10px] font-body text-text-2 text-center leading-snug px-1">Registra só o tempo</span>
                 </button>
-                <button (click)="gpsMode.set(true)"
+                <button (click)="setupGpsMode.set(true)"
                         class="flex-1 flex flex-col items-center gap-2 py-4 rounded-xl border transition-all"
-                        [class]="gpsMode() ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-border-2'">
+                        [class]="setupGpsMode() ? 'border-primary bg-primary/10' : 'border-border bg-card hover:border-border-2'">
                   <span class="text-2xl">📍</span>
-                  <span class="text-[12px] font-body font-semibold" [class]="gpsMode() ? 'text-primary' : 'text-text-2'">GPS</span>
+                  <span class="text-[12px] font-body font-semibold" [class]="setupGpsMode() ? 'text-primary' : 'text-text-2'">GPS</span>
                   <span class="text-[10px] font-body text-text-2 text-center leading-snug px-1">Calcula distância + mapa</span>
                 </button>
               </div>
-              @if (gpsMode()) {
+              @if (setupGpsMode()) {
                 <p class="text-[11px] font-body text-text-2 text-center">O GPS será ativado ao iniciar. Mantenha o app aberto.</p>
               }
             </div>
@@ -88,7 +86,7 @@ type Phase = 'setup' | 'running' | 'paused' | 'done';
         }
 
         <!-- ═══════════════════ RUNNING / PAUSED ═══════════════════ -->
-        @if (phase() === 'running' || phase() === 'paused') {
+        @if (viewPhase() === 'running' || viewPhase() === 'paused') {
           <div class="px-4 py-6 flex flex-col gap-5">
 
             <div class="flex flex-col items-center gap-5 py-4">
@@ -102,14 +100,14 @@ type Phase = 'setup' | 'running' | 'paused' | 'done';
                           style="transition:stroke-dashoffset 1s linear"/>
                 </svg>
                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-1">
-                  <span class="text-[38px] font-display font-bold text-white leading-none tracking-tight">{{ formattedTime() }}</span>
-                  <span class="text-[11px] font-body text-text-2 mt-1">{{ phase() === 'paused' ? '⏸ pausado' : '🟢 em andamento' }}</span>
+                  <span class="text-[38px] font-display font-bold text-white leading-none tracking-tight">{{ walkSvc.formattedTime() }}</span>
+                  <span class="text-[11px] font-body text-text-2 mt-1">{{ viewPhase() === 'paused' ? '⏸ pausado' : '🟢 em andamento' }}</span>
                 </div>
               </div>
 
-              @if (gpsMode() && liveKm() > 0) {
+              @if (walkSvc.activeGpsMode() && walkSvc.liveKm() > 0) {
                 <div class="flex items-baseline gap-1.5">
-                  <span class="text-[32px] font-display font-bold text-primary">{{ liveKm() | number:'1.1-2' }}</span>
+                  <span class="text-[32px] font-display font-bold text-primary">{{ walkSvc.liveKm() | number:'1.1-2' }}</span>
                   <span class="text-[14px] font-body text-text-2">km</span>
                 </div>
               }
@@ -118,7 +116,7 @@ type Phase = 'setup' | 'running' | 'paused' | 'done';
             <div class="flex gap-4 justify-center">
               <button (click)="togglePause()"
                       class="w-16 h-16 rounded-2xl border border-border bg-card-2 flex items-center justify-center text-text-2 hover:text-white transition-colors active:scale-95">
-                @if (phase() === 'paused') {
+                @if (viewPhase() === 'paused') {
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 } @else {
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
@@ -130,16 +128,21 @@ type Phase = 'setup' | 'running' | 'paused' | 'done';
               </button>
             </div>
 
-            @if (phase() === 'paused') {
+            <button (click)="tryClose()"
+                    class="mx-auto text-[12px] font-body text-text-2 underline underline-offset-2 active:opacity-70">
+              Fechar (caminhada continua em segundo plano)
+            </button>
+
+            @if (viewPhase() === 'paused') {
               <p class="text-[12px] font-body text-text-2 text-center">Caminhada pausada. Retome ou finalize.</p>
             }
           </div>
         }
 
         <!-- ═══════════════════ DONE ═══════════════════ -->
-        @if (phase() === 'done') {
+        @if (viewPhase() === 'done') {
 
-          <!-- ── Walk Result Card — ocupa toda a largura ── -->
+          <!-- ── Walk Result Card ── -->
           <div class="flex flex-col" style="background:#080C10;border-bottom:1px solid rgba(255,255,255,0.07)">
 
             <!-- Header -->
@@ -156,14 +159,14 @@ type Phase = 'setup' | 'running' | 'paused' | 'done';
               <span class="text-[11px] font-display font-bold text-primary tracking-wider">repify</span>
             </div>
 
-            <!-- Map — sem margens, ocupa toda a largura -->
+            <!-- Map -->
             <div class="relative w-full overflow-hidden" style="height:260px;background:#0D1117">
               <canvas #routeCanvas class="w-full h-full" style="display:block"></canvas>
-              @if (!gpsMode() || finalPositions().length < 2) {
+              @if (!walkSvc.activeGpsMode() || finalPositions().length < 2) {
                 <div class="absolute inset-0 flex flex-col items-center justify-center gap-2">
                   <span class="text-4xl">🗺️</span>
                   <p class="text-[11px] font-body text-text-2 text-center px-6">
-                    {{ gpsMode() ? 'Pontos insuficientes para o mapa' : 'Ative o GPS para ver o mapa da rota' }}
+                    {{ walkSvc.activeGpsMode() ? 'Pontos insuficientes para o mapa' : 'Ative o GPS para ver o mapa da rota' }}
                   </p>
                 </div>
               }
@@ -181,11 +184,11 @@ type Phase = 'setup' | 'running' | 'paused' | 'done';
               }
             </div>
 
-            <!-- Stats grid — sem margens laterais -->
+            <!-- Stats grid -->
             <div class="grid grid-cols-4 divide-x divide-border border-t border-b border-border">
               <div class="flex flex-col items-center justify-center py-4 gap-0.5">
                 <span class="text-[8px] font-body text-text-2 uppercase tracking-wider">Duração</span>
-                <span class="text-[16px] font-display font-bold text-white leading-tight">{{ formattedTime() }}</span>
+                <span class="text-[16px] font-display font-bold text-white leading-tight">{{ doneTime() }}</span>
                 <span class="text-[8px] font-body text-text-2">min</span>
               </div>
               <div class="flex flex-col items-center justify-center py-4 gap-0.5">
@@ -264,32 +267,37 @@ export class WalkModalComponent implements OnInit, OnDestroy {
 
   @ViewChild('routeCanvas') routeCanvasRef?: ElementRef<HTMLCanvasElement>;
 
-  walkSvc        = inject(WalkService);
-  checkin        = inject(CheckinService);
+  walkSvc         = inject(WalkService);
+  checkin         = inject(CheckinService);
   private postSvc = inject(PostService);
-  private auth    = inject(AuthService);
-  private zone    = inject(NgZone);
 
-  phase      = signal<Phase>('setup');
-  gpsMode    = signal(false);
-  autoPost   = signal(true);
-  publishing = signal(false);
-  caption    = '';
+  // Local setup-only state (before walk starts)
+  setupGpsMode = signal(false);
+  autoPost     = signal(true);
+  publishing   = signal(false);
+  caption      = '';
 
-  private _elapsed      = signal(0);
-  private _interval:    ReturnType<typeof setInterval> | null = null;
-  private _liveKmSignal = signal(0);
-
+  // Captured when the walk is stopped
   finalKm        = signal<number | null>(null);
   finalPositions = signal<GeoPoint[]>([]);
-  liveKm         = computed(() => this._liveKmSignal());
+  doneSec        = signal(0); // elapsed at the moment of stop
 
-  calories   = computed(() => this.walkSvc.calcCalories(this.finalKm() ?? 0, this._elapsed()));
-  finalPace  = computed(() => this.walkSvc.calcPace(this.finalKm() ?? 0, this._elapsed()));
-  weekRank   = computed(() => this.walkSvc.totalWalks() % 12 + 1); // placeholder rank
+  // viewPhase derives from service + local done state
+  viewPhase = computed<'setup' | 'running' | 'paused' | 'done'>(() => {
+    if (this._done()) return 'done';
+    const ap = this.walkSvc.activePhase();
+    if (ap === 'idle') return 'setup';
+    return ap; // 'running' | 'paused'
+  });
 
-  formattedTime = computed(() => {
-    const s = this._elapsed();
+  private _done = signal(false);
+
+  calories = computed(() => this.walkSvc.calcCalories(this.finalKm() ?? 0, this.doneSec()));
+  finalPace = computed(() => this.walkSvc.calcPace(this.finalKm() ?? 0, this.doneSec()));
+  weekRank  = computed(() => this.walkSvc.totalWalks() % 12 + 1);
+
+  doneTime = computed(() => {
+    const s = this.doneSec();
     const m = Math.floor(s / 60);
     const h = Math.floor(m / 60);
     if (h > 0) return `${h}h${String(m % 60).padStart(2, '0')}`;
@@ -302,52 +310,44 @@ export class WalkModalComponent implements OnInit, OnDestroy {
   });
 
   ringOffset = computed(() => {
-    const pct = (this._elapsed() % 60) / 60;
+    const pct = (this.walkSvc.elapsedSec() % 60) / 60;
     return 276.5 - pct * 276.5;
   });
 
   ngOnInit(): void {}
 
   ngOnDestroy(): void {
-    this._clearTimer();
-    if (this.gpsMode()) this.walkSvc.stopGps();
+    // Do NOT stop the walk here — service keeps running
   }
 
   startWalk(): void {
-    if (this.gpsMode()) this.walkSvc.startGps();
-    this._elapsed.set(0);
-    this.phase.set('running');
-    this._startTimer();
+    this.walkSvc.beginWalk(this.setupGpsMode());
   }
 
   togglePause(): void {
-    if (this.phase() === 'running') {
-      this._clearTimer();
-      this.phase.set('paused');
+    if (this.walkSvc.activePhase() === 'running') {
+      this.walkSvc.pauseWalk();
     } else {
-      this._startTimer();
-      this.phase.set('running');
+      this.walkSvc.resumeWalk();
     }
   }
 
   stopWalk(): void {
-    this._clearTimer();
-    if (this.gpsMode()) {
-      const { distanceKm, positions } = this.walkSvc.stopGps();
-      this.finalKm.set(distanceKm > 0 ? distanceKm : null);
-      this.finalPositions.set(positions);
-    }
-    this.phase.set('done');
+    this.doneSec.set(this.walkSvc.elapsedSec());
+    const { distanceKm, positions } = this.walkSvc.finishActiveWalk();
+    this.finalKm.set(distanceKm);
+    this.finalPositions.set(positions);
+    this._done.set(true);
 
-    // draw map after view updates
     setTimeout(() => this._drawMap(), 80);
   }
 
   tryClose(): void {
-    if (this.phase() === 'running' || this.phase() === 'paused') {
-      if (!confirm('Cancelar a caminhada em andamento?')) return;
-      this._clearTimer();
-      if (this.gpsMode()) this.walkSvc.stopGps();
+    const ap = this.walkSvc.activePhase();
+    if (ap === 'running' || ap === 'paused') {
+      // Just close the modal — walk keeps running in the service
+      this.onClose.emit();
+      return;
     }
     this.onClose.emit();
   }
@@ -356,7 +356,7 @@ export class WalkModalComponent implements OnInit, OnDestroy {
     if (this.publishing()) return;
     this.publishing.set(true);
 
-    const durationSec = this._elapsed();
+    const durationSec = this.doneSec();
     const distanceKm  = this.finalKm();
 
     this.walkSvc.saveSession({
@@ -366,9 +366,11 @@ export class WalkModalComponent implements OnInit, OnDestroy {
       distanceKm,
       calories:     this.calories(),
       paceSecPerKm: this.finalPace(),
-      gpsUsed:      this.gpsMode(),
+      gpsUsed:      this.walkSvc.activeGpsMode(),
       positions:    this.finalPositions(),
     });
+
+    this.walkSvc.resetActiveWalk();
 
     try { await this.checkin.checkIn(); } catch {}
 
@@ -396,7 +398,7 @@ export class WalkModalComponent implements OnInit, OnDestroy {
     this.onClose.emit();
   }
 
-  // ── Card image generation ──────────────────────────────────────────────────
+  // ── Map ───────────────────────────────────────────────────────────────────
 
   private _drawMap(): void {
     const canvas = this.routeCanvasRef?.nativeElement;
@@ -409,13 +411,14 @@ export class WalkModalComponent implements OnInit, OnDestroy {
     });
   }
 
+  // ── Card image generation ─────────────────────────────────────────────────
+
   private async _generateCardImage(): Promise<File | null> {
     const W = 1080, H = 1350;
     const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     const ctx = canvas.getContext('2d')!;
 
-    // ── Background ────────────────────────────────────────────────────────────
     ctx.fillStyle = '#080C10';
     ctx.fillRect(0, 0, W, H);
 
@@ -436,7 +439,6 @@ export class WalkModalComponent implements OnInit, OnDestroy {
     const now = new Date();
     const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
-    // ── Badge pill + subtitle (sem avatar/nome) ───────────────────────────────
     ctx.textAlign = 'center';
     ctx.font = 'bold 28px system-ui, sans-serif';
     const badgeText  = '🚶 Repify Walk';
@@ -456,7 +458,6 @@ export class WalkModalComponent implements OnInit, OnDestroy {
     ctx.fillStyle = '#8896A8'; ctx.font = '26px system-ui, sans-serif';
     ctx.fillText(`Hoje às ${timeStr}`, W / 2, badgePillY + 108);
 
-    // ── Map area ──
     const mapY = 220, mapH = 520;
     this._roundRect(ctx, M, mapY, W - M * 2, mapH, 24);
     ctx.fillStyle = '#0D1117'; ctx.fill();
@@ -475,14 +476,13 @@ export class WalkModalComponent implements OnInit, OnDestroy {
     ctx.strokeStyle = 'rgba(0,255,136,0.15)'; ctx.lineWidth = 1.5;
     this._roundRect(ctx, M, mapY, W - M * 2, mapH, 24); ctx.stroke();
 
-    // ── Stats grid (4 cols) — totalmente centralizado ────────────────────────
     const statsY  = mapY + mapH + 36;
     const statGap = 10;
     const statW   = (W - M * 2 - statGap * 3) / 4;
     const statH   = 168;
     const statLabels = ['DURAÇÃO', 'DISTÂNCIA', 'CALORIAS', 'RITMO'];
     const statValues = [
-      this.formattedTime(),
+      this.doneTime(),
       this.finalKm() ? `${this.finalKm()!.toFixed(2)}` : '--',
       `${this.calories()}`,
       this.walkSvc.formatPace(this.finalPace()),
@@ -510,28 +510,26 @@ export class WalkModalComponent implements OnInit, OnDestroy {
       ctx.fillText(statUnits[i], cx, statsY + 144);
     });
 
-    // ── Streak + Ranking — centralizados dentro dos cards ────────────────────
-    const badgeY = statsY + statH + 28;
-    const badgeW = (W - M * 2 - 16) / 2;
-    const badgeH = 128;
+    const badgeY2 = statsY + statH + 28;
+    const badgeW  = (W - M * 2 - 16) / 2;
+    const badgeH2 = 128;
 
     const drawBadgeCard = (
       x: number, emoji: string, value: string, sub: string, borderColor: string,
     ) => {
       const cx = x + badgeW / 2;
       ctx.fillStyle = 'rgba(255,255,255,0.04)';
-      this._roundRect(ctx, x, badgeY, badgeW, badgeH, 20); ctx.fill();
+      this._roundRect(ctx, x, badgeY2, badgeW, badgeH2, 20); ctx.fill();
       ctx.strokeStyle = borderColor; ctx.lineWidth = 1;
-      this._roundRect(ctx, x, badgeY, badgeW, badgeH, 20); ctx.stroke();
+      this._roundRect(ctx, x, badgeY2, badgeW, badgeH2, 20); ctx.stroke();
 
-      // emoji + value on one line, centered
       ctx.textAlign = 'center';
       ctx.font = '38px system-ui';
-      ctx.fillText(emoji, cx - 60, badgeY + 70);
+      ctx.fillText(emoji, cx - 60, badgeY2 + 70);
       ctx.fillStyle = '#FFF'; ctx.font = 'bold 36px system-ui, sans-serif';
-      ctx.fillText(value, cx + 28, badgeY + 68);
+      ctx.fillText(value, cx + 28, badgeY2 + 68);
       ctx.fillStyle = '#8896A8'; ctx.font = '22px system-ui, sans-serif';
-      ctx.fillText(sub, cx, badgeY + 106);
+      ctx.fillText(sub, cx, badgeY2 + 106);
     };
 
     drawBadgeCard(M,              '🔥', `${this.checkin.streak()} dias`, 'Seguindo firme!',    'rgba(255,100,0,0.2)');
@@ -559,58 +557,4 @@ export class WalkModalComponent implements OnInit, OnDestroy {
     ctx.closePath();
   }
 
-  private async _drawAvatar(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, url: string): Promise<void> {
-    ctx.save();
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.clip();
-    if (url) {
-      try {
-        const img = await this._loadImage(url);
-        ctx.drawImage(img, cx - r, cy - r, r * 2, r * 2);
-      } catch { this._avatarFallback(ctx, cx, cy, r); }
-    } else { this._avatarFallback(ctx, cx, cy, r); }
-    ctx.restore();
-    ctx.strokeStyle = 'rgba(0,255,136,0.5)'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(cx, cy, r + 2, 0, Math.PI * 2); ctx.stroke();
-  }
-
-  private _avatarFallback(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
-    const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r);
-    g.addColorStop(0, 'rgba(0,255,136,0.3)'); g.addColorStop(1, 'rgba(0,194,255,0.1)');
-    ctx.fillStyle = g; ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
-    const profile = this.auth.profile();
-    ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${r}px system-ui, sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText((profile.full_name || 'U').charAt(0).toUpperCase(), cx, cy);
-    ctx.textBaseline = 'alphabetic';
-  }
-
-  private _loadImage(src: string): Promise<HTMLImageElement> {
-    return new Promise((res, rej) => {
-      const img = new Image(); img.crossOrigin = 'anonymous';
-      img.onload = () => res(img); img.onerror = rej; img.src = src;
-    });
-  }
-
-  // ── Timer ─────────────────────────────────────────────────────────────────
-
-  private _startTimer(): void {
-    this._clearTimer();
-    this._interval = setInterval(() => {
-      this.zone.run(() => {
-        this._elapsed.update(s => s + 1);
-        if (this.gpsMode() && this._elapsed() % 5 === 0) this._refreshLiveKm();
-      });
-    }, 1000);
-  }
-
-  private _refreshLiveKm(): void {
-    const pts = this.walkSvc.getPositions();
-    if (pts.length < 2) return;
-    this._liveKmSignal.set(this.walkSvc.calcDistance(pts));
-  }
-
-  private _clearTimer(): void {
-    if (this._interval !== null) { clearInterval(this._interval); this._interval = null; }
-  }
 }
