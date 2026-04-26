@@ -198,8 +198,9 @@ export class CommentsSheetComponent implements OnInit {
     }
   }
 
-  onEnter(e: KeyboardEvent): void {
-    if (!e.shiftKey) { e.preventDefault(); this.submit(); }
+  onEnter(e: Event): void {
+    const ke = e as KeyboardEvent;
+    if (!ke.shiftKey) { e.preventDefault(); this.submit(); }
   }
 
   onBackdrop(e: MouseEvent): void {
