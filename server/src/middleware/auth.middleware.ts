@@ -1,13 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { config } from '../config';
+import { supabaseAdmin } from '../supabase';
 
 export interface AuthRequest extends Request {
   userId?: string;
   userEmail?: string;
 }
 
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction): void {
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization;
 
   if (!header?.startsWith('Bearer ')) {
@@ -17,12 +16,16 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
 
   const token = header.slice(7);
 
-  try {
-    const payload = jwt.verify(token, config.supabaseJwtSecret) as jwt.JwtPayload;
-    req.userId    = payload['sub'] as string;
-    req.userEmail = payload['email'] as string;
-    next();
-  } catch {
+  // Delega a validação ao Supabase Auth — funciona com JWT legacy (HS256)
+  // e com JWT signing keys assimétricas (ES256/RS256) sem precisar do JWT_SECRET.
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+
+  if (error || !data.user) {
     res.status(401).json({ error: 'Invalid or expired token.' });
+    return;
   }
+
+  req.userId    = data.user.id;
+  req.userEmail = data.user.email;
+  next();
 }
