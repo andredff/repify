@@ -40,14 +40,16 @@ export class PostService {
 
   async listFeed(limit = 20, offset = 0): Promise<WorkoutPost[]> {
     const res = await this.fetch(`/api/posts?limit=${limit}&offset=${offset}`);
+    if (!res.ok) throw new Error(`Erro ao carregar feed (${res.status})`);
     const data = await res.json();
-    return (data.posts as ApiPost[]).map(this.mapApiToPost);
+    return ((data.posts ?? []) as ApiPost[]).map(this.mapApiToPost);
   }
 
   async listByUser(userId: string): Promise<WorkoutPost[]> {
     const res = await this.fetch(`/api/posts/user/${encodeURIComponent(userId)}`);
+    if (!res.ok) throw new Error(`Erro ao carregar posts (${res.status})`);
     const data = await res.json();
-    return (data.posts as ApiPost[]).map(this.mapApiToPost);
+    return ((data.posts ?? []) as ApiPost[]).map(this.mapApiToPost);
   }
 
   async createPost(data: NewPostData): Promise<WorkoutPost> {
