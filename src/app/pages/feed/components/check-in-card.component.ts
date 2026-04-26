@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, output, OnInit } from '@angular/core';
 import { CheckinService } from '../../../core/services/checkin.service';
 
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -56,13 +56,15 @@ const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
             </svg>
           </button>
 
-          @if (!checkin.todayChecked()) {
-            <button (click)="doCheckIn()"
-                    [disabled]="busy()"
-                    class="bg-primary text-bg text-[12px] font-body font-semibold px-4 py-1.5 rounded-lg hover:shadow-glow transition-all active:scale-95 disabled:opacity-50">
-              {{ busy() ? '...' : 'Check-in' }}
-            </button>
-          }
+          <div class="flex flex-col items-end gap-1.5">
+            @if (!checkin.todayChecked()) {
+              <button (click)="doCheckIn()"
+                      [disabled]="busy()"
+                      class="bg-primary text-bg text-[12px] font-body font-semibold px-4 py-1.5 rounded-lg hover:shadow-glow transition-all active:scale-95 disabled:opacity-50">
+                {{ busy() ? '...' : 'Check-in' }}
+              </button>
+            }
+          </div>
         </div>
       </div>
 
@@ -150,6 +152,8 @@ const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
 export class CheckInCardComponent implements OnInit {
   readonly checkin = inject(CheckinService);
   readonly MONTH_NAMES = MONTH_NAMES;
+
+  onWalk = output<void>();
 
   showCalendar = signal(false);
   busy         = signal(false);

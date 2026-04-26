@@ -469,23 +469,12 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
       : false;
 
     const caption  = this.post().caption || '';
-    const workout  = this.post().workout?.name || '';
     const contentY = hasPhoto ? photoY + photoSize + 52 : photoY;
 
     if (this.showCaption() && caption) {
       ctx.fillStyle = '#FFF';
       ctx.font = `${hasPhoto ? 38 : 48}px system-ui, sans-serif`;
       this.wrapText(ctx, caption, M, contentY, W - M * 2, hasPhoto ? 58 : 70, 3);
-    }
-
-    if (workout) {
-      const tagY = H - M - (this.showGoal() && this.post().user.yearlyGoal ? 160 : 80);
-      ctx.fillStyle = 'rgba(0,255,136,0.09)';
-      this.roundRect(ctx, M, tagY, W - M * 2, 60, 16); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,255,136,0.22)'; ctx.lineWidth = 1;
-      this.roundRect(ctx, M, tagY, W - M * 2, 60, 16); ctx.stroke();
-      ctx.fillStyle = '#00FF88'; ctx.font = 'bold 30px system-ui, sans-serif';
-      ctx.fillText(`⚡ ${workout}`, M + 20, tagY + 40);
     }
 
     if (this.showGoal() && this.post().user.yearlyGoal) {
@@ -517,7 +506,6 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
       : false;
 
     const caption  = this.post().caption || '';
-    const workout  = this.post().workout?.name || '';
     const contentY = hasPhoto ? photoY + photoH + 36 : photoY;
 
     if (this.showCaption() && caption) {
@@ -525,16 +513,6 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
       ctx.font = '30px system-ui, sans-serif';
       ctx.textAlign = 'left';
       this.wrapText(ctx, caption, M, contentY, photoW, 44, 2);
-    }
-
-    if (workout) {
-      const tagY = H - M - 80 - goalH;
-      ctx.fillStyle = 'rgba(0,255,136,0.1)';
-      this.roundRect(ctx, M, tagY, W - M * 2, 72, 20); ctx.fill();
-      ctx.strokeStyle = 'rgba(0,255,136,0.25)'; ctx.lineWidth = 1;
-      this.roundRect(ctx, M, tagY, W - M * 2, 72, 20); ctx.stroke();
-      ctx.fillStyle = '#00FF88'; ctx.font = 'bold 34px system-ui, sans-serif';
-      ctx.fillText(`⚡ ${workout}`, M + 24, tagY + 48);
     }
 
     if (this.showGoal() && this.post().user.yearlyGoal) {

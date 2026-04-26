@@ -12,6 +12,8 @@ import { DailyWorkoutCardComponent } from './components/daily-workout-card.compo
 import { SetupWorkoutCardComponent } from './components/setup-workout-card.component';
 import { WorkoutService } from '../../core/services/workout.service';
 import { WorkoutPost } from '../../core/models/workout-post.model';
+import { WalkModalComponent } from './components/walk-modal.component';
+import { WalkCardComponent } from './components/walk-card.component';
 
 export type { WorkoutPost };
 
@@ -27,6 +29,8 @@ export type { WorkoutPost };
     NewPostModalComponent,
     DailyWorkoutCardComponent,
     SetupWorkoutCardComponent,
+    WalkModalComponent,
+    WalkCardComponent,
   ],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
@@ -75,7 +79,11 @@ export type { WorkoutPost };
         }
 
         <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
-          <app-check-in-card />
+          <app-check-in-card (onWalk)="showWalk.set(true)" />
+        </div>
+
+        <div class="px-4 mt-3 animate-slide-up" style="animation-delay:0.07s">
+          <app-walk-card (onStart)="showWalk.set(true)" />
         </div>
 
         @if (!workoutService.hasProgram()) {
@@ -141,6 +149,10 @@ export type { WorkoutPost };
         <app-new-post-modal (onClose)="showNewPost.set(false)" (onPublish)="addPost($event)" />
       }
 
+      @if (showWalk()) {
+        <app-walk-modal (onClose)="showWalk.set(false)" (onPublish)="addPost($event)" />
+      }
+
     </div>
   `,
 })
@@ -160,6 +172,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.min(Math.round((done / goal) * 100), 100);
   });
   showNewPost  = signal(false);
+  showWalk     = signal(false);
   todayWorkout = computed(() => this.workoutService.todayWorkout());
 
   posts      = signal<WorkoutPost[]>([]);
