@@ -1,4 +1,4 @@
-import { Component, input, output, signal, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
+import { Component, input, output, signal, ViewChild, ElementRef, AfterViewInit, effect } from '@angular/core';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 
 type CardMode = 'post' | 'story';
@@ -43,17 +43,59 @@ type CardMode = 'post' | 'story';
           </div>
 
           <!-- Previews -->
-          <div class="flex justify-center mb-5">
-            <!-- Post canvas -->
+          <div class="flex justify-center mb-4">
             <canvas #postCanvas width="1080" height="1350"
                     class="rounded-xl border border-border transition-all"
                     [style]="mode() === 'post' ? 'width:208px;height:260px;display:block' : 'display:none'">
             </canvas>
-            <!-- Story canvas -->
             <canvas #storyCanvas width="1080" height="1920"
                     class="rounded-xl border border-border transition-all"
                     [style]="mode() === 'story' ? 'width:146px;height:260px;display:block' : 'display:none'">
             </canvas>
+          </div>
+
+          <!-- Options toggles -->
+          <div class="bg-card-2 border border-border rounded-xl divide-y divide-border mb-4">
+
+            @if (post().photo) {
+              <div class="flex items-center justify-between px-4 py-3">
+                <span class="text-[12px] font-body text-white">Incluir foto</span>
+                <button type="button" (click)="toggle('photo')"
+                        class="relative w-10 h-5 rounded-full transition-colors duration-200"
+                        [class]="showPhoto() ? 'bg-primary' : 'bg-border'">
+                  <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                        [class]="showPhoto() ? 'translate-x-5' : 'translate-x-0'"></span>
+                </button>
+              </div>
+            }
+
+            <div class="flex items-center justify-between px-4 py-3">
+              <span class="text-[12px] font-body text-white">Incluir nome e @usuário</span>
+              <button type="button" (click)="toggle('user')"
+                      class="relative w-10 h-5 rounded-full transition-colors duration-200"
+                      [class]="showUser() ? 'bg-primary' : 'bg-border'">
+                <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                      [class]="showUser() ? 'translate-x-5' : 'translate-x-0'"></span>
+              </button>
+            </div>
+
+            @if (post().user.yearlyGoal) {
+              <div class="flex items-center justify-between px-4 py-3">
+                <div>
+                  <span class="text-[12px] font-body text-white">Meta anual</span>
+                  <span class="text-[11px] font-mono text-primary ml-2">
+                    {{ post().user.workoutsDone ?? 0 }}/{{ post().user.yearlyGoal }}
+                  </span>
+                </div>
+                <button type="button" (click)="toggle('goal')"
+                        class="relative w-10 h-5 rounded-full transition-colors duration-200"
+                        [class]="showGoal() ? 'bg-primary' : 'bg-border'">
+                  <span class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200"
+                        [class]="showGoal() ? 'translate-x-5' : 'translate-x-0'"></span>
+                </button>
+              </div>
+            }
+
           </div>
 
           <!-- Actions -->
@@ -93,13 +135,37 @@ export class ShareCardComponent implements AfterViewInit {
   mode       = signal<CardMode>('post');
   generating = signal(false);
 
+  showPhoto = signal(true);
+  showUser  = signal(true);
+  showGoal  = signal(true);
+
+  private redrawPending = false;
+
+  constructor() {
+    effect(() => {
+      // track all toggles + mode — redraw when any changes
+      this.showPhoto(); this.showUser(); this.showGoal(); this.mode();
+      if (this.redrawPending) return;
+      this.redrawPending = true;
+      Promise.resolve().then(() => {
+        this.redrawPending = false;
+        this.drawPost();
+        this.drawStory();
+      });
+    });
+  }
+
   ngAfterViewInit(): void {
     this.drawPost();
     this.drawStory();
   }
 
-  setMode(m: CardMode): void {
-    this.mode.set(m);
+  setMode(m: CardMode): void { this.mode.set(m); }
+
+  toggle(opt: 'photo' | 'user' | 'goal'): void {
+    if (opt === 'photo') this.showPhoto.update(v => !v);
+    if (opt === 'user')  this.showUser.update(v => !v);
+    if (opt === 'goal')  this.showGoal.update(v => !v);
   }
 
   // ── Shared helpers ──────────────────────────────────────────────────────────
@@ -130,9 +196,7 @@ export class ShareCardComponent implements AfterViewInit {
 
   private wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, maxW: number, lineH: number, maxLines = 7): void {
     const words = text.split(' ');
-    let line = '';
-    let curY = y;
-    let count = 0;
+    let line = '', curY = y, count = 0;
     for (const word of words) {
       const test = line ? `${line} ${word}` : word;
       if (ctx.measureText(test).width > maxW && line) {
@@ -148,35 +212,28 @@ export class ShareCardComponent implements AfterViewInit {
     ctx.fillStyle = '#080C10';
     ctx.fillRect(0, 0, W, H);
 
-    // dot grid
     ctx.fillStyle = 'rgba(255,255,255,0.022)';
-    for (let x = M; x < W - M; x += 52) {
+    for (let x = M; x < W - M; x += 52)
       for (let y = M; y < H - M; y += 52) {
         ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
       }
-    }
 
-    // glow top-left
     const g1 = ctx.createRadialGradient(0, 0, 0, 0, 0, Math.min(W, H) * 0.55);
     g1.addColorStop(0, 'rgba(0,255,136,0.08)'); g1.addColorStop(1, 'rgba(0,255,136,0)');
     ctx.fillStyle = g1; ctx.fillRect(0, 0, W, H);
 
-    // glow bottom-right
     const g2 = ctx.createRadialGradient(W, H, 0, W, H, Math.min(W, H) * 0.6);
     g2.addColorStop(0, 'rgba(0,194,255,0.06)'); g2.addColorStop(1, 'rgba(0,194,255,0)');
     ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H);
 
-    // border
     ctx.strokeStyle = 'rgba(0,255,136,0.12)'; ctx.lineWidth = 2;
     this.roundRect(ctx, 4, 4, W - 8, H - 8, 32); ctx.stroke();
 
-    // top accent line
     const aGrd = ctx.createLinearGradient(0, 0, 320, 0);
     aGrd.addColorStop(0, 'rgba(0,255,136,0.9)'); aGrd.addColorStop(1, 'rgba(0,255,136,0)');
     ctx.strokeStyle = aGrd; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(M, 4); ctx.lineTo(M + 280, 4); ctx.stroke();
 
-    // icon ghost bottom-right
     try {
       const icon = await this.loadImage('/icon.png');
       const iS = Math.round(W * 0.72);
@@ -186,7 +243,6 @@ export class ShareCardComponent implements AfterViewInit {
     } catch { ctx.globalAlpha = 1; }
   }
 
-  // cy = vertical center of the header row
   private async drawLogo(ctx: CanvasRenderingContext2D, W: number, M: number, logoH: number, cy: number): Promise<void> {
     try {
       const logo = await this.loadImage('/logo-transparent.png');
@@ -227,15 +283,12 @@ export class ShareCardComponent implements AfterViewInit {
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   }
 
-  // ── Helpers de layout ──────────────────────────────────────────────────────
-
   private username(): string {
     return this.post().user.username
       ? `@${this.post().user.username}`
       : `@${this.post().user.name.toLowerCase().replace(/\s/g, '')}`;
   }
 
-  // cy = vertical center of the header row
   private async drawUserRow(ctx: CanvasRenderingContext2D, x: number, cy: number, AR: number, nameFontSize: number, userFontSize: number): Promise<void> {
     await this.drawAvatar(ctx, x + AR, cy, AR);
     const totalTextH = nameFontSize + 8 + userFontSize;
@@ -256,10 +309,7 @@ export class ShareCardComponent implements AfterViewInit {
       const img = await this.loadImage(photo);
       ctx.save();
       this.roundRect(ctx, x, y, w, h, r); ctx.clip();
-      // fill background dark so letterbox/pillarbox areas look clean
-      ctx.fillStyle = '#0D1117';
-      ctx.fillRect(x, y, w, h);
-      // contain: scale down to fit, never crop
+      ctx.fillStyle = '#0D1117'; ctx.fillRect(x, y, w, h);
       const scale = Math.min(w / img.naturalWidth, h / img.naturalHeight);
       const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
       ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
@@ -268,27 +318,44 @@ export class ShareCardComponent implements AfterViewInit {
     } catch { return false; }
   }
 
-  // ── POST 4:5 (1080×1350) feed format ────────────────────────────────────────
+  private drawGoalBadge(ctx: CanvasRenderingContext2D, x: number, y: number, done: number, goal: number, fontSize: number): void {
+    const text = `🎯 ${done}/${goal} treinos`;
+    ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+    const tw = ctx.measureText(text).width;
+    const pad = fontSize * 0.6, h = fontSize * 1.8;
+    // pill background
+    ctx.fillStyle = 'rgba(0,255,136,0.12)';
+    this.roundRect(ctx, x, y - h * 0.72, tw + pad * 2, h, h / 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,255,136,0.3)'; ctx.lineWidth = 1.5;
+    this.roundRect(ctx, x, y - h * 0.72, tw + pad * 2, h, h / 2); ctx.stroke();
+    ctx.fillStyle = '#00FF88';
+    ctx.fillText(text, x + pad, y);
+  }
+
+  // ── POST 4:5 (1080×1350) ────────────────────────────────────────────────────
 
   private async drawPost(): Promise<void> {
-    const canvas = this.postCanvasRef.nativeElement;
+    const canvas = this.postCanvasRef?.nativeElement;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     const W = 1080, H = 1350, M = 72;
 
     await this.drawBackground(ctx, W, H, M);
 
-    // ── Header
     const AR = 40;
     const headerCY = M + AR;
-    await this.drawUserRow(ctx, M, headerCY, AR, 38, 30);
+
+    if (this.showUser()) {
+      await this.drawUserRow(ctx, M, headerCY, AR, 38, 30);
+    }
     await this.drawLogo(ctx, W, M, 68, headerCY);
 
-    // ── Foto quadrada (1080×1080 centrada)
-    const photoSize = W - M * 2; // quadrado perfeito
+    const photoSize = W - M * 2;
     const photoY = headerCY + AR + 48;
-    const hasPhoto = await this.drawPhoto(ctx, M, photoY, photoSize, photoSize, 24);
+    const hasPhoto = this.showPhoto()
+      ? await this.drawPhoto(ctx, M, photoY, photoSize, photoSize, 24)
+      : false;
 
-    // ── Descrição abaixo
     const caption = this.post().caption || '';
     const workout = this.post().workout?.name || '';
     const content = caption || workout || 'Treino concluído 💪';
@@ -298,9 +365,8 @@ export class ShareCardComponent implements AfterViewInit {
     ctx.font = `${hasPhoto ? 38 : 48}px system-ui, sans-serif`;
     this.wrapText(ctx, content, M, contentY, W - M * 2, hasPhoto ? 58 : 70, 3);
 
-    // ── Workout tag
     if (caption && workout) {
-      const tagY = H - M - 80;
+      const tagY = H - M - (this.showGoal() && this.post().user.yearlyGoal ? 160 : 80);
       ctx.fillStyle = 'rgba(0,255,136,0.09)';
       this.roundRect(ctx, M, tagY, W - M * 2, 60, 16); ctx.fill();
       ctx.strokeStyle = 'rgba(0,255,136,0.22)'; ctx.lineWidth = 1;
@@ -308,31 +374,39 @@ export class ShareCardComponent implements AfterViewInit {
       ctx.fillStyle = '#00FF88'; ctx.font = 'bold 30px system-ui, sans-serif';
       ctx.fillText(`⚡ ${workout}`, M + 20, tagY + 40);
     }
+
+    if (this.showGoal() && this.post().user.yearlyGoal) {
+      this.drawGoalBadge(ctx, M, H - M - 20, this.post().user.workoutsDone ?? 0, this.post().user.yearlyGoal!, 30);
+    }
   }
 
   // ── STORY 9:16 (1080×1920) ──────────────────────────────────────────────────
 
   private async drawStory(): Promise<void> {
-    const canvas = this.storyCanvasRef.nativeElement;
+    const canvas = this.storyCanvasRef?.nativeElement;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d')!;
     const W = 1080, H = 1920, M = 80;
 
     await this.drawBackground(ctx, W, H, M);
 
-    // ── Header
     const AR = 44;
     const headerCY = M + AR;
-    await this.drawUserRow(ctx, M, headerCY, AR, 40, 30);
+
+    if (this.showUser()) {
+      await this.drawUserRow(ctx, M, headerCY, AR, 40, 30);
+    }
     await this.drawLogo(ctx, W, M, 70, headerCY);
 
-    // ── Foto: ocupa quase toda a altura disponível
     const photoY = headerCY + AR + 60;
-    const footerH = 280; // espaço reservado para caption + tag em baixo
+    const goalH  = this.showGoal() && this.post().user.yearlyGoal ? 100 : 0;
+    const footerH = 280 + goalH;
     const photoH = H - photoY - footerH;
     const photoW = W - M * 2;
-    const hasPhoto = await this.drawPhoto(ctx, M, photoY, photoW, photoH, 28);
+    const hasPhoto = this.showPhoto()
+      ? await this.drawPhoto(ctx, M, photoY, photoW, photoH, 28)
+      : false;
 
-    // ── Caption abaixo da foto, compacto
     const caption = this.post().caption || '';
     const workout = this.post().workout?.name || '';
     const content = caption || workout || 'Treino concluído 💪';
@@ -343,9 +417,8 @@ export class ShareCardComponent implements AfterViewInit {
     ctx.textAlign = 'left';
     this.wrapText(ctx, content, M, contentY, photoW, 52, 3);
 
-    // ── Workout tag
     if (workout && caption) {
-      const tagY = H - M - 120;
+      const tagY = H - M - 120 - goalH;
       ctx.fillStyle = 'rgba(0,255,136,0.1)';
       this.roundRect(ctx, M, tagY, W - M * 2, 72, 20); ctx.fill();
       ctx.strokeStyle = 'rgba(0,255,136,0.25)'; ctx.lineWidth = 1;
@@ -354,11 +427,14 @@ export class ShareCardComponent implements AfterViewInit {
       ctx.fillText(`⚡ ${workout}`, M + 24, tagY + 48);
     }
 
-    // ── Streak
+    if (this.showGoal() && this.post().user.yearlyGoal) {
+      this.drawGoalBadge(ctx, M, H - M - 20, this.post().user.workoutsDone ?? 0, this.post().user.yearlyGoal!, 34);
+    }
+
     if (this.post().streak) {
       ctx.fillStyle = '#8896A8'; ctx.font = '32px system-ui, sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(`🔥 ${this.post().streak} dias`, W - M, H - M - 20);
+      ctx.fillText(`🔥 ${this.post().streak} dias`, W - M, H - M - (goalH ? goalH + 60 : 20));
       ctx.textAlign = 'left';
     }
   }
@@ -379,11 +455,7 @@ export class ShareCardComponent implements AfterViewInit {
       const file = new File([blob], filename, { type: 'image/png' });
 
       if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Repify',
-          text: `Confira minha publicação no Repify! 💪 repify.com.br`,
-        });
+        await navigator.share({ files: [file], title: 'Repify', text: `Confira minha publicação no Repify! 💪 repify.com.br` });
       } else {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

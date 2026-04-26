@@ -21,15 +21,68 @@ interface WorkoutOption {
   standalone: true,
   imports: [FormsModule, ImageCropperComponent],
   template: `
-    @if (cropSrc()) {
+    @if (cropMode()) {
       <app-image-cropper
         [src]="cropSrc()!"
         shape="square"
-        [aspectW]="1" [aspectH]="1"
+        [aspectW]="cropMode() === 'story' ? 9 : 1"
+        [aspectH]="cropMode() === 'story' ? 16 : 1"
         [outputSize]="1080"
-        (onCancel)="cropSrc.set(null)"
+        (onCancel)="cropMode.set(null)"
         (onCropped)="onPhotoCropped($event)" />
     }
+
+    <!-- Format picker sheet -->
+    @if (showFormatPicker()) {
+      <div class="fixed inset-0 z-[55] flex items-end max-w-[430px] mx-auto"
+           style="background:rgba(8,12,16,0.7)" (click)="showFormatPicker.set(false)">
+        <div class="w-full bg-card border-t border-border rounded-t-2xl p-5 space-y-3 animate-slide-up"
+             (click)="$event.stopPropagation()">
+          <p class="text-[13px] font-body font-semibold text-white mb-1">Formato da foto</p>
+
+          <button (click)="useOriginal()"
+                  class="w-full flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card-2 hover:border-border-2 transition-all text-left">
+            <div class="w-9 h-9 rounded-lg bg-border flex items-center justify-center shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-[13px] font-body font-semibold text-white">Usar original</p>
+              <p class="text-[11px] font-body text-text-2">Mantém a proporção da foto</p>
+            </div>
+          </button>
+
+          <button (click)="cropMode.set('square'); showFormatPicker.set(false)"
+                  class="w-full flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card-2 hover:border-border-2 transition-all text-left">
+            <div class="w-9 h-9 rounded-lg bg-border flex items-center justify-center shrink-0">
+              <div class="w-5 h-5 border-2 border-text-2 rounded-sm"></div>
+            </div>
+            <div>
+              <p class="text-[13px] font-body font-semibold text-white">Quadrado (1:1)</p>
+              <p class="text-[11px] font-body text-text-2">Formato padrão do feed</p>
+            </div>
+          </button>
+
+          <button (click)="cropMode.set('story'); showFormatPicker.set(false)"
+                  class="w-full flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card-2 hover:border-border-2 transition-all text-left">
+            <div class="w-9 h-9 rounded-lg bg-border flex items-center justify-center shrink-0">
+              <div class="w-3.5 h-5 border-2 border-text-2 rounded-sm"></div>
+            </div>
+            <div>
+              <p class="text-[13px] font-body font-semibold text-white">Stories (9:16)</p>
+              <p class="text-[11px] font-body text-text-2">Formato vertical para stories</p>
+            </div>
+          </button>
+
+          <button (click)="showFormatPicker.set(false)"
+                  class="w-full py-3 text-[13px] font-body text-text-2 hover:text-white transition-colors">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    }
+
     <div class="fixed inset-0 z-50 flex flex-col max-w-[430px] mx-auto bg-card animate-slide-up">
 
       <!-- Header -->
@@ -55,15 +108,26 @@ interface WorkoutOption {
 
           <!-- Photo area -->
           @if (photoPreview()) {
-            <div class="relative rounded-2xl overflow-hidden aspect-square bg-card-2">
-              <img [src]="photoPreview()" class="w-full h-full object-cover" />
-              <button
-                (click)="clearPhoto()"
-                class="absolute top-3 right-3 w-8 h-8 bg-bg/80 rounded-full flex items-center justify-center text-white hover:bg-bg transition-colors">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
+            <div class="relative rounded-2xl overflow-hidden bg-card-2">
+              <img [src]="photoPreview()" class="w-full h-auto max-h-[70vh] object-contain" />
+              <div class="absolute top-3 right-3 flex gap-2">
+                <button
+                  (click)="cropSrc.set(photoPreview()); showFormatPicker.set(true)"
+                  class="h-8 px-3 bg-bg/80 rounded-full flex items-center gap-1.5 text-text-2 hover:text-white transition-colors text-[11px] font-body">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+                    <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                  </svg>
+                  Ajustar
+                </button>
+                <button
+                  (click)="clearPhoto()"
+                  class="w-8 h-8 bg-bg/80 rounded-full flex items-center justify-center text-white hover:bg-bg transition-colors">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
             </div>
           } @else {
             <button
@@ -191,12 +255,14 @@ export class NewPostModalComponent {
   onClose   = output<void>();
   onPublish = output<WorkoutPost>();
 
-  photoFile       = signal<File | null>(null);
-  photoPreview    = signal('');
-  cropSrc         = signal<string | null>(null);
-  caption         = '';
-  selectedWorkout = signal<WorkoutOption | null>(null);
-  showGoal        = signal(true);
+  photoFile        = signal<File | null>(null);
+  photoPreview     = signal('');
+  cropSrc          = signal<string | null>(null);
+  cropMode         = signal<'square' | 'story' | null>(null);
+  showFormatPicker = signal(false);
+  caption          = '';
+  selectedWorkout  = signal<WorkoutOption | null>(null);
+  showGoal         = signal(true);
 
   publishing = signal(false);
   error      = signal('');
@@ -243,12 +309,24 @@ export class NewPostModalComponent {
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { this.error.set('Foto muito grande. Máximo 10MB.'); return; }
     const reader = new FileReader();
-    reader.onload = e => this.cropSrc.set(e.target?.result as string);
+    reader.onload = e => {
+      this.cropSrc.set(e.target?.result as string);
+      this.showFormatPicker.set(true);
+    };
     reader.readAsDataURL(file);
   }
 
+  useOriginal(): void {
+    this.photoPreview.set(this.cropSrc()!);
+    const dataUrl = this.cropSrc()!;
+    fetch(dataUrl).then(r => r.blob()).then(blob => {
+      this.photoFile.set(new File([blob], 'photo.png', { type: blob.type }));
+    });
+    this.showFormatPicker.set(false);
+  }
+
   onPhotoCropped(result: { dataUrl: string; blob: Blob }): void {
-    this.cropSrc.set(null);
+    this.cropMode.set(null);
     this.photoPreview.set(result.dataUrl);
     this.photoFile.set(new File([result.blob], 'photo.png', { type: 'image/png' }));
   }
@@ -257,6 +335,7 @@ export class NewPostModalComponent {
     this.photoFile.set(null);
     this.photoPreview.set('');
     this.cropSrc.set(null);
+    this.cropMode.set(null);
   }
 
   onBackdrop(event: MouseEvent): void {

@@ -1,4 +1,5 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
+import { AuthService } from './auth.service';
 
 export interface StoredExercise {
   id: string;
@@ -111,6 +112,7 @@ const MUSCLE_EMOJI: Record<string, string> = {
 
 @Injectable({ providedIn: 'root' })
 export class WorkoutService {
+  private auth = inject(AuthService);
   private _program  = signal<ActiveProgram | null>(this._loadProgram());
   private _finished = signal<Record<string, string>>(this._loadFinished());
   private _history  = signal<WorkoutSession[]>(this._loadHistory());
@@ -248,6 +250,13 @@ export class WorkoutService {
       localStorage.setItem(LS_XP, String(next));
       return next;
     });
+
+    // Incrementa meta anual se configurada
+    const profile = this.auth.profile();
+    if (profile.yearly_goal) {
+      const current = profile.workouts_done ?? 0;
+      this.auth.updateProfile({ workouts_done: current + 1 });
+    }
   }
 
   isFinishedToday(planId: string): boolean {
