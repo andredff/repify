@@ -73,7 +73,7 @@ export class CheckinService {
       const isToday = iso === toLocalDate(now);
       return {
         label: ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'][i],
-        short: ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'][i],
+        short: ['S','T','Q','Q','S','S','D'][i],
         date:  iso,
         done:  this.dates().includes(iso),
         today: isToday,
