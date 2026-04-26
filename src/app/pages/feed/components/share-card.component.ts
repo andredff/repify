@@ -45,9 +45,9 @@ type CardMode = 'post' | 'story';
           <!-- Previews -->
           <div class="flex justify-center mb-5">
             <!-- Post canvas -->
-            <canvas #postCanvas width="1080" height="1080"
+            <canvas #postCanvas width="1080" height="1350"
                     class="rounded-xl border border-border transition-all"
-                    [style]="mode() === 'post' ? 'width:260px;height:260px;display:block' : 'display:none'">
+                    [style]="mode() === 'post' ? 'width:208px;height:260px;display:block' : 'display:none'">
             </canvas>
             <!-- Story canvas -->
             <canvas #storyCanvas width="1080" height="1920"
@@ -268,51 +268,45 @@ export class ShareCardComponent implements AfterViewInit {
     } catch { return false; }
   }
 
-  // ── POST 1:1 (1080×1080) ────────────────────────────────────────────────────
+  // ── POST 4:5 (1080×1350) feed format ────────────────────────────────────────
 
   private async drawPost(): Promise<void> {
     const canvas = this.postCanvasRef.nativeElement;
     const ctx = canvas.getContext('2d')!;
-    const S = 1080, M = 72;
+    const W = 1080, H = 1350, M = 72;
 
-    await this.drawBackground(ctx, S, S, M);
+    await this.drawBackground(ctx, W, H, M);
 
-    // ── Header: tudo alinhado no mesmo centro vertical
+    // ── Header
     const AR = 40;
-    const headerCY = M + AR; // centro vertical do header
+    const headerCY = M + AR;
     await this.drawUserRow(ctx, M, headerCY, AR, 38, 30);
-    await this.drawLogo(ctx, S, M, 72, headerCY);
+    await this.drawLogo(ctx, W, M, 68, headerCY);
 
-    // ── Foto no meio
-    const photo = this.post().photo;
-    const hasPhoto = !!photo;
-    const photoY = headerCY + AR + 56;
-    const photoH = hasPhoto ? 560 : 0;
-    const photoW = S - M * 2;
+    // ── Foto quadrada (1080×1080 centrada)
+    const photoSize = W - M * 2; // quadrado perfeito
+    const photoY = headerCY + AR + 48;
+    const hasPhoto = await this.drawPhoto(ctx, M, photoY, photoSize, photoSize, 24);
 
-    if (hasPhoto) {
-      await this.drawPhoto(ctx, M, photoY, photoW, photoH, 24);
-    }
-
-    // ── Descrição abaixo da foto
+    // ── Descrição abaixo
     const caption = this.post().caption || '';
     const workout = this.post().workout?.name || '';
     const content = caption || workout || 'Treino concluído 💪';
-    const contentY = hasPhoto ? photoY + photoH + 64 : photoY;
+    const contentY = hasPhoto ? photoY + photoSize + 52 : photoY;
 
     ctx.fillStyle = '#FFF';
-    ctx.font = `${hasPhoto ? 44 : 52}px system-ui, sans-serif`;
-    this.wrapText(ctx, content, M, contentY, S - M * 2, hasPhoto ? 66 : 76, hasPhoto ? 4 : 7);
+    ctx.font = `${hasPhoto ? 38 : 48}px system-ui, sans-serif`;
+    this.wrapText(ctx, content, M, contentY, W - M * 2, hasPhoto ? 58 : 70, 3);
 
     // ── Workout tag
     if (caption && workout) {
-      const tagY = S - M - 90;
+      const tagY = H - M - 80;
       ctx.fillStyle = 'rgba(0,255,136,0.09)';
-      this.roundRect(ctx, M, tagY, S - M * 2, 66, 16); ctx.fill();
+      this.roundRect(ctx, M, tagY, W - M * 2, 60, 16); ctx.fill();
       ctx.strokeStyle = 'rgba(0,255,136,0.22)'; ctx.lineWidth = 1;
-      this.roundRect(ctx, M, tagY, S - M * 2, 66, 16); ctx.stroke();
-      ctx.fillStyle = '#00FF88'; ctx.font = 'bold 32px system-ui, sans-serif';
-      ctx.fillText(`⚡ ${workout}`, M + 22, tagY + 42);
+      this.roundRect(ctx, M, tagY, W - M * 2, 60, 16); ctx.stroke();
+      ctx.fillStyle = '#00FF88'; ctx.font = 'bold 30px system-ui, sans-serif';
+      ctx.fillText(`⚡ ${workout}`, M + 20, tagY + 40);
     }
   }
 

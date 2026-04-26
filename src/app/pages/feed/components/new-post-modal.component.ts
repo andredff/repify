@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { PostService } from '../../../core/services/post.service';
 import { WorkoutService } from '../../../core/services/workout.service';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
+import { ImageCropperComponent } from '../../../shared/image-cropper.component';
 
 const MUSCLE_EMOJI: Record<string, string> = {
   peito:'🫁', costas:'🔙', pernas:'🦵', ombros:'🏔️',
@@ -17,8 +18,17 @@ interface WorkoutOption {
 @Component({
   selector: 'app-new-post-modal',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, ImageCropperComponent],
   template: `
+    @if (cropSrc()) {
+      <app-image-cropper
+        [src]="cropSrc()!"
+        shape="square"
+        [aspectW]="1" [aspectH]="1"
+        [outputSize]="1080"
+        (onCancel)="cropSrc.set(null)"
+        (onCropped)="onPhotoCropped($event)" />
+    }
     <div class="fixed inset-0 z-50 flex flex-col max-w-[430px] mx-auto bg-card animate-slide-up">
 
       <!-- Header -->
@@ -156,6 +166,7 @@ export class NewPostModalComponent {
 
   photoFile     = signal<File | null>(null);
   photoPreview  = signal('');
+  cropSrc       = signal<string | null>(null);
   caption       = '';
   selectedWorkout = signal<WorkoutOption | null>(null);
 
@@ -203,15 +214,21 @@ export class NewPostModalComponent {
     const file = (event.target as HTMLInputElement).files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) { this.error.set('Foto muito grande. Máximo 10MB.'); return; }
-    this.photoFile.set(file);
     const reader = new FileReader();
-    reader.onload = e => this.photoPreview.set(e.target?.result as string);
+    reader.onload = e => this.cropSrc.set(e.target?.result as string);
     reader.readAsDataURL(file);
+  }
+
+  onPhotoCropped(result: { dataUrl: string; blob: Blob }): void {
+    this.cropSrc.set(null);
+    this.photoPreview.set(result.dataUrl);
+    this.photoFile.set(new File([result.blob], 'photo.png', { type: 'image/png' }));
   }
 
   clearPhoto(): void {
     this.photoFile.set(null);
     this.photoPreview.set('');
+    this.cropSrc.set(null);
   }
 
   onBackdrop(event: MouseEvent): void {

@@ -5,6 +5,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { CheckinService } from '../../core/services/checkin.service';
 import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
+import { ImageCropperComponent } from '../../shared/image-cropper.component';
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   const a = control.get('newPassword')?.value;
@@ -20,10 +21,19 @@ const MAX_SIZE_MB   = 5;
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [ReactiveFormsModule, BottomNavComponent, NewPostModalComponent],
+  imports: [ReactiveFormsModule, BottomNavComponent, NewPostModalComponent, ImageCropperComponent],
   template: `
     @if (showNewPost()) {
       <app-new-post-modal (onClose)="showNewPost.set(false)" />
+    }
+    @if (avatarCropSrc()) {
+      <app-image-cropper
+        [src]="avatarCropSrc()!"
+        shape="circle"
+        [aspectW]="1" [aspectH]="1"
+        [outputSize]="512"
+        (onCancel)="avatarCropSrc.set(null)"
+        (onCropped)="onAvatarCropped($event)" />
     }
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative">
 
@@ -435,6 +445,7 @@ export class ProfileComponent implements OnInit {
   activeTab = signal<ActiveTab>('info');
 
   // Avatar state
+  avatarCropSrc   = signal<string | null>(null);
   avatarPreview   = signal<string>('');
   avatarUploading = signal(false);
   uploadProgress  = signal(0);
@@ -525,29 +536,28 @@ export class ProfileComponent implements OnInit {
     const file  = input.files?.[0];
     if (!file) return;
 
-    // Reset
     this.avatarError.set('');
     this.avatarSuccess.set(false);
     input.value = '';
 
-    // Validate type
     if (!ALLOWED_TYPES.includes(file.type)) {
       this.avatarError.set('Formato inválido. Use JPG, PNG ou WEBP.');
       return;
     }
-
-    // Validate size
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
       this.avatarError.set(`Arquivo muito grande. Máximo ${MAX_SIZE_MB}MB.`);
       return;
     }
 
-    // Show local preview immediately
+    // Open cropper instead of uploading directly
     const reader = new FileReader();
-    reader.onload = e => this.avatarPreview.set(e.target?.result as string);
+    reader.onload = e => this.avatarCropSrc.set(e.target?.result as string);
     reader.readAsDataURL(file);
+  }
 
-    // Upload with simulated progress (Supabase SDK doesn't expose upload progress)
+  async onAvatarCropped(result: { dataUrl: string; blob: Blob }): Promise<void> {
+    this.avatarCropSrc.set(null);
+    this.avatarPreview.set(result.dataUrl);
     this.avatarUploading.set(true);
     this.uploadProgress.set(0);
 
@@ -555,6 +565,7 @@ export class ProfileComponent implements OnInit {
       this.uploadProgress.update(p => Math.min(p + 15, 85));
     }, 200);
 
+    const file = new File([result.blob], 'avatar.png', { type: 'image/png' });
     try {
       await this.auth.uploadAvatar(file);
       clearInterval(progressInterval);
