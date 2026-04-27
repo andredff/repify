@@ -45,5 +45,11 @@ export const routes: Routes = [
       import('./pages/workout/workout.component').then(m => m.WorkoutComponent),
     canActivate: [authGuard],
   },
+  {
+    path: 'ranking',
+    loadComponent: () =>
+      import('./pages/ranking/ranking.component').then(m => m.RankingComponent),
+    canActivate: [authGuard],
+  },
   { path: '**', redirectTo: '' },
 ];

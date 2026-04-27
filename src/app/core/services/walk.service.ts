@@ -1,4 +1,5 @@
 import { Injectable, signal, computed, NgZone, inject } from '@angular/core';
+import { RankingService } from './ranking.service';
 
 export interface GeoPoint { lat: number; lng: number }
 
@@ -20,7 +21,8 @@ const LS_KEY = 'repify_walks';
 
 @Injectable({ providedIn: 'root' })
 export class WalkService {
-  private zone = inject(NgZone);
+  private zone    = inject(NgZone);
+  private ranking = inject(RankingService);
 
   // ── Persisted history ──────────────────────────────────────────────────────
   private _history = signal<WalkSession[]>(this._load());
@@ -164,6 +166,8 @@ export class WalkService {
       localStorage.setItem(LS_KEY, JSON.stringify(next));
       return next;
     });
+    // XP: +5 per walk, fire-and-forget
+    this.ranking.recordXp('walk', 5);
     return full;
   }
 

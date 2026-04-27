@@ -49,18 +49,20 @@ import { RouterLink } from '@angular/router';
           <span class="text-[10px] font-body font-semibold text-primary leading-none">Postar</span>
         </div>
 
-        <!-- Progresso -->
-        <a routerLink="/dashboard"
+        <!-- Ranking -->
+        <a routerLink="/ranking"
            class="flex flex-col items-center gap-1 w-14 py-1 rounded-xl transition-all relative"
-           [class]="active() === 'progress' ? 'text-primary' : 'text-text-2 hover:text-white'">
-          @if (active() === 'progress') {
+           [class]="active() === 'ranking' ? 'text-primary' : 'text-text-2 hover:text-white'">
+          @if (active() === 'ranking') {
             <div class="absolute inset-0 bg-primary/8 rounded-xl"></div>
             <div class="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full shadow-glow-sm"></div>
           }
           <svg class="relative" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            <path d="M8 21H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h3"/>
+            <path d="M16 21h3a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-3"/>
+            <rect x="8" y="8" width="8" height="13" rx="1"/>
           </svg>
-          <span class="relative text-[10px] font-body font-medium leading-none">Progresso</span>
+          <span class="relative text-[10px] font-body font-medium leading-none">Ranking</span>
         </a>
 
         <!-- Perfil -->

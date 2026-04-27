@@ -1,5 +1,6 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { AuthService } from './auth.service';
+import { RankingService } from './ranking.service';
 
 export interface StoredExercise {
   id: string;
@@ -112,7 +113,8 @@ const MUSCLE_EMOJI: Record<string, string> = {
 
 @Injectable({ providedIn: 'root' })
 export class WorkoutService {
-  private auth = inject(AuthService);
+  private auth    = inject(AuthService);
+  private ranking = inject(RankingService);
   private _program  = signal<ActiveProgram | null>(this._loadProgram());
   private _finished = signal<Record<string, string>>(this._loadFinished());
   private _history  = signal<WorkoutSession[]>(this._loadHistory());
@@ -257,6 +259,9 @@ export class WorkoutService {
       const current = profile.workouts_done ?? 0;
       this.auth.updateProfile({ workouts_done: current + 1 });
     }
+
+    // Push XP to ranking (fire-and-forget)
+    this.ranking.recordXp('workout', xp, this.streak());
   }
 
   isFinishedToday(planId: string): boolean {

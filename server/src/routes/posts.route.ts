@@ -261,13 +261,13 @@ router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response
   const { data: postRow } = await supabaseAdmin
     .from('posts').select('user_id').eq('id', postId).maybeSingle();
   if (postRow && postRow.user_id !== req.userId) {
-    await supabaseAdmin.from('notifications').insert({
+    void supabaseAdmin.from('notifications').insert({
       recipient_id: postRow.user_id,
       actor_id:     req.userId,
       type:         'comment',
       post_id:      postId,
       body:         body.slice(0, 120),
-    }).catch(() => {}); // non-critical
+    }); // non-critical, fire-and-forget
   }
 
   res.status(201).json({
