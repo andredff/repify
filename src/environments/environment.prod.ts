@@ -1,5 +1,6 @@
 export const environment = {
   production: true,
+  appUrl: 'https://www.repify.com.br',
   apiBaseUrl: 'https://repify-api.onrender.com',
   supabase: {
     url: 'https://mhdrvljjjjenletibjsf.supabase.co',

@@ -1,5 +1,6 @@
 export const environment = {
   production: false,
+  appUrl: 'http://localhost:4200',
   apiBaseUrl: 'http://localhost:3000',
   supabase: {
     url: 'https://mhdrvljjjjenletibjsf.supabase.co',

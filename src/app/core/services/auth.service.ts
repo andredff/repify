@@ -1,6 +1,7 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../supabase/supabaseClient';
+import { environment } from '../../../environments/environment';
 
 export interface UserProfile {
   full_name: string;
@@ -106,7 +107,7 @@ export class AuthService {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/feed`,
+        redirectTo: `${environment.appUrl}/feed`,
         queryParams: { prompt: 'select_account' },
       },
     });

@@ -1,12 +1,14 @@
--- ─────────────────────────────────────────────────────────────────────────────
--- Notifications table
--- ─────────────────────────────────────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════════════════════
+-- COLE ESTE SQL INTEIRO NO SUPABASE SQL EDITOR E EXECUTE
+-- supabase.com/dashboard/project/mhdrvljjjjenletibjsf/sql
+-- ═══════════════════════════════════════════════════════════════════════════
 
+-- 1. Tabela de notificações
 create table if not exists public.notifications (
   id           uuid        primary key default gen_random_uuid(),
   recipient_id uuid        not null references auth.users(id) on delete cascade,
   actor_id     uuid        references auth.users(id) on delete set null,
-  type         text        not null,   -- 'like' | 'comment' | 'workout' | 'walk'
+  type         text        not null,
   post_id      uuid        references public.posts(id) on delete cascade,
   body         text,
   read_at      timestamptz,
@@ -16,12 +18,11 @@ create table if not exists public.notifications (
 create index if not exists notif_recipient_idx on public.notifications (recipient_id, created_at desc);
 create index if not exists notif_unread_idx    on public.notifications (recipient_id, read_at) where read_at is null;
 
--- ── RLS ──────────────────────────────────────────────────────────────────────
-
+-- 2. RLS
 alter table public.notifications enable row level security;
 
-drop policy if exists "notif_select_own"  on public.notifications;
-drop policy if exists "notif_update_own"  on public.notifications;
+drop policy if exists "notif_select_own" on public.notifications;
+drop policy if exists "notif_update_own" on public.notifications;
 
 create policy "notif_select_own"
   on public.notifications for select
@@ -32,15 +33,24 @@ create policy "notif_update_own"
   using (auth.uid() = recipient_id)
   with check (auth.uid() = recipient_id);
 
--- ── Enable Realtime ───────────────────────────────────────────────────────────
-
+-- 3. Habilitar Realtime na tabela
 alter table public.notifications replica identity full;
 
-drop publication if exists supabase_realtime;
-create publication supabase_realtime for all tables;
+-- Adicionar à publicação de realtime (pode já existir no Supabase)
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+    and schemaname = 'public'
+    and tablename = 'notifications'
+  ) then
+    alter publication supabase_realtime add table public.notifications;
+  end if;
+end;
+$$;
 
--- ── post_comments table (created here to ensure trigger works) ────────────────
-
+-- 4. Tabela de comentários (se não existir)
 create table if not exists public.post_comments (
   id         uuid        primary key default gen_random_uuid(),
   post_id    uuid        not null references public.posts(id) on delete cascade,
@@ -53,15 +63,15 @@ create index if not exists post_comments_post_id_idx on public.post_comments (po
 
 alter table public.post_comments enable row level security;
 
-drop policy if exists "comments_select_all"  on public.post_comments;
-drop policy if exists "comments_insert_own"  on public.post_comments;
-drop policy if exists "comments_delete_own"  on public.post_comments;
+drop policy if exists "comments_select_all" on public.post_comments;
+drop policy if exists "comments_insert_own" on public.post_comments;
+drop policy if exists "comments_delete_own" on public.post_comments;
 
 create policy "comments_select_all" on public.post_comments for select using (true);
 create policy "comments_insert_own" on public.post_comments for insert with check (auth.uid() = user_id);
 create policy "comments_delete_own" on public.post_comments for delete using (auth.uid() = user_id);
 
--- Keep posts.comments count in sync
+-- 5. Trigger contador de comentários no post
 create or replace function public.posts_comments_increment()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -89,8 +99,7 @@ create trigger post_comments_after_delete
   after delete on public.post_comments
   for each row execute function public.posts_comments_decrement();
 
--- ── Trigger: notify on like ───────────────────────────────────────────────────
-
+-- 6. Trigger notificação em curtida
 create or replace function public.notify_on_like()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
@@ -112,8 +121,7 @@ create trigger post_likes_notify
   after insert on public.post_likes
   for each row execute function public.notify_on_like();
 
--- ── Trigger: notify on comment ────────────────────────────────────────────────
-
+-- 7. Trigger notificação em comentário
 create or replace function public.notify_on_comment()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare

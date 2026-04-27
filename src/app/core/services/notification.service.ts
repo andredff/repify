@@ -1,4 +1,4 @@
-import { Injectable, signal, computed, inject, NgZone, OnDestroy } from '@angular/core';
+import { Injectable, signal, computed, inject, NgZone, effect } from '@angular/core';
 import { supabase } from '../supabase/supabaseClient';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
@@ -17,44 +17,34 @@ export interface AppNotification {
 const API_BASE = environment.apiBaseUrl;
 
 @Injectable({ providedIn: 'root' })
-export class NotificationService implements OnDestroy {
+export class NotificationService {
   private auth = inject(AuthService);
   private zone = inject(NgZone);
 
-  private _items     = signal<AppNotification[]>([]);
-  private _loading   = signal(false);
-  private _channel:  ReturnType<typeof supabase.channel> | null = null;
+  private _items   = signal<AppNotification[]>([]);
+  private _loading = signal(false);
+  private _channel: ReturnType<typeof supabase.channel> | null = null;
 
-  readonly items      = this._items.asReadonly();
-  readonly loading    = this._loading.asReadonly();
+  readonly items       = this._items.asReadonly();
+  readonly loading     = this._loading.asReadonly();
   readonly unreadCount = computed(() => this._items().filter(n => !n.read).length);
   readonly hasUnread   = computed(() => this.unreadCount() > 0);
 
   constructor() {
-    // Start listening once the user is authenticated
-    let wasAuth = false;
-    // Use a polling check; signals can't be subscribed to directly outside Angular's reactivity
-    const check = setInterval(() => {
-      const isAuth = this.auth.isAuthenticated();
-      if (isAuth && !wasAuth) {
-        wasAuth = true;
+    // React to auth state changes via Angular effect
+    effect(() => {
+      const userId = this.auth.user()?.id;
+
+      if (userId) {
+        // User just authenticated (or service initialized while authenticated)
         this.load();
-        this._subscribeRealtime();
-      } else if (!isAuth && wasAuth) {
-        wasAuth = false;
+        this._subscribeRealtime(userId);
+      } else {
+        // User logged out
         this._items.set([]);
         this._unsubscribe();
       }
-    }, 500);
-    // Store so we can clear on destroy
-    this._initInterval = check;
-  }
-
-  private _initInterval: ReturnType<typeof setInterval> | null = null;
-
-  ngOnDestroy(): void {
-    if (this._initInterval) clearInterval(this._initInterval);
-    this._unsubscribe();
+    });
   }
 
   async load(): Promise<void> {
@@ -62,30 +52,41 @@ export class NotificationService implements OnDestroy {
     this._loading.set(true);
     try {
       const res = await this._fetch('/api/notifications?limit=40');
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn('[notif] load failed:', res.status, await res.text());
+        return;
+      }
       const data = await res.json();
       this._items.set(data.notifications ?? []);
-    } catch { /* ignore */ }
-    finally { this._loading.set(false); }
+    } catch (e) {
+      console.error('[notif] load error:', e);
+    } finally {
+      this._loading.set(false);
+    }
   }
 
   async markAllRead(): Promise<void> {
-    await this._fetch('/api/notifications/read-all', { method: 'POST' });
-    this._items.update(items => items.map(n => ({ ...n, read: true })));
+    try {
+      await this._fetch('/api/notifications/read-all', { method: 'POST' });
+      this._items.update(items => items.map(n => ({ ...n, read: true })));
+    } catch (e) {
+      console.error('[notif] markAllRead error:', e);
+    }
   }
 
   async markRead(id: string): Promise<void> {
-    await this._fetch(`/api/notifications/${id}/read`, { method: 'POST' });
-    this._items.update(items =>
-      items.map(n => n.id === id ? { ...n, read: true } : n),
-    );
+    try {
+      await this._fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+      this._items.update(items =>
+        items.map(n => n.id === id ? { ...n, read: true } : n),
+      );
+    } catch (e) {
+      console.error('[notif] markRead error:', e);
+    }
   }
 
-  // Push a workout/walk notification to all followers (fire & forget)
   async pushActivity(type: 'workout' | 'walk', postId?: string): Promise<void> {
     try {
-      // Get follower list — we reuse the users API if it exists; otherwise skip
-      // For now we push to all other users (simple approach for MVP)
       const res = await this._fetch('/api/users?limit=200');
       if (!res.ok) return;
       const data = await res.json();
@@ -100,17 +101,21 @@ export class NotificationService implements OnDestroy {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, recipient_ids: recipientIds, post_id: postId }),
       });
-    } catch { /* non-critical */ }
+    } catch (e) {
+      console.error('[notif] pushActivity error:', e);
+    }
   }
 
   // ── Realtime ──────────────────────────────────────────────────────────────
 
-  private _subscribeRealtime(): void {
-    const userId = this.auth.user()?.id;
-    if (!userId) return;
+  private _subscribeRealtime(userId: string): void {
+    // Avoid duplicate subscriptions
+    if (this._channel) return;
+
+    console.log('[notif] subscribing realtime for user', userId);
 
     this._channel = supabase
-      .channel(`notif:${userId}`)
+      .channel(`notif-${userId}`)
       .on(
         'postgres_changes',
         {
@@ -120,13 +125,30 @@ export class NotificationService implements OnDestroy {
           filter: `recipient_id=eq.${userId}`,
         },
         payload => {
-          this.zone.run(async () => {
-            // Fetch the full enriched notification from API
-            await this.load();
+          console.log('[notif] realtime INSERT received:', payload);
+          // Prepend the new notification optimistically from the payload,
+          // then refresh to get enriched actor data
+          this.zone.run(() => {
+            const raw = payload.new as any;
+            const optimistic: AppNotification = {
+              id:         raw.id,
+              type:       raw.type,
+              post_id:    raw.post_id ?? null,
+              body:       raw.body ?? null,
+              read:       false,
+              created_at: raw.created_at,
+              time_ago:   'agora',
+              actor:      null,
+            };
+            this._items.update(items => [optimistic, ...items]);
+            // Then load full enriched version after a short delay
+            setTimeout(() => this.load(), 800);
           });
         },
       )
-      .subscribe();
+      .subscribe(status => {
+        console.log('[notif] realtime status:', status);
+      });
   }
 
   private _unsubscribe(): void {
