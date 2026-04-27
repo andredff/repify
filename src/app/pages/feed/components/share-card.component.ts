@@ -436,7 +436,7 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private drawGoalBadge(ctx: CanvasRenderingContext2D, x: number, y: number, done: number, goal: number, fontSize: number): void {
-    const text = `🎯 ${done}/${goal} treinos`;
+    const text = `🎯 ${done}/${goal}`;
     ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
     const tw = ctx.measureText(text).width;
     const pad = fontSize * 0.6, h = fontSize * 1.8;

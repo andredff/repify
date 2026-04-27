@@ -257,6 +257,19 @@ router.post('/:id/comments', requireAuth, async (req: AuthRequest, res: Response
   const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(req.userId!);
   const meta = user?.user_metadata ?? {};
 
+  // Notify post owner (if not the same user)
+  const { data: postRow } = await supabaseAdmin
+    .from('posts').select('user_id').eq('id', postId).maybeSingle();
+  if (postRow && postRow.user_id !== req.userId) {
+    await supabaseAdmin.from('notifications').insert({
+      recipient_id: postRow.user_id,
+      actor_id:     req.userId,
+      type:         'comment',
+      post_id:      postId,
+      body:         body.slice(0, 120),
+    }).catch(() => {}); // non-critical
+  }
+
   res.status(201).json({
     comment: {
       id:        data.id,

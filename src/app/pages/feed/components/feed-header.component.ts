@@ -1,6 +1,7 @@
-import { Component, inject, input, output, computed } from '@angular/core';
+import { Component, inject, input, output } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
   selector: 'app-feed-header',
@@ -17,11 +18,14 @@ import { AuthService } from '../../../core/services/auth.service';
         <!-- Right actions -->
         <div class="flex items-center gap-3">
           <!-- Notif bell -->
-          <button class="relative w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-primary hover:border-primary transition-colors">
+          <button (click)="onOpenNotifications.emit()"
+                  class="relative w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-primary hover:border-primary transition-colors">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
-            <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full shadow-glow-sm"></span>
+            @if (notifSvc.hasUnread()) {
+              <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full shadow-glow-sm animate-pulse"></span>
+            }
           </button>
 
           <!-- Avatar -> meu perfil público -->
@@ -40,11 +44,13 @@ import { AuthService } from '../../../core/services/auth.service';
   `,
 })
 export class FeedHeaderComponent {
-  auth    = inject(AuthService);
+  auth     = inject(AuthService);
+  notifSvc = inject(NotificationService);
   private router = inject(Router);
 
-  userEmail = input<string>('');
-  onLogout  = output<void>();
+  userEmail          = input<string>('');
+  onLogout           = output<void>();
+  onOpenNotifications = output<void>();
 
   initials(): string {
     const email = this.userEmail();

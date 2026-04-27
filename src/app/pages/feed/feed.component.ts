@@ -16,6 +16,7 @@ import { DecimalPipe } from '@angular/common';
 import { WalkModalComponent } from './components/walk-modal.component';
 import { WalkCardComponent } from './components/walk-card.component';
 import { WalkService } from '../../core/services/walk.service';
+import { NotificationsPanelComponent } from './components/notifications-panel.component';
 
 export type { WorkoutPost };
 
@@ -33,12 +34,13 @@ export type { WorkoutPost };
     SetupWorkoutCardComponent,
     WalkModalComponent,
     WalkCardComponent,
+    NotificationsPanelComponent,
     DecimalPipe,
   ],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
 
-      <app-feed-header [userEmail]="userEmail()" (onLogout)="logout()" />
+      <app-feed-header [userEmail]="userEmail()" (onLogout)="logout()" (onOpenNotifications)="showNotifications.set(true)" />
 
       <main #mainScroll class="flex-1 overflow-y-auto pb-24 pt-[64px]" style="padding-top: calc(64px + env(safe-area-inset-top))">
 
@@ -173,6 +175,10 @@ export type { WorkoutPost };
         <app-walk-modal (onClose)="showWalk.set(false)" (onPublish)="addPost($event)" />
       }
 
+      @if (showNotifications()) {
+        <app-notifications-panel (onClose)="showNotifications.set(false)" />
+      }
+
     </div>
   `,
 })
@@ -192,8 +198,9 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!goal) return 0;
     return Math.min(Math.round((done / goal) * 100), 100);
   });
-  showNewPost  = signal(false);
-  showWalk     = signal(false);
+  showNewPost       = signal(false);
+  showWalk          = signal(false);
+  showNotifications = signal(false);
   todayWorkout = computed(() => this.workoutService.todayWorkout());
 
   posts      = signal<WorkoutPost[]>([]);

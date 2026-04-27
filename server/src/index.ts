@@ -4,11 +4,12 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config';
 
-import healthRouter  from './routes/health.route';
-import checkinRouter from './routes/checkin.route';
-import profileRouter from './routes/profile.route';
-import postsRouter   from './routes/posts.route';
-import usersRouter   from './routes/users.route';
+import healthRouter         from './routes/health.route';
+import checkinRouter        from './routes/checkin.route';
+import profileRouter        from './routes/profile.route';
+import postsRouter          from './routes/posts.route';
+import usersRouter          from './routes/users.route';
+import notificationsRouter  from './routes/notifications.route';
 
 const app = express();
 
@@ -38,11 +39,12 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 
 // ── Routes ──────────────────────────────────────────────────────────────────
-app.use('/health',       healthRouter);
-app.use('/api/checkin',  checkinRouter);
-app.use('/api/profile',  profileRouter);
-app.use('/api/posts',    postsRouter);
-app.use('/api/users',    usersRouter);
+app.use('/health',              healthRouter);
+app.use('/api/checkin',         checkinRouter);
+app.use('/api/profile',         profileRouter);
+app.use('/api/posts',           postsRouter);
+app.use('/api/users',           usersRouter);
+app.use('/api/notifications',   notificationsRouter);
 
 // ── 404 fallback ────────────────────────────────────────────────────────────
 app.use((_req, res) => {
