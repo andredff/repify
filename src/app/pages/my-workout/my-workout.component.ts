@@ -875,8 +875,8 @@ export class MyWorkoutComponent implements OnInit {
     return map[this.wizard().goal ?? ''] ?? '';
   });
 
-  ngOnInit(): void {
-    // Se já tem plano salvo, vai direto para a view do plano
+  async ngOnInit(): Promise<void> {
+    await this.workoutService.ensureHydrated();
     if (this.workoutService.hasProgram()) {
       this.step.set('plan');
     }
@@ -909,7 +909,7 @@ export class MyWorkoutComponent implements OnInit {
     this.wizard.update(w => ({ ...w, [field]: value }));
   }
 
-  next(): void {
+  async next(): Promise<void> {
     const order: Step[] = ['goal', 'level', 'days'];
     const idx = order.indexOf(this.step() as any);
     if (idx < order.length - 1) {
@@ -923,7 +923,7 @@ export class MyWorkoutComponent implements OnInit {
         plans:     workouts,
         createdAt: new Date().toISOString(),
       };
-      this.workoutService.saveProgram(program);
+      await this.workoutService.saveProgram(program);
       this.generated.set(workouts);
       this.step.set('result');
     }
@@ -941,31 +941,31 @@ export class MyWorkoutComponent implements OnInit {
     }
   }
 
-  startPlan(w: StoredPlan | GeneratedWorkout): void {
+  async startPlan(w: StoredPlan | GeneratedWorkout): Promise<void> {
     const plan = this.resolveStoredPlan(w);
     if (!plan) return;
 
-    const access = this.workoutService.beginWorkout(plan);
+    const access = await this.workoutService.beginWorkout(plan);
     if (!access.canStart) return;
 
-    this.router.navigateByUrl(`/workout/${plan.id}`);
+    await this.router.navigateByUrl(`/workout/${plan.id}`);
   }
 
   startWorkout(w: GeneratedWorkout): void {
-    this.startPlan(w);
+    void this.startPlan(w);
   }
 
-  confirmReset(): void {
+  async confirmReset(): Promise<void> {
     if (confirm('Apagar plano atual e criar um novo?')) {
-      this.workoutService.clearProgram();
+      await this.workoutService.clearProgram();
       this.wizard.set({ goal: null, level: null, days: null });
       this.generated.set([]);
       this.step.set('goal');
     }
   }
 
-  reset(): void {
-    this.workoutService.clearProgram();
+  async reset(): Promise<void> {
+    await this.workoutService.clearProgram();
     this.wizard.set({ goal: null, level: null, days: null });
     this.generated.set([]);
     this.step.set('goal');

@@ -218,6 +218,12 @@ export class WorkoutComponent implements OnInit {
   allDone = computed(() => this.exercises().length > 0 && this.doneCount() === this.exercises().length);
 
   ngOnInit(): void {
+    void this.initializeWorkout();
+  }
+
+  private async initializeWorkout(): Promise<void> {
+    await this.workoutService.ensureHydrated();
+
     const id = this.route.snapshot.paramMap.get('id') ?? '';
     const found = STATIC_PLANS[id] ?? this.workoutService.getPlan(id) ?? null;
 
@@ -227,7 +233,7 @@ export class WorkoutComponent implements OnInit {
       return;
     }
 
-    const access = this.workoutService.beginWorkout(found);
+    const access = await this.workoutService.beginWorkout(found);
     if (access.state === 'locked') {
       this.plan.set(found);
       this.viewMode.set('locked');

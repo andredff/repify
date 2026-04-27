@@ -612,21 +612,21 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  startWorkout(_id: string): void {
+  async startWorkout(_id: string): Promise<void> {
     const workout = this.todayWorkout();
     if (!workout) return;
 
-    const access = this.workoutService.beginWorkout(workout);
+    const access = await this.workoutService.beginWorkout(workout);
     if (!access.canStart) return;
 
-    this.router.navigateByUrl(`/workout/${workout.id}`);
+    await this.router.navigateByUrl(`/workout/${workout.id}`);
   }
 
   handleDailyChallenge(): void {
     if (this.dailyChallenge().action === 'workout') {
       const workout = this.todayWorkout();
       if (workout) {
-        this.startWorkout(workout.id);
+        void this.startWorkout(workout.id);
         return;
       }
       this.router.navigateByUrl('/my-workout');

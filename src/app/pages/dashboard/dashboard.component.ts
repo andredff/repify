@@ -289,13 +289,13 @@ export class DashboardComponent {
     return MUSCLE_EMOJI[muscle] || '';
   }
 
-  openTodayWorkout(): void {
+  async openTodayWorkout(): Promise<void> {
     const workout = this.ws.todayWorkout();
     if (!workout) return;
 
-    const access = this.ws.beginWorkout(workout);
+    const access = await this.ws.beginWorkout(workout);
     if (!access.canStart) return;
 
-    this.router.navigateByUrl('/workout/' + workout.id);
+    await this.router.navigateByUrl('/workout/' + workout.id);
   }
 }

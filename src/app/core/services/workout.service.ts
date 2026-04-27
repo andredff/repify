@@ -73,6 +73,22 @@ interface WorkoutDaySession {
   motivationalQuote: string | null;
 }
 
+interface RemoteWorkoutDaySession {
+  session_date: string;
+  active_plan_id: string | null;
+  started_at: string | null;
+  completed_plan_id: string | null;
+  completed_at: string | null;
+  motivational_quote: string | null;
+}
+
+interface WorkoutStateResponse {
+  program: ActiveProgram | null;
+  history: WorkoutSession[];
+  totalXp: number;
+  daySession?: RemoteWorkoutDaySession | null;
+}
+
 interface CompleteWorkoutResponse {
   ok: boolean;
   metrics: Omit<CurrentUserRankingMetrics, 'totalKm'> & {
@@ -81,11 +97,13 @@ interface CompleteWorkoutResponse {
   };
 }
 
-const LS_PROGRAM  = 'repify_program';
-const LS_FINISHED = 'repify_finished';
-const LS_HISTORY  = 'repify_history';
-const LS_XP       = 'repify_xp';
-const LS_DAY_SESSION = 'repify_workout_day_session';
+const LEGACY_WORKOUT_STORAGE_KEYS = [
+  'repify_program',
+  'repify_finished',
+  'repify_history',
+  'repify_xp',
+  'repify_workout_day_session',
+];
 
 export const LEVELS = [
   { name: 'Novato',      minXp: 0,    color: '#8896A8', emoji: '🌱' },
@@ -204,6 +222,21 @@ function normalizeSessionRecord(raw: unknown, today: string): WorkoutDaySession 
   };
 }
 
+function normalizeRemoteDaySession(raw: RemoteWorkoutDaySession | null | undefined, today: string): WorkoutDaySession {
+  if (!raw) {
+    return createEmptyDaySession(today);
+  }
+
+  return normalizeSessionRecord({
+    date: raw.session_date,
+    activePlanId: raw.active_plan_id,
+    startedAt: raw.started_at,
+    completedPlanId: raw.completed_plan_id,
+    completedAt: raw.completed_at,
+    motivationalQuote: raw.motivational_quote,
+  }, today);
+}
+
 function normalizeHistorySession(raw: unknown): WorkoutSession | null {
   if (!raw || typeof raw !== 'object') {
     return null;
@@ -229,7 +262,7 @@ function normalizeHistorySession(raw: unknown): WorkoutSession | null {
     difficulty: typeof session.difficulty === 'string' ? session.difficulty : 'Iniciante',
     completedAt,
     completedDate,
-    dateLabel: typeof session.dateLabel === 'string' ? session.dateLabel : dateLabel(completedDate),
+    dateLabel: typeof session.dateLabel === 'string' && session.dateLabel.trim().length ? session.dateLabel : dateLabel(completedDate),
     exercisesDone: typeof session.exercisesDone === 'number' ? session.exercisesDone : 0,
     totalExercises: typeof session.totalExercises === 'number' ? session.totalExercises : 0,
     estimatedDuration: typeof session.estimatedDuration === 'number' ? session.estimatedDuration : 0,
@@ -255,11 +288,13 @@ export class WorkoutService {
   private ranking = inject(RankingService);
   private readonly API = environment.apiBaseUrl;
   private _todayKey = signal(todayStr());
-  private _program  = signal<ActiveProgram | null>(this._loadProgram());
-  private _finished = signal<Record<string, string>>(this._loadFinished());
-  private _history  = signal<WorkoutSession[]>(this._loadHistory());
-  private _totalXp  = signal<number>(this._loadXp());
-  private _daySession = signal<WorkoutDaySession>(this._loadDaySession());
+  private _program  = signal<ActiveProgram | null>(null);
+  private _history  = signal<WorkoutSession[]>([]);
+  private _totalXp  = signal<number>(0);
+  private _daySession = signal<WorkoutDaySession>(createEmptyDaySession(todayStr()));
+  private _hydrated = signal(false);
+  private _loadVersion = 0;
+  private _loadPromise: Promise<void> | null = null;
 
   // ── Public readonly state ────────────────────────────────────────────────────
 
@@ -268,6 +303,7 @@ export class WorkoutService {
   readonly totalXp      = this._totalXp.asReadonly();
   readonly hasProgram   = computed(() => !!this._program());
   readonly motivationalQuotes = REPlFY_MOTIVATIONAL_QUOTES;
+  readonly hydrated = this._hydrated.asReadonly();
 
   readonly todayKey = this._todayKey.asReadonly();
   readonly daySession = computed(() => {
@@ -368,33 +404,65 @@ export class WorkoutService {
       const userId = this.auth.user()?.id ?? null;
       if (!userId) {
         this._todayKey.set(todayStr());
-        this._program.set(null);
-        this._finished.set({});
-        this._history.set([]);
-        this._totalXp.set(0);
-        this._daySession.set(createEmptyDaySession(this._todayKey()));
+        this._resetState();
+        this._clearLegacyWorkoutStorage();
+        this._hydrated.set(true);
         return;
       }
 
       this._todayKey.set(todayStr());
-      this._program.set(this._loadProgram());
-      this._finished.set(this._loadFinished());
-      this._history.set(this._loadHistory());
-      this._totalXp.set(this._loadXp());
-      this._daySession.set(this._loadDaySession());
+      this._hydrated.set(false);
+      void this.reloadState();
     });
   }
 
   // ── Program management ───────────────────────────────────────────────────────
 
-  saveProgram(program: ActiveProgram): void {
+  async saveProgram(program: ActiveProgram): Promise<void> {
+    if (!this.auth.user()) {
+      throw new Error('Usuário não autenticado.');
+    }
+
+    const previousProgram = this._program();
     this._program.set(program);
-    localStorage.setItem(this._storageKey(LS_PROGRAM), JSON.stringify(program));
+
+    try {
+      const res = await this._fetch('/api/workouts/program', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(program),
+      });
+
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null) as { error?: string; details?: string } | null;
+        const message = [errorBody?.error, errorBody?.details].filter(Boolean).join(' ');
+        throw new Error(message || 'Falha ao salvar programa de treino.');
+      }
+    } catch (error) {
+      this._program.set(previousProgram);
+      throw error;
+    }
   }
 
-  clearProgram(): void {
+  async clearProgram(): Promise<void> {
+    if (!this.auth.user()) {
+      throw new Error('Usuário não autenticado.');
+    }
+
+    const previousProgram = this._program();
     this._program.set(null);
-    localStorage.removeItem(this._storageKey(LS_PROGRAM));
+
+    try {
+      const res = await this._fetch('/api/workouts/program', { method: 'DELETE' });
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => null) as { error?: string; details?: string } | null;
+        const message = [errorBody?.error, errorBody?.details].filter(Boolean).join(' ');
+        throw new Error(message || 'Falha ao limpar programa de treino.');
+      }
+    } catch (error) {
+      this._program.set(previousProgram);
+      throw error;
+    }
   }
 
   getPlan(id: string): StoredPlan | null {
@@ -481,15 +549,42 @@ export class WorkoutService {
     return state.state === 'pending' || state.state === 'in_progress';
   }
 
-  beginWorkout(plan: StoredPlan): WorkoutAccessState {
+  async beginWorkout(plan: StoredPlan): Promise<WorkoutAccessState> {
     const state = this.getWorkoutAccessState(plan);
 
     if (state.state === 'pending') {
+      const previousDaySession = this.daySession();
       this._saveDaySession({
         ...this.daySession(),
         activePlanId: plan.id,
         startedAt: this.daySession().startedAt ?? isoNow(),
       });
+
+      try {
+        const res = await this._fetch('/api/workouts/session/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ planId: plan.id }),
+        });
+
+        const data = await res.json().catch(() => null) as { error?: string; daySession?: RemoteWorkoutDaySession | null } | null;
+        if (!res.ok) {
+          if (data?.daySession) {
+            this._saveDaySession(normalizeRemoteDaySession(data.daySession, this._todayKey()));
+          } else {
+            this._saveDaySession(previousDaySession);
+          }
+          throw new Error(data?.error || 'Falha ao iniciar treino.');
+        }
+
+        this._saveDaySession(normalizeRemoteDaySession(data?.daySession ?? null, this._todayKey()));
+      } catch (error) {
+        if (!this.daySession().activePlanId) {
+          this._saveDaySession(previousDaySession);
+        }
+        throw error;
+      }
+
       return this.getWorkoutAccessState(plan);
     }
 
@@ -517,19 +612,11 @@ export class WorkoutService {
     const allDone = exercisesDone === plan.totalExercises;
     const xp = xpForSession(plan, allDone);
     const motivationalQuote = this.randomMotivationalQuote();
-    const previousFinished = this._finished();
     const previousHistory = this._history();
     const previousTotalXp = this._totalXp();
     const previousProfile = this.auth.profile();
     const previousRank = this.ranking.myRank();
     const previousDaySession = this.daySession();
-
-    // finished map (for today indicator)
-    this._finished.update(rec => {
-      const next = { ...rec, [plan.id]: date };
-      localStorage.setItem(this._storageKey(LS_FINISHED), JSON.stringify(next));
-      return next;
-    });
 
     this._saveDaySession({
       date,
@@ -556,16 +643,12 @@ export class WorkoutService {
       xpEarned:         xp,
     };
     this._history.update(h => {
-      const next = [session, ...h];
-      localStorage.setItem(this._storageKey(LS_HISTORY), JSON.stringify(next));
-      return next;
+      return [session, ...h];
     });
 
     // XP
     this._totalXp.update(x => {
-      const next = x + xp;
-      localStorage.setItem(this._storageKey(LS_XP), String(next));
-      return next;
+      return x + xp;
     });
 
     const optimisticWorkoutsDone = (previousProfile.workouts_done ?? 0) + 1;
@@ -622,7 +705,6 @@ export class WorkoutService {
       });
       setTimeout(() => void this.ranking.load(true), 250);
     } catch (error) {
-      this._finished.set(previousFinished);
       this._history.set(previousHistory);
       this._totalXp.set(previousTotalXp);
       this._saveDaySession(previousDaySession);
@@ -656,64 +738,93 @@ export class WorkoutService {
     if (this.daySession().completedPlanId === planId && this.daySession().date === today) {
       return true;
     }
-    return this._finished()[planId] === today || this._history().some(session => session.planId === planId && session.completedDate === today);
+    return this._history().some(session => session.planId === planId && session.completedDate === today);
   }
 
   // ── Private loaders ──────────────────────────────────────────────────────────
 
-  private _loadProgram(): ActiveProgram | null {
-    try {
-      const r = localStorage.getItem(this._storageKey(LS_PROGRAM));
-      return r ? JSON.parse(r) : null;
-    } catch {
-      return null;
+  async ensureHydrated(): Promise<void> {
+    if (this._hydrated()) {
+      return;
     }
-  }
-  private _loadFinished(): Record<string, string> {
-    try {
-      const r = localStorage.getItem(this._storageKey(LS_FINISHED));
-      return r ? JSON.parse(r) : {};
-    } catch {
-      return {};
-    }
-  }
-  private _loadHistory(): WorkoutSession[] {
-    try {
-      const r = localStorage.getItem(this._storageKey(LS_HISTORY));
-      if (!r) return [];
-      const parsed = JSON.parse(r);
-      if (!Array.isArray(parsed)) return [];
-      return parsed.map(normalizeHistorySession).filter((session): session is WorkoutSession => !!session);
-    } catch {
-      return [];
-    }
-  }
-  private _loadXp(): number {
-    try {
-      return Number(localStorage.getItem(this._storageKey(LS_XP)) ?? '0');
-    } catch {
-      return 0;
-    }
+
+    await this.reloadState();
   }
 
-  private _storageKey(baseKey: string): string {
+  async reloadState(): Promise<void> {
+    if (this._loadPromise) {
+      return this._loadPromise;
+    }
+
     const userId = this.auth.user()?.id;
-    return userId ? `${baseKey}:${userId}` : `${baseKey}:guest`;
-  }
-
-  private _loadDaySession(): WorkoutDaySession {
-    try {
-      const raw = localStorage.getItem(this._storageKey(LS_DAY_SESSION));
-      const parsed = raw ? JSON.parse(raw) : null;
-      return normalizeSessionRecord(parsed, this._todayKey());
-    } catch {
-      return createEmptyDaySession(this._todayKey());
+    if (!userId) {
+      this._resetState();
+      this._hydrated.set(true);
+      return;
     }
+
+    const currentVersion = ++this._loadVersion;
+    this._loadPromise = (async () => {
+      try {
+        const res = await this._fetch('/api/workouts/state');
+        if (!res.ok) {
+          throw new Error('Falha ao carregar estado do treino.');
+        }
+
+        const payload = await res.json() as WorkoutStateResponse;
+        if (currentVersion !== this._loadVersion) {
+          return;
+        }
+
+        const history = Array.isArray(payload.history)
+          ? payload.history.map(normalizeHistorySession).filter((session): session is WorkoutSession => !!session)
+          : [];
+
+        this._program.set(payload.program ?? null);
+        this._history.set(history);
+        this._totalXp.set(Number(payload.totalXp ?? history.reduce((sum, session) => sum + session.xpEarned, 0)));
+        this._daySession.set(normalizeRemoteDaySession(payload.daySession ?? null, this._todayKey()));
+      } catch {
+        if (currentVersion !== this._loadVersion) {
+          return;
+        }
+        this._resetState();
+      } finally {
+        if (currentVersion === this._loadVersion) {
+          this._hydrated.set(true);
+        }
+        this._clearLegacyWorkoutStorage();
+        this._loadPromise = null;
+      }
+    })();
+
+    return this._loadPromise;
   }
 
   private _saveDaySession(session: WorkoutDaySession): void {
     this._daySession.set(session);
-    localStorage.setItem(this._storageKey(LS_DAY_SESSION), JSON.stringify(session));
+  }
+
+  private _resetState(): void {
+    this._program.set(null);
+    this._history.set([]);
+    this._totalXp.set(0);
+    this._daySession.set(createEmptyDaySession(this._todayKey()));
+  }
+
+  private _clearLegacyWorkoutStorage(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const userId = this.auth.user()?.id;
+    const suffixes = userId ? [userId, 'guest'] : ['guest'];
+
+    for (const baseKey of LEGACY_WORKOUT_STORAGE_KEYS) {
+      for (const suffix of suffixes) {
+        localStorage.removeItem(`${baseKey}:${suffix}`);
+      }
+    }
   }
 
   private randomMotivationalQuote(): string {

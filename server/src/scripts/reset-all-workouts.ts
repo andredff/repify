@@ -75,6 +75,11 @@ async function listAllUsers(): Promise<AuthUserSummary[]> {
 async function main(): Promise<void> {
   const weekStart = weekStartString();
   const nowIso = new Date().toISOString();
+  const [historyBefore, daySessionsBefore, programsBefore] = await Promise.all([
+    supabaseAdmin.from('workout_history').select('*', { count: 'exact', head: true }),
+    supabaseAdmin.from('workout_day_sessions').select('*', { count: 'exact', head: true }),
+    supabaseAdmin.from('workout_programs').select('*', { count: 'exact', head: true }),
+  ]);
 
   const [{ count: workoutEventsBefore, error: beforeError }, usersResult] = await Promise.all([
     supabaseAdmin.from('xp_events').select('*', { count: 'exact', head: true }).eq('type', 'workout'),
@@ -87,6 +92,15 @@ async function main(): Promise<void> {
 
   const { error: deleteError } = await supabaseAdmin.from('xp_events').delete().eq('type', 'workout');
   if (deleteError) throw deleteError;
+
+  const { error: deleteHistoryError } = await supabaseAdmin.from('workout_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if (deleteHistoryError) throw deleteHistoryError;
+
+  const { error: deleteDaySessionsError } = await supabaseAdmin.from('workout_day_sessions').delete().neq('user_id', '00000000-0000-0000-0000-000000000000');
+  if (deleteDaySessionsError) throw deleteDaySessionsError;
+
+  const { error: deleteProgramsError } = await supabaseAdmin.from('workout_programs').delete().neq('user_id', '00000000-0000-0000-0000-000000000000');
+  if (deleteProgramsError) throw deleteProgramsError;
 
   let processed = 0;
   for (const user of users) {
@@ -136,6 +150,9 @@ async function main(): Promise<void> {
     usersProcessed: processed,
     workoutEventsBefore: workoutEventsBefore ?? 0,
     workoutEventsAfter: workoutEventsAfter ?? 0,
+    workoutHistoryBefore: historyBefore.count ?? 0,
+    workoutDaySessionsBefore: daySessionsBefore.count ?? 0,
+    workoutProgramsBefore: programsBefore.count ?? 0,
     sampleUserStats: verificationStats.data ?? [],
   }, null, 2));
 }

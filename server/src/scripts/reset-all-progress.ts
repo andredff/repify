@@ -80,6 +80,11 @@ async function main(): Promise<void> {
   ]);
 
   const checkinsBefore = checkinsTablePresent ? await countRows('checkins') : { count: 0 };
+  const [workoutHistoryBefore, workoutDaySessionsBefore, workoutProgramsBefore] = await Promise.all([
+    countRows('workout_history'),
+    countRows('workout_day_sessions'),
+    countRows('workout_programs'),
+  ]);
 
   const { error: deleteXpError } = await supabaseAdmin.from('xp_events').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   if (deleteXpError) throw deleteXpError;
@@ -88,6 +93,15 @@ async function main(): Promise<void> {
     const { error: deleteCheckinsError } = await supabaseAdmin.from('checkins').delete().neq('id', '00000000-0000-0000-0000-000000000000');
     if (deleteCheckinsError) throw deleteCheckinsError;
   }
+
+  const { error: deleteWorkoutHistoryError } = await supabaseAdmin.from('workout_history').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if (deleteWorkoutHistoryError) throw deleteWorkoutHistoryError;
+
+  const { error: deleteWorkoutDaySessionsError } = await supabaseAdmin.from('workout_day_sessions').delete().neq('user_id', '00000000-0000-0000-0000-000000000000');
+  if (deleteWorkoutDaySessionsError) throw deleteWorkoutDaySessionsError;
+
+  const { error: deleteWorkoutProgramsError } = await supabaseAdmin.from('workout_programs').delete().neq('user_id', '00000000-0000-0000-0000-000000000000');
+  if (deleteWorkoutProgramsError) throw deleteWorkoutProgramsError;
 
   const { data: userStatRows, error: statsReadError } = await supabaseAdmin.from('user_stats').select('user_id');
   if (statsReadError && statsReadError.code !== '42P01') throw statsReadError;
@@ -140,6 +154,9 @@ async function main(): Promise<void> {
     xpEventsAfter: xpEventsAfter.count,
     checkinsBefore: checkinsBefore.count,
     checkinsAfter: checkinsAfter.count,
+    workoutHistoryBefore: workoutHistoryBefore.count,
+    workoutDaySessionsBefore: workoutDaySessionsBefore.count,
+    workoutProgramsBefore: workoutProgramsBefore.count,
     walkKmReset: walkKmPresent,
     sampleUserStats: sampleStats.data ?? [],
   }, null, 2));
