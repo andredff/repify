@@ -90,12 +90,20 @@ export class StoriesBarComponent implements OnInit {
     this.loading.set(true);
     try {
       const data = await this.userService.listUsers(20);
-      this.users.set(data);
+      this.users.set(this.sortByRecentJoin(data).slice(0, 20));
     } catch {
       this.users.set([]);
     } finally {
       this.loading.set(false);
     }
+  }
+
+  private sortByRecentJoin(users: PublicUser[]): PublicUser[] {
+    return [...users].sort((left, right) => {
+      const leftTime = Date.parse(left.created_at || '');
+      const rightTime = Date.parse(right.created_at || '');
+      return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0);
+    });
   }
 
   colorFor(index: number): string {
