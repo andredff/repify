@@ -19,7 +19,6 @@ import { WalkCardComponent } from './components/walk-card.component';
 import { WalkService } from '../../core/services/walk.service';
 import { RankingService } from '../../core/services/ranking.service';
 import { NotificationsPanelComponent } from './components/notifications-panel.component';
-import { DailyChallengeCardComponent } from './components/daily-challenge-card.component';
 import { HomeRankingCardComponent } from './components/home-ranking-card.component';
 
 export type { WorkoutPost };
@@ -41,7 +40,7 @@ interface DailyChallengeView {
 }
 
 interface XpCarouselSlide {
-  id: 'checkin' | 'challenge' | 'walk';
+  id: 'checkin' | 'workout' | 'walk';
   label: string;
   reward: string;
   hint: string;
@@ -70,7 +69,6 @@ function isoToday(): string {
     NotificationsPanelComponent,
     DecimalPipe,
     HomeRankingCardComponent,
-    DailyChallengeCardComponent,
   ],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
@@ -118,7 +116,23 @@ function isoToday(): string {
           </div>
         }
 
-        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
+
+
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.03s">
+          <app-home-ranking-card
+            [currentRank]="currentRank()"
+            [previousRank]="previousRankSnapshot()"
+            [recentDelta]="recentRankDelta()"
+            [totalXp]="currentXp()"
+            [streakDays]="currentStreak()"
+            [positionsToClimb]="positionsToClimb()"
+            [xpToClimb]="xpToClimbTarget()"
+            [progressPct]="rankProgressPct()"
+            [xpDelta]="recentXpGain()"
+            (openRanking)="router.navigateByUrl('/ranking')" />
+        </div>
+
+                <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
           <div class="mb-3 flex items-end justify-between gap-3 px-1">
             <div class="min-w-0">
               <p class="text-[10px] font-body uppercase tracking-[0.22em] text-primary/75">Rotas de XP</p>
@@ -138,16 +152,11 @@ function isoToday(): string {
                 <div class="shrink-0" [style.width.%]="100 / xpCarouselSlides().length">
                   @if (slide.id === 'checkin') {
                     <app-check-in-card (onWalk)="showWalk.set(true)" />
-                  } @else if (slide.id === 'challenge') {
-                    <app-daily-challenge-card
-                      [title]="dailyChallenge().title"
-                      [description]="dailyChallenge().description"
-                      [reward]="dailyChallenge().reward"
-                      [impact]="dailyChallenge().impact"
-                      [hint]="dailyChallenge().hint"
-                      [actionLabel]="dailyChallenge().actionLabel"
-                      [icon]="dailyChallenge().icon"
-                      (action)="handleDailyChallenge()" />
+                  } @else if (slide.id === 'workout') {
+                    <app-daily-workout-card
+                      [workout]="todayWorkout()!"
+                      [state]="todayWorkoutAccess().state"
+                      (onStart)="startWorkout($event)" />
                   } @else {
                     <app-walk-card (onStart)="showWalk.set(true)" />
                   }
@@ -169,32 +178,9 @@ function isoToday(): string {
           }
         </div>
 
-        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.03s">
-          <app-home-ranking-card
-            [currentRank]="currentRank()"
-            [previousRank]="previousRankSnapshot()"
-            [recentDelta]="recentRankDelta()"
-            [totalXp]="currentXp()"
-            [streakDays]="currentStreak()"
-            [positionsToClimb]="positionsToClimb()"
-            [xpToClimb]="xpToClimbTarget()"
-            [progressPct]="rankProgressPct()"
-            [xpDelta]="recentXpGain()"
-            (openRanking)="router.navigateByUrl('/ranking')" />
-        </div>
-
         @if (!workoutService.hasProgram()) {
           <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
             <app-setup-workout-card (onSetup)="router.navigateByUrl('/my-workout')" />
-          </div>
-        }
-
-        @if (todayWorkout()) {
-          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.12s">
-            <app-daily-workout-card
-              [workout]="todayWorkout()!"
-              [state]="todayWorkoutAccess().state"
-              (onStart)="startWorkout($event)" />
           </div>
         }
 
@@ -408,12 +394,14 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
       },
     ];
 
-    if (this.dailyChallenge().action !== 'progress') {
+    if (this.todayWorkout()) {
       slides.push({
-        id: 'challenge',
-        label: this.dailyChallenge().title,
-        reward: this.dailyChallenge().reward,
-        hint: this.dailyChallenge().hint,
+        id: 'workout',
+        label: this.todayWorkoutAccess().state === 'in_progress' ? 'Treino do dia em andamento' : 'Treino do dia valendo XP',
+        reward: this.workoutService.todayFinished() ? 'Treino fechado' : '+70 XP estimados',
+        hint: this.todayWorkoutAccess().state === 'in_progress'
+          ? 'Seu treino já foi iniciado. Volte para concluir e converter esforço em avanço no ranking.'
+          : 'O treino de hoje concentra seu maior ganho de XP e mantém a sequência viva.',
       });
     }
 
