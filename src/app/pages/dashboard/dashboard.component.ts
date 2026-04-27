@@ -153,15 +153,32 @@ const MUSCLE_GRADIENT: Record<string, string> = {
                 <p class="text-[14px] font-body font-semibold text-white mb-1">Seu programa está pronto!</p>
                 <p class="text-[12px] font-body text-text-2 mb-4">
                   @if (ws.todayWorkout()) {
-                    Hoje é dia de <span class="text-primary font-semibold">{{ ws.todayWorkout()!.name }}</span>. Bora treinar?
+                    @if (todayWorkoutAccess().state === 'completed') {
+                      O treino de <span class="text-primary font-semibold">{{ ws.todayWorkout()!.name }}</span> ja foi fechado hoje.
+                    } @else if (todayWorkoutAccess().state === 'in_progress') {
+                      Seu treino de <span class="text-primary font-semibold">{{ ws.todayWorkout()!.name }}</span> esta em andamento.
+                    } @else {
+                      Hoje é dia de <span class="text-primary font-semibold">{{ ws.todayWorkout()!.name }}</span>. Bora treinar?
+                    }
                   } @else {
                     Hoje é dia de descanso. Aproveite!
                   }
                 </p>
                 @if (ws.todayWorkout()) {
-                  <button (click)="router.navigateByUrl('/workout/' + ws.todayWorkout()!.id)"
-                          class="px-5 py-2.5 bg-primary text-bg rounded-xl font-body font-bold text-[13px] shadow-glow">
-                    Iniciar treino de hoje
+                  <button type="button"
+                          (click)="openTodayWorkout()"
+                          [disabled]="!todayWorkoutAccess().canStart"
+                          class="px-5 py-2.5 rounded-xl font-body font-bold text-[13px] transition-all"
+                          [class]="todayWorkoutAccess().canStart
+                            ? 'bg-primary text-bg shadow-glow'
+                            : todayWorkoutAccess().state === 'completed'
+                              ? 'bg-primary/10 border border-primary/30 text-primary cursor-not-allowed'
+                              : 'bg-card border border-border text-text-2 cursor-not-allowed'">
+                    {{ todayWorkoutAccess().state === 'in_progress'
+                      ? 'Continuar treino'
+                      : todayWorkoutAccess().state === 'completed'
+                        ? '🔒 Disponível amanhã'
+                        : 'Iniciar treino de hoje' }}
                   </button>
                 } @else {
                   <button (click)="router.navigateByUrl('/my-workout')"
@@ -236,6 +253,7 @@ export class DashboardComponent {
   readonly summaryStreak = computed(() => this.ranking.myRank()?.streakDays ?? this.ws.streak());
   readonly summaryWorkouts = computed(() => this.ranking.myRank()?.workoutsDone ?? this.ws.history().length);
   readonly summaryKm = computed(() => this.ranking.myRank()?.totalKm ?? 0);
+  readonly todayWorkoutAccess = computed(() => this.ws.getWorkoutAccessState(this.ws.todayWorkout()));
   readonly currentLevel = computed(() => {
     const totalXp = this.summaryXp();
     return [...LEVELS].reverse().find(level => totalXp >= level.minXp) ?? LEVELS[0];
@@ -269,5 +287,15 @@ export class DashboardComponent {
   }
   muscleEmoji(muscle: string): string {
     return MUSCLE_EMOJI[muscle] || '';
+  }
+
+  openTodayWorkout(): void {
+    const workout = this.ws.todayWorkout();
+    if (!workout) return;
+
+    const access = this.ws.beginWorkout(workout);
+    if (!access.canStart) return;
+
+    this.router.navigateByUrl('/workout/' + workout.id);
   }
 }

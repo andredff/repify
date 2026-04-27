@@ -10,7 +10,7 @@ import { StoriesBarComponent } from './components/stories-bar.component';
 import { NewPostModalComponent } from './components/new-post-modal.component';
 import { DailyWorkoutCardComponent } from './components/daily-workout-card.component';
 import { SetupWorkoutCardComponent } from './components/setup-workout-card.component';
-import { WorkoutService } from '../../core/services/workout.service';
+import { StoredPlan, WorkoutService } from '../../core/services/workout.service';
 import { WorkoutPost } from '../../core/models/workout-post.model';
 import { DecimalPipe } from '@angular/common';
 import { WalkModalComponent } from './components/walk-modal.component';
@@ -36,7 +36,7 @@ interface DailyChallengeView {
   hint: string;
   actionLabel: string;
   icon: string;
-  action: 'workout' | 'walk';
+  action: 'workout' | 'walk' | 'progress';
 }
 
 const HOME_RANK_SNAPSHOT_KEY = 'repify_home_rank_snapshot';
@@ -154,7 +154,7 @@ function isoToday(): string {
           <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.12s">
             <app-daily-workout-card
               [workout]="todayWorkout()!"
-              [finished]="workoutService.todayFinished()"
+              [state]="todayWorkoutAccess().state"
               (onStart)="startWorkout($event)" />
           </div>
         }
@@ -253,7 +253,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   dailyXp        = computed(() => {
     const today = isoToday();
     const workoutXp = this.workoutService.history()
-      .filter(session => session.completedAt === today)
+      .filter(session => session.completedDate === today)
       .reduce((total, session) => total + session.xpEarned, 0);
     const walkXp = this.walkSvc.history().filter(session => session.finishedAt.startsWith(today)).length * 5;
     return workoutXp + walkXp;
@@ -297,20 +297,37 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.min(Math.round((done / goal) * 100), 100);
   });
   dailyChallenge = computed<DailyChallengeView>(() => {
-    const hasWorkoutReady = !!this.todayWorkout() && !this.workoutService.todayFinished();
+    const workout = this.todayWorkout();
+    const access = this.todayWorkoutAccess();
+    const hasWorkoutReady = !!workout && (access.state === 'pending' || access.state === 'in_progress');
     const positions = this.positionsToClimb();
     const xpNeed = this.xpToClimbTarget();
 
     if (hasWorkoutReady) {
       return {
-        title: 'Complete 1 treino',
-        description: 'Seu treino de hoje é o atalho mais forte para subir agora no ranking.',
+        title: access.state === 'in_progress' ? 'Volte para o treino' : 'Complete 1 treino',
+        description: access.state === 'in_progress'
+          ? 'Seu treino de hoje ja esta aberto. Termine agora e feche o dia forte.'
+          : 'Seu treino de hoje e o atalho mais forte para subir agora no ranking.',
         reward: '+70 XP estimados',
         impact: positions > 0 ? `até +${positions} posições` : 'segurar a liderança',
         hint: xpNeed > 0 ? `Mais ${xpNeed} XP colocam você na cola de quem está acima.` : 'Um treino agora mantém sua vantagem viva.',
-        actionLabel: 'Completar agora',
+        actionLabel: access.state === 'in_progress' ? 'Continuar treino' : 'Completar agora',
         icon: '🏋️',
         action: 'workout',
+      };
+    }
+
+    if (this.workoutService.todayFinished()) {
+      return {
+        title: 'Hoje ja foi vencido',
+        description: 'Seu treino do dia esta fechado. Agora o jogo e recuperar, caminhar e voltar amanha.',
+        reward: `🔥 ${Math.max(this.currentStreak(), 1)} dias ativos`,
+        impact: positions > 0 ? `suba ${positions} posições com consistência` : 'liderança protegida',
+        hint: 'Treino bloqueado ate amanha. Use o resto do dia para manter o ritmo e acompanhar seu progresso.',
+        actionLabel: 'Ver progresso',
+        icon: '🔥',
+        action: 'progress',
       };
     }
 
@@ -333,9 +350,9 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
       reward: `🔥 ${Math.max(this.currentStreak(), 1)} dias ativos`,
       impact: positions > 0 ? `suba ${positions} posições hoje` : 'continue no topo',
       hint: 'Quem mantém a sequência aparece todos os dias na frente do feed e do ranking.',
-      actionLabel: 'Completar agora',
+        actionLabel: 'Ver progresso',
       icon: '🔥',
-      action: 'workout',
+        action: 'progress',
     };
   });
   showNewPost       = signal(false);
@@ -345,6 +362,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   recentRankDelta = signal(0);
   recentXpGain = signal(0);
   todayWorkout = computed(() => this.workoutService.todayWorkout());
+  todayWorkoutAccess = computed(() => this.workoutService.getWorkoutAccessState(this.todayWorkout()));
 
   posts      = signal<WorkoutPost[]>([]);
   loading    = signal(false);
@@ -512,8 +530,14 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  startWorkout(id: string): void {
-    this.router.navigateByUrl(`/workout/${id}`);
+  startWorkout(_id: string): void {
+    const workout = this.todayWorkout();
+    if (!workout) return;
+
+    const access = this.workoutService.beginWorkout(workout);
+    if (!access.canStart) return;
+
+    this.router.navigateByUrl(`/workout/${workout.id}`);
   }
 
   handleDailyChallenge(): void {
@@ -524,6 +548,11 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
         return;
       }
       this.router.navigateByUrl('/my-workout');
+      return;
+    }
+
+    if (this.dailyChallenge().action === 'progress') {
+      this.router.navigateByUrl('/progress');
       return;
     }
 

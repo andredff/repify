@@ -1,9 +1,10 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { WorkoutService, StoredPlan, StoredExercise } from '../../core/services/workout.service';
+import { WorkoutCompletionSummary, WorkoutService, StoredPlan, StoredExercise } from '../../core/services/workout.service';
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
 import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
+import { WorkoutCompletionStateComponent } from './components/workout-completion-state.component';
 
 // Planos estáticos com todos os campos necessários para o histórico
 const STATIC_PLANS: Record<string, StoredPlan> = {
@@ -49,7 +50,8 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
 @Component({
   selector: 'app-workout',
   standalone: true,
-  imports: [FeedHeaderComponent, NotificationsPanelComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FeedHeaderComponent, NotificationsPanelComponent, WorkoutCompletionStateComponent],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
@@ -61,14 +63,45 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
       <!-- Content -->
       <main class="flex-1 px-4 pb-32 overflow-y-auto" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
-        <section class="pt-5 pb-1">
-          <p class="text-[22px] font-display font-bold text-white">Treino</p>
-          <p class="text-[12px] font-body text-text-2 mt-1">{{ plan()?.difficulty ?? 'Execução do treino' }}</p>
-        </section>
+        @if (viewMode() === 'completed' && completionSummary()) {
+          <section class="pt-6">
+            <app-workout-completion-state
+              [quote]="completionSummary()!.motivationalQuote"
+              [completedAt]="completionSummary()!.completedAt"
+              (viewProgress)="goToProgress()"
+              (backToFeed)="goToFeed()" />
+          </section>
+        } @else if (viewMode() === 'locked') {
+          <section class="pt-6">
+            <div class="rounded-[28px] border border-border bg-card-2 px-5 py-6 text-center">
+              <p class="text-[30px]">🔒</p>
+              <p class="mt-4 text-[24px] font-display font-black text-white">Treino bloqueado</p>
+              <p class="mt-2 text-[13px] font-body leading-relaxed text-text-2">
+                Voce so pode executar o treino do dia uma vez. O restante do fluxo libera automaticamente amanha.
+              </p>
+              <p class="mt-5 inline-flex rounded-full border border-border px-3 py-1 text-[11px] font-body font-semibold text-text-2">
+                {{ blockedMessage() || '🔒 Disponível amanhã' }}
+              </p>
+              <div class="mt-6 grid gap-3 sm:grid-cols-2">
+                <button type="button"
+                        (click)="goToProgram()"
+                        class="rounded-2xl border border-primary/20 bg-primary/10 px-4 py-3 text-[14px] font-display font-bold text-primary transition-all hover:bg-primary/15">
+                  Ver meu plano
+                </button>
+                <button type="button"
+                        (click)="goToFeed()"
+                        class="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[14px] font-display font-bold text-white transition-all hover:border-white/20">
+                  Voltar ao feed
+                </button>
+              </div>
+            </div>
+          </section>
+        } @else if (plan()) {
+          <section class="pt-5 pb-1">
+            <p class="text-[22px] font-display font-bold text-white">Treino</p>
+            <p class="text-[12px] font-body text-text-2 mt-1">{{ plan()?.difficulty ?? 'Execução do treino' }}</p>
+          </section>
 
-        @if (plan()) {
-
-          <!-- Title + progress -->
           <h1 class="text-[28px] font-display font-bold text-white leading-tight mb-1">
             {{ plan()!.name }}
           </h1>
@@ -85,16 +118,15 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
             </span>
           </div>
 
-          <!-- Progress bar -->
           <div class="h-1.5 bg-card-2 rounded-full mb-8 overflow-hidden">
             <div class="h-full bg-primary rounded-full transition-all duration-500 shadow-glow-sm"
                  [style.width]="progressPct() + '%'"></div>
           </div>
 
-          <!-- Exercise list -->
           <div class="space-y-3">
             @for (ex of exercises(); track ex.id; let i = $index) {
               <button
+                type="button"
                 (click)="toggleExercise(ex.id)"
                 class="w-full flex items-center gap-4 p-4 rounded-2xl border transition-all text-left"
                 [class]="ex.done
@@ -130,7 +162,6 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
               </button>
             }
           </div>
-
         } @else {
           <div class="flex flex-col items-center justify-center h-64 text-center">
             <p class="text-[32px] mb-3">🤔</p>
@@ -141,7 +172,7 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
       </main>
 
       <!-- Sticky bottom CTA -->
-      @if (plan()) {
+      @if (plan() && viewMode() === 'active') {
         <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-4 pb-8 pt-4 glass border-t border-border">
           <button (click)="finishWorkout()"
                   class="w-full py-4 rounded-2xl font-display font-bold text-[16px] transition-all"
@@ -172,6 +203,9 @@ export class WorkoutComponent implements OnInit {
   showNotifications = signal(false);
   finishing = signal(false);
   errorMessage = signal('');
+  viewMode = signal<'active' | 'completed' | 'locked'>('active');
+  blockedMessage = signal('');
+  completionSummary = signal<WorkoutCompletionSummary | null>(null);
 
   exercises = signal<StoredExercise[]>([]);
   plan      = signal<StoredPlan | null>(null);
@@ -186,8 +220,35 @@ export class WorkoutComponent implements OnInit {
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id') ?? '';
     const found = STATIC_PLANS[id] ?? this.workoutService.getPlan(id) ?? null;
+
+    if (!found) {
+      this.plan.set(null);
+      this.viewMode.set('active');
+      return;
+    }
+
+    const access = this.workoutService.beginWorkout(found);
+    if (access.state === 'locked') {
+      this.plan.set(found);
+      this.viewMode.set('locked');
+      this.blockedMessage.set(access.label);
+      return;
+    }
+
+    if (access.state === 'completed') {
+      this.plan.set(found);
+      this.viewMode.set('completed');
+      this.completionSummary.set({
+        completedAt: this.workoutService.completedAt() ?? new Date().toISOString(),
+        motivationalQuote: this.workoutService.completionQuote() ?? this.workoutService.motivationalQuotes[0],
+        state: 'completed',
+      });
+      return;
+    }
+
     this.plan.set(found);
     this.exercises.set(found ? found.exercises.map(e => ({ ...e })) : []);
+    this.viewMode.set('active');
   }
 
   toggleExercise(id: string): void {
@@ -207,12 +268,25 @@ export class WorkoutComponent implements OnInit {
 
     try {
       const planWithState: StoredPlan = { ...p, exercises: this.exercises() };
-      await this.workoutService.markFinished(planWithState, this.doneCount());
-      await this.router.navigateByUrl('/feed');
+      const summary = await this.workoutService.markFinished(planWithState, this.doneCount());
+      this.completionSummary.set(summary);
+      this.viewMode.set('completed');
     } catch (error: any) {
       this.errorMessage.set(error?.message ?? 'Não foi possível concluir o treino agora. Tente novamente.');
     } finally {
       this.finishing.set(false);
     }
+  }
+
+  goToProgress(): void {
+    this.router.navigateByUrl('/progress');
+  }
+
+  goToFeed(): void {
+    this.router.navigateByUrl('/feed');
+  }
+
+  goToProgram(): void {
+    this.router.navigateByUrl('/my-workout');
   }
 }

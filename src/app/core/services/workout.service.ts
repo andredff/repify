@@ -38,12 +38,39 @@ export interface WorkoutSession {
   planName: string;
   muscleGroup: string;
   difficulty: string;
-  completedAt: string;   // ISO date string
+  completedAt: string;   // ISO timestamp
+  completedDate: string; // YYYY-MM-DD
   dateLabel: string;     // 'Hoje', 'Ontem', 'Seg 14/04' etc
   exercisesDone: number;
   totalExercises: number;
   estimatedDuration: number;
   xpEarned: number;
+}
+
+export type WorkoutAvailabilityState = 'pending' | 'in_progress' | 'completed' | 'locked';
+
+export interface WorkoutAccessState {
+  state: WorkoutAvailabilityState;
+  canStart: boolean;
+  canResume: boolean;
+  isLocked: boolean;
+  completedAt: string | null;
+  label: string;
+}
+
+export interface WorkoutCompletionSummary {
+  completedAt: string;
+  motivationalQuote: string;
+  state: WorkoutAvailabilityState;
+}
+
+interface WorkoutDaySession {
+  date: string;
+  activePlanId: string | null;
+  startedAt: string | null;
+  completedPlanId: string | null;
+  completedAt: string | null;
+  motivationalQuote: string | null;
 }
 
 interface CompleteWorkoutResponse {
@@ -58,6 +85,7 @@ const LS_PROGRAM  = 'repify_program';
 const LS_FINISHED = 'repify_finished';
 const LS_HISTORY  = 'repify_history';
 const LS_XP       = 'repify_xp';
+const LS_DAY_SESSION = 'repify_workout_day_session';
 
 export const LEVELS = [
   { name: 'Novato',      minXp: 0,    color: '#8896A8', emoji: '🌱' },
@@ -81,20 +109,41 @@ export const ACHIEVEMENTS = [
   { id: 'chest',      emoji: '🫁', name: 'Supino Master',     desc: 'Complete 3 treinos de peito',         condition: (h: WorkoutSession[]) => h.filter(s => s.muscleGroup === 'peito').length >= 3 },
 ];
 
+const REPlFY_MOTIVATIONAL_QUOTES = [
+  'Voce nao depende de motivacao. Voce depende de decisao.',
+  'Disciplina e fazer mesmo sem vontade.',
+  'Hoje foi dificil. E por isso que valeu.',
+  'Seu corpo escuta o que sua rotina repete.',
+  'Constancia vence talento distraido.',
+  'O treino acaba. O respeito fica.',
+  'Nao negocie com a versao fraca de voce.',
+  'Quem aparece hoje domina o amanha.',
+  'Sem desculpa. Sem atalho. So execucao.',
+  'Ficar pronto e mentira. Voce comeca e vira pronto no caminho.',
+];
+
 function weekCount(history: WorkoutSession[]): number {
   const now = new Date();
   const weekStart = new Date(now);
   weekStart.setDate(now.getDate() - now.getDay());
   weekStart.setHours(0, 0, 0, 0);
-  return history.filter(s => new Date(s.completedAt) >= weekStart).length;
+  return history.filter(s => new Date(`${s.completedDate}T12:00:00`) >= weekStart).length;
 }
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function isoNow(): string {
+  return new Date().toISOString();
+}
+
 function todayDayIndex(): number {
   return new Date().getDay();
+}
+
+function dayIndexFromDate(date: string): number {
+  return new Date(`${date}T12:00:00`).getDay();
 }
 
 function dateLabel(isoDate: string): string {
@@ -107,6 +156,85 @@ function dateLabel(isoDate: string): string {
   const d = new Date(isoDate + 'T12:00:00');
   const days = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   return `${days[d.getDay()]} ${d.getDate()}/${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function nextOccurrenceDelta(targetDayIndex: number, fromDayIndex: number): number {
+  const delta = (targetDayIndex - fromDayIndex + 7) % 7;
+  return delta === 0 ? 7 : delta;
+}
+
+function weekdayAvailabilityLabel(dayIndex: number, fromDayIndex: number): string {
+  const delta = nextOccurrenceDelta(dayIndex, fromDayIndex);
+  if (delta === 1) {
+    return '🔒 Disponível amanhã';
+  }
+
+  const labels = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
+  return `🔒 Disponível ${labels[dayIndex] ?? 'amanhã'}`;
+}
+
+function createEmptyDaySession(date: string): WorkoutDaySession {
+  return {
+    date,
+    activePlanId: null,
+    startedAt: null,
+    completedPlanId: null,
+    completedAt: null,
+    motivationalQuote: null,
+  };
+}
+
+function normalizeSessionRecord(raw: unknown, today: string): WorkoutDaySession {
+  if (!raw || typeof raw !== 'object') {
+    return createEmptyDaySession(today);
+  }
+
+  const session = raw as Partial<WorkoutDaySession>;
+  if (session.date !== today) {
+    return createEmptyDaySession(today);
+  }
+
+  return {
+    date: today,
+    activePlanId: typeof session.activePlanId === 'string' ? session.activePlanId : null,
+    startedAt: typeof session.startedAt === 'string' ? session.startedAt : null,
+    completedPlanId: typeof session.completedPlanId === 'string' ? session.completedPlanId : null,
+    completedAt: typeof session.completedAt === 'string' ? session.completedAt : null,
+    motivationalQuote: typeof session.motivationalQuote === 'string' ? session.motivationalQuote : null,
+  };
+}
+
+function normalizeHistorySession(raw: unknown): WorkoutSession | null {
+  if (!raw || typeof raw !== 'object') {
+    return null;
+  }
+
+  const session = raw as Partial<WorkoutSession>;
+  const rawCompletedAt = typeof session.completedAt === 'string' ? session.completedAt : '';
+  const completedDate = typeof session.completedDate === 'string'
+    ? session.completedDate
+    : rawCompletedAt.slice(0, 10);
+
+  if (!completedDate) {
+    return null;
+  }
+
+  const completedAt = rawCompletedAt.length > 10 ? rawCompletedAt : `${completedDate}T12:00:00.000Z`;
+
+  return {
+    id: typeof session.id === 'string' ? session.id : crypto.randomUUID(),
+    planId: typeof session.planId === 'string' ? session.planId : '',
+    planName: typeof session.planName === 'string' ? session.planName : '',
+    muscleGroup: typeof session.muscleGroup === 'string' ? session.muscleGroup : 'full',
+    difficulty: typeof session.difficulty === 'string' ? session.difficulty : 'Iniciante',
+    completedAt,
+    completedDate,
+    dateLabel: typeof session.dateLabel === 'string' ? session.dateLabel : dateLabel(completedDate),
+    exercisesDone: typeof session.exercisesDone === 'number' ? session.exercisesDone : 0,
+    totalExercises: typeof session.totalExercises === 'number' ? session.totalExercises : 0,
+    estimatedDuration: typeof session.estimatedDuration === 'number' ? session.estimatedDuration : 0,
+    xpEarned: typeof session.xpEarned === 'number' ? session.xpEarned : 0,
+  };
 }
 
 function xpForSession(plan: StoredPlan, allDone: boolean): number {
@@ -126,10 +254,12 @@ export class WorkoutService {
   private auth    = inject(AuthService);
   private ranking = inject(RankingService);
   private readonly API = environment.apiBaseUrl;
+  private _todayKey = signal(todayStr());
   private _program  = signal<ActiveProgram | null>(this._loadProgram());
   private _finished = signal<Record<string, string>>(this._loadFinished());
   private _history  = signal<WorkoutSession[]>(this._loadHistory());
   private _totalXp  = signal<number>(this._loadXp());
+  private _daySession = signal<WorkoutDaySession>(this._loadDaySession());
 
   // ── Public readonly state ────────────────────────────────────────────────────
 
@@ -137,18 +267,33 @@ export class WorkoutService {
   readonly history      = this._history.asReadonly();
   readonly totalXp      = this._totalXp.asReadonly();
   readonly hasProgram   = computed(() => !!this._program());
+  readonly motivationalQuotes = REPlFY_MOTIVATIONAL_QUOTES;
+
+  readonly todayKey = this._todayKey.asReadonly();
+  readonly daySession = computed(() => {
+    const today = this._todayKey();
+    const session = this._daySession();
+    return session.date === today ? session : createEmptyDaySession(today);
+  });
 
   readonly todayWorkout = computed<StoredPlan | null>(() => {
     const prog = this._program();
     if (!prog) return null;
-    return prog.plans.find(p => p.dayIndex === todayDayIndex()) ?? null;
+    return prog.plans.find(p => p.dayIndex === dayIndexFromDate(this._todayKey())) ?? null;
   });
 
   readonly todayFinished = computed<boolean>(() => {
-    const tw = this.todayWorkout();
-    if (!tw) return false;
-    return this._finished()[tw.id] === todayStr();
+    const today = this._todayKey();
+    if (this.daySession().completedAt) {
+      return true;
+    }
+    return this._history().some(session => session.completedDate === today);
   });
+
+  readonly workoutInProgress = computed<boolean>(() => !!this.daySession().activePlanId && !this.todayFinished());
+  readonly activePlanId = computed(() => this.daySession().activePlanId);
+  readonly completedAt = computed(() => this.daySession().completedAt);
+  readonly completionQuote = computed(() => this.daySession().motivationalQuote);
 
   readonly currentLevel = computed(() => {
     const xp = this._totalXp();
@@ -182,7 +327,7 @@ export class WorkoutService {
     let cursor = new Date(); cursor.setHours(0,0,0,0);
     for (let i = 0; i < 60; i++) {
       const dateStr = cursor.toISOString().slice(0,10);
-      if (h.some(s => s.completedAt === dateStr)) {
+      if (h.some(s => s.completedDate === dateStr)) {
         streak++;
       } else if (i > 0) {
         break;
@@ -196,7 +341,7 @@ export class WorkoutService {
     const now = new Date(); now.setHours(0,0,0,0);
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay());
-    return this._history().filter(s => new Date(s.completedAt + 'T12:00:00') >= weekStart).length;
+    return this._history().filter(s => new Date(`${s.completedDate}T12:00:00`) >= weekStart).length;
   });
 
   readonly unlockedAchievements = computed(() => {
@@ -208,22 +353,35 @@ export class WorkoutService {
   readonly muscleEmoji = (mg: string) => MUSCLE_EMOJI[mg] ?? '💪';
 
   constructor() {
+    if (typeof window !== 'undefined') {
+      window.setInterval(() => {
+        const nextToday = todayStr();
+        if (nextToday === this._todayKey()) return;
+        this._todayKey.set(nextToday);
+        this._daySession.set(this._loadDaySession());
+      }, 60_000);
+    }
+
     effect(() => {
       if (!this.auth.initialized()) return;
 
       const userId = this.auth.user()?.id ?? null;
       if (!userId) {
+        this._todayKey.set(todayStr());
         this._program.set(null);
         this._finished.set({});
         this._history.set([]);
         this._totalXp.set(0);
+        this._daySession.set(createEmptyDaySession(this._todayKey()));
         return;
       }
 
+      this._todayKey.set(todayStr());
       this._program.set(this._loadProgram());
       this._finished.set(this._loadFinished());
       this._history.set(this._loadHistory());
       this._totalXp.set(this._loadXp());
+      this._daySession.set(this._loadDaySession());
     });
   }
 
@@ -243,25 +401,143 @@ export class WorkoutService {
     return this._program()?.plans.find(p => p.id === id) ?? null;
   }
 
+  getWorkoutAccessState(plan: StoredPlan | null | undefined): WorkoutAccessState {
+    const todayIndex = dayIndexFromDate(this._todayKey());
+
+    if (!plan) {
+      return {
+        state: 'locked',
+        canStart: false,
+        canResume: false,
+        isLocked: true,
+        completedAt: null,
+        label: '🔒 Disponível amanhã',
+      };
+    }
+
+    const todayWorkout = this.todayWorkout();
+    const session = this.daySession();
+    const sameDay = plan.dayIndex === dayIndexFromDate(this._todayKey());
+    const isTodayPlan = sameDay && todayWorkout?.id === plan.id;
+    const completedToday = this.todayFinished();
+    const isCompletedPlan = completedToday && ((session.completedPlanId === plan.id) || this.isFinishedToday(plan.id));
+
+    if (isCompletedPlan) {
+      return {
+        state: 'completed',
+        canStart: false,
+        canResume: false,
+        isLocked: false,
+        completedAt: session.completedAt,
+        label: 'Treino concluido',
+      };
+    }
+
+    if (completedToday || !isTodayPlan) {
+      return {
+        state: 'locked',
+        canStart: false,
+        canResume: false,
+        isLocked: true,
+        completedAt: null,
+        label: weekdayAvailabilityLabel(plan.dayIndex, todayIndex),
+      };
+    }
+
+    if (session.activePlanId === plan.id) {
+      return {
+        state: 'in_progress',
+        canStart: true,
+        canResume: true,
+        isLocked: false,
+        completedAt: null,
+        label: 'Continuar treino',
+      };
+    }
+
+    if (session.activePlanId && session.activePlanId !== plan.id) {
+      return {
+        state: 'locked',
+        canStart: false,
+        canResume: false,
+        isLocked: true,
+        completedAt: null,
+        label: weekdayAvailabilityLabel(plan.dayIndex, todayIndex),
+      };
+    }
+
+    return {
+      state: 'pending',
+      canStart: true,
+      canResume: false,
+      isLocked: false,
+      completedAt: null,
+      label: 'Iniciar treino',
+    };
+  }
+
+  canOpenWorkout(plan: StoredPlan | null | undefined): boolean {
+    const state = this.getWorkoutAccessState(plan);
+    return state.state === 'pending' || state.state === 'in_progress';
+  }
+
+  beginWorkout(plan: StoredPlan): WorkoutAccessState {
+    const state = this.getWorkoutAccessState(plan);
+
+    if (state.state === 'pending') {
+      this._saveDaySession({
+        ...this.daySession(),
+        activePlanId: plan.id,
+        startedAt: this.daySession().startedAt ?? isoNow(),
+      });
+      return this.getWorkoutAccessState(plan);
+    }
+
+    return state;
+  }
+
   // ── Session tracking ─────────────────────────────────────────────────────────
 
-  async markFinished(plan: StoredPlan, exercisesDone: number): Promise<void> {
-    if (this.isFinishedToday(plan.id)) return;
+  async markFinished(plan: StoredPlan, exercisesDone: number): Promise<WorkoutCompletionSummary> {
+    const access = this.getWorkoutAccessState(plan);
+    if (access.state === 'completed') {
+      return {
+        completedAt: this.daySession().completedAt ?? isoNow(),
+        motivationalQuote: this.daySession().motivationalQuote ?? this.randomMotivationalQuote(),
+        state: 'completed',
+      };
+    }
 
-    const date  = todayStr();
+    if (access.state === 'locked') {
+      throw new Error('O treino de hoje nao esta disponivel agora.');
+    }
+
+    const date = this._todayKey();
+    const completedAt = isoNow();
     const allDone = exercisesDone === plan.totalExercises;
-    const xp    = xpForSession(plan, allDone);
+    const xp = xpForSession(plan, allDone);
+    const motivationalQuote = this.randomMotivationalQuote();
     const previousFinished = this._finished();
     const previousHistory = this._history();
     const previousTotalXp = this._totalXp();
     const previousProfile = this.auth.profile();
     const previousRank = this.ranking.myRank();
+    const previousDaySession = this.daySession();
 
     // finished map (for today indicator)
     this._finished.update(rec => {
       const next = { ...rec, [plan.id]: date };
       localStorage.setItem(this._storageKey(LS_FINISHED), JSON.stringify(next));
       return next;
+    });
+
+    this._saveDaySession({
+      date,
+      activePlanId: plan.id,
+      startedAt: previousDaySession.startedAt ?? completedAt,
+      completedPlanId: plan.id,
+      completedAt,
+      motivationalQuote,
     });
 
     // history
@@ -271,7 +547,8 @@ export class WorkoutService {
       planName:         plan.name,
       muscleGroup:      plan.muscleGroup,
       difficulty:       plan.difficulty,
-      completedAt:      date,
+      completedAt,
+      completedDate:    date,
       dateLabel:        dateLabel(date),
       exercisesDone,
       totalExercises:   plan.totalExercises,
@@ -317,6 +594,7 @@ export class WorkoutService {
           planName: plan.name,
           muscleGroup: plan.muscleGroup,
           difficulty: plan.difficulty,
+          completedAt,
           estimatedDuration: plan.estimatedDuration,
           totalExercises: plan.totalExercises,
           exercisesDone,
@@ -347,6 +625,7 @@ export class WorkoutService {
       this._finished.set(previousFinished);
       this._history.set(previousHistory);
       this._totalXp.set(previousTotalXp);
+      this._saveDaySession(previousDaySession);
       this.auth.applyProfilePatch({
         workouts_done: previousProfile.workouts_done ?? 0,
         yearly_goal: previousProfile.yearly_goal,
@@ -364,10 +643,20 @@ export class WorkoutService {
 
       throw error;
     }
+
+    return {
+      completedAt,
+      motivationalQuote,
+      state: 'completed',
+    };
   }
 
   isFinishedToday(planId: string): boolean {
-    return this._finished()[planId] === todayStr();
+    const today = this._todayKey();
+    if (this.daySession().completedPlanId === planId && this.daySession().date === today) {
+      return true;
+    }
+    return this._finished()[planId] === today || this._history().some(session => session.planId === planId && session.completedDate === today);
   }
 
   // ── Private loaders ──────────────────────────────────────────────────────────
@@ -391,7 +680,10 @@ export class WorkoutService {
   private _loadHistory(): WorkoutSession[] {
     try {
       const r = localStorage.getItem(this._storageKey(LS_HISTORY));
-      return r ? JSON.parse(r) : [];
+      if (!r) return [];
+      const parsed = JSON.parse(r);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map(normalizeHistorySession).filter((session): session is WorkoutSession => !!session);
     } catch {
       return [];
     }
@@ -407,6 +699,26 @@ export class WorkoutService {
   private _storageKey(baseKey: string): string {
     const userId = this.auth.user()?.id;
     return userId ? `${baseKey}:${userId}` : `${baseKey}:guest`;
+  }
+
+  private _loadDaySession(): WorkoutDaySession {
+    try {
+      const raw = localStorage.getItem(this._storageKey(LS_DAY_SESSION));
+      const parsed = raw ? JSON.parse(raw) : null;
+      return normalizeSessionRecord(parsed, this._todayKey());
+    } catch {
+      return createEmptyDaySession(this._todayKey());
+    }
+  }
+
+  private _saveDaySession(session: WorkoutDaySession): void {
+    this._daySession.set(session);
+    localStorage.setItem(this._storageKey(LS_DAY_SESSION), JSON.stringify(session));
+  }
+
+  private randomMotivationalQuote(): string {
+    const index = Math.floor(Math.random() * REPlFY_MOTIVATIONAL_QUOTES.length);
+    return REPlFY_MOTIVATIONAL_QUOTES[index] ?? REPlFY_MOTIVATIONAL_QUOTES[0];
   }
 
   private async _fetch(path: string, init: RequestInit = {}): Promise<Response> {

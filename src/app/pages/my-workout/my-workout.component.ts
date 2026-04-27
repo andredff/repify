@@ -1,7 +1,7 @@
 import { Component, signal, inject, computed, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { Location } from '@angular/common';
-import { WorkoutService, ActiveProgram, StoredPlan, DAY_INDEX_MAP } from '../../core/services/workout.service';
+import { WorkoutAccessState, WorkoutService, ActiveProgram, StoredPlan, DAY_INDEX_MAP } from '../../core/services/workout.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
@@ -444,9 +444,12 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                 <div class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent"></div>
                 <div class="p-4">
                   <div class="flex items-center gap-2 mb-3">
-                    @if (workoutService.isFinishedToday(todayWorkout()!.id)) {
+                    @if (todayWorkoutAccess().state === 'completed') {
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       <span class="text-[10px] font-body font-semibold text-primary uppercase tracking-widest">Concluído hoje</span>
+                    } @else if (todayWorkoutAccess().state === 'in_progress') {
+                      <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                      <span class="text-[10px] font-body font-semibold text-primary uppercase tracking-widest">Treino em andamento · {{ todayWorkout()!.dayLabel }}</span>
                     } @else {
                       <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
                       <span class="text-[10px] font-body font-semibold text-primary uppercase tracking-widest">Treino de hoje · {{ todayWorkout()!.dayLabel }}</span>
@@ -458,15 +461,20 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                     <span class="w-px h-3 bg-border"></span>
                     <span>{{ todayWorkout()!.totalExercises }} exercícios</span>
                   </div>
-                  @if (!workoutService.isFinishedToday(todayWorkout()!.id)) {
+                  @if (todayWorkoutAccess().state !== 'completed') {
                     <div class="flex gap-2">
                       <button (click)="previewWorkout.set(todayWorkout()!)"
                               class="flex-none px-4 py-3 rounded-xl bg-card border border-border text-text-2 hover:text-white font-body font-semibold text-[13px] transition-all active:scale-[0.98]">
                         Ver
                       </button>
-                      <button (click)="startPlan(todayWorkout()!)"
-                              class="flex-1 py-3 rounded-xl bg-primary text-bg font-display font-bold text-[15px] shadow-glow hover:shadow-glow-lg active:scale-[0.98] transition-all">
-                        Iniciar treino de hoje
+                      <button type="button"
+                              (click)="startPlan(todayWorkout()!)"
+                              [disabled]="!todayWorkoutAccess().canStart"
+                              class="flex-1 py-3 rounded-xl font-display font-bold text-[15px] transition-all"
+                              [class]="todayWorkoutAccess().canStart
+                                ? 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-[0.98]'
+                                : 'bg-card border border-border text-text-2 cursor-not-allowed'">
+                        {{ todayWorkoutAccess().state === 'in_progress' ? 'Continuar treino' : 'Iniciar treino de hoje' }}
                       </button>
                     </div>
                   } @else {
@@ -503,8 +511,10 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                                 [class]="isToday(w.dayIndex) ? 'bg-primary text-bg border-primary' : 'text-text-2 border-border'">
                             {{ w.dayLabel }}
                           </span>
-                          @if (workoutService.isFinishedToday(w.id) && isToday(w.dayIndex)) {
+                          @if (workoutAccess(w).state === 'completed' && isToday(w.dayIndex)) {
                             <span class="text-[10px] font-body text-primary">✓ Feito</span>
+                          } @else if (workoutAccess(w).state === 'in_progress' && isToday(w.dayIndex)) {
+                            <span class="text-[10px] font-body text-primary">Em andamento</span>
                           }
                         </div>
                         <h4 class="text-[16px] font-display font-bold text-white">{{ w.name }}</h4>
@@ -519,14 +529,18 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                           Ver
                         </button>
                         <button (click)="startPlan(w)"
+                                type="button"
+                                [disabled]="!workoutAccess(w).canStart"
                                 class="flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[12px] font-body font-semibold transition-all active:scale-95"
-                                [class]="isToday(w.dayIndex) && !workoutService.isFinishedToday(w.id)
+                                [class]="workoutAccess(w).canStart
                                   ? 'bg-primary text-bg border-primary shadow-glow-sm'
-                                  : 'bg-card border-border text-text-2 hover:text-white'">
+                                  : workoutAccess(w).state === 'completed'
+                                    ? 'bg-primary/10 border-primary/30 text-primary cursor-not-allowed'
+                                    : 'bg-card border-border text-text-2 cursor-not-allowed'">
                           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
                             <polygon points="5 3 19 12 5 21 5 3"/>
                           </svg>
-                          Iniciar
+                          {{ workoutAccess(w).label }}
                         </button>
                       </div>
                     </div>
@@ -716,8 +730,13 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                         Ver
                       </button>
                       <button (click)="startWorkout(w)"
-                              class="flex-1 py-2.5 rounded-xl bg-primary/15 border border-primary/30 text-primary font-body font-semibold text-[13px] hover:bg-primary/25 active:scale-[0.98] transition-all">
-                        Iniciar treino
+                              type="button"
+                              [disabled]="!workoutAccess(resolveStoredPlan(w)).canStart"
+                              class="flex-1 py-2.5 rounded-xl border font-body font-semibold text-[13px] transition-all"
+                              [class]="workoutAccess(resolveStoredPlan(w)).canStart
+                                ? 'bg-primary/15 border-primary/30 text-primary hover:bg-primary/25 active:scale-[0.98]'
+                                : 'bg-card border-border text-text-2 cursor-not-allowed'">
+                        {{ workoutAccess(resolveStoredPlan(w)).label }}
                       </button>
                     </div>
                   </div>
@@ -788,9 +807,14 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
             <!-- CTA -->
             <div class="shrink-0 px-4 py-4 border-t border-border"
                  style="padding-bottom: calc(16px + env(safe-area-inset-bottom))">
-              <button (click)="startPlan(previewWorkout()!); previewWorkout.set(null)"
-                      class="w-full py-3.5 rounded-xl bg-primary text-bg font-display font-bold text-[15px] shadow-glow hover:shadow-glow-lg active:scale-[0.98] transition-all">
-                Iniciar treino
+              <button type="button"
+                      (click)="startPlan(previewWorkout()!); previewWorkout.set(null)"
+                      [disabled]="!workoutAccess(resolveStoredPlan(previewWorkout())).canStart"
+                      class="w-full py-3.5 rounded-xl font-display font-bold text-[15px] transition-all"
+                      [class]="workoutAccess(resolveStoredPlan(previewWorkout())).canStart
+                        ? 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-[0.98]'
+                        : 'bg-card border border-border text-text-2 cursor-not-allowed'">
+                {{ workoutAccess(resolveStoredPlan(previewWorkout())).label }}
               </button>
             </div>
           </div>
@@ -819,6 +843,7 @@ export class MyWorkoutComponent implements OnInit {
   stepIndex = computed(() => this.stepKeys.indexOf(this.step() as any));
 
   todayWorkout = computed(() => this.workoutService.todayWorkout());
+  todayWorkoutAccess = computed(() => this.workoutService.getWorkoutAccessState(this.todayWorkout()));
 
   nextWorkoutLabel = computed(() => {
     const prog = this.workoutService.program();
@@ -917,11 +942,17 @@ export class MyWorkoutComponent implements OnInit {
   }
 
   startPlan(w: StoredPlan | GeneratedWorkout): void {
-    this.router.navigateByUrl(`/workout/${w.id}`);
+    const plan = this.resolveStoredPlan(w);
+    if (!plan) return;
+
+    const access = this.workoutService.beginWorkout(plan);
+    if (!access.canStart) return;
+
+    this.router.navigateByUrl(`/workout/${plan.id}`);
   }
 
   startWorkout(w: GeneratedWorkout): void {
-    this.router.navigateByUrl(`/workout/${w.id}`);
+    this.startPlan(w);
   }
 
   confirmReset(): void {
@@ -938,5 +969,14 @@ export class MyWorkoutComponent implements OnInit {
     this.wizard.set({ goal: null, level: null, days: null });
     this.generated.set([]);
     this.step.set('goal');
+  }
+
+  workoutAccess(plan: StoredPlan | null | undefined): WorkoutAccessState {
+    return this.workoutService.getWorkoutAccessState(plan);
+  }
+
+  resolveStoredPlan(workout: StoredPlan | GeneratedWorkout | null): StoredPlan | null {
+    if (!workout) return null;
+    return this.workoutService.getPlan(workout.id) ?? null;
   }
 }

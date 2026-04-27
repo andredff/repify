@@ -1,4 +1,5 @@
-import { Component, input, output } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
+import { WorkoutAvailabilityState } from '../../../core/services/workout.service';
 
 export interface DailyWorkout {
   id: string;
@@ -25,11 +26,11 @@ const MUSCLE_EMOJI: Record<string, string> = {
   standalone: true,
   template: `
     <div class="rounded-2xl overflow-hidden shadow-card relative border transition-colors"
-         [class]="finished() ? 'bg-primary/5 border-primary/30' : 'bg-card-2 border-border'">
+         [class]="isFinished() ? 'bg-primary/5 border-primary/30' : isLocked() ? 'bg-card/80 border-border' : 'bg-card-2 border-border'">
 
       <!-- Glow accent top -->
       <div class="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent"
-           [class]="finished() ? 'opacity-100' : 'opacity-60'"></div>
+           [class]="isFinished() ? 'opacity-100' : isLocked() ? 'opacity-20' : 'opacity-60'"></div>
 
       <!-- Decorative emoji bg -->
       <div class="absolute right-4 top-1/2 -translate-y-1/2 text-[72px] opacity-[0.06] select-none pointer-events-none font-display font-black">
@@ -40,11 +41,17 @@ const MUSCLE_EMOJI: Record<string, string> = {
 
         <!-- Label -->
         <div class="flex items-center gap-2 mb-3">
-          @if (finished()) {
+          @if (isFinished()) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="20 6 9 17 4 12"/>
             </svg>
             <span class="text-[10px] font-body font-semibold text-primary uppercase tracking-widest">Treino concluído</span>
+          } @else if (isInProgress()) {
+            <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+            <span class="text-[10px] font-body font-semibold text-primary uppercase tracking-widest">Treino em andamento</span>
+          } @else if (isLocked()) {
+            <div class="w-1.5 h-1.5 rounded-full bg-text-2/40"></div>
+            <span class="text-[10px] font-body font-semibold text-text-2 uppercase tracking-widest">Acesso bloqueado</span>
           } @else {
             <div class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
             <span class="text-[10px] font-body font-semibold text-primary uppercase tracking-widest">Treino de hoje</span>
@@ -55,7 +62,7 @@ const MUSCLE_EMOJI: Record<string, string> = {
         <div class="flex items-start justify-between gap-3">
           <div class="flex-1 min-w-0">
             <h3 class="text-[20px] font-display font-bold leading-tight truncate"
-                [class]="finished() ? 'text-text-2' : 'text-white'">
+                [class]="isFinished() || isLocked() ? 'text-text-2' : 'text-white'">
               {{ workout().name }}
             </h3>
             <div class="flex items-center gap-3 mt-1.5">
@@ -81,21 +88,28 @@ const MUSCLE_EMOJI: Record<string, string> = {
           </div>
 
           <!-- CTA button -->
-          @if (finished()) {
+          @if (isFinished()) {
             <div class="shrink-0 flex items-center gap-2 bg-primary/15 border border-primary/30 text-primary font-body font-semibold text-[13px] px-4 py-2.5 rounded-xl">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
-              Feito!
+              {{ ctaLabel() }}
             </div>
           } @else {
             <button
+              type="button"
               (click)="onStart.emit(workout().id)"
-              class="shrink-0 flex items-center gap-2 bg-primary text-bg font-body font-bold text-[13px] px-4 py-2.5 rounded-xl shadow-glow hover:shadow-glow-lg active:scale-95 transition-all">
+              [disabled]="isLocked()"
+              class="shrink-0 flex items-center gap-2 font-body font-bold text-[13px] px-4 py-2.5 rounded-xl transition-all"
+              [class]="isLocked()
+                ? 'bg-card border border-border text-text-2 cursor-not-allowed opacity-80'
+                : isInProgress()
+                  ? 'bg-primary/12 border border-primary/30 text-primary shadow-glow-sm hover:bg-primary/18 active:scale-95'
+                  : 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-95'">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                 <polygon points="5 3 19 12 5 21 5 3"/>
               </svg>
-              Iniciar
+              {{ ctaLabel() }}
             </button>
           }
         </div>
@@ -106,8 +120,18 @@ const MUSCLE_EMOJI: Record<string, string> = {
 })
 export class DailyWorkoutCardComponent {
   workout  = input.required<DailyWorkout>();
-  finished = input<boolean>(false);
+  state = input<WorkoutAvailabilityState>('pending');
   onStart  = output<string>();
+
+  readonly isFinished = computed(() => this.state() === 'completed');
+  readonly isLocked = computed(() => this.state() === 'locked');
+  readonly isInProgress = computed(() => this.state() === 'in_progress');
+  readonly ctaLabel = computed(() => {
+    if (this.isLocked()) return '🔒 Disponível amanhã';
+    if (this.isInProgress()) return 'Continuar';
+    if (this.isFinished()) return 'Feito!';
+    return 'Iniciar';
+  });
 
   emoji() {
     return MUSCLE_EMOJI[this.workout().muscleGroup] ?? '💪';
