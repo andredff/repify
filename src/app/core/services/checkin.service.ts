@@ -1,10 +1,18 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
 import { supabase } from '../supabase/supabaseClient';
 import { environment } from '../../../environments/environment';
+import { RankingService } from './ranking.service';
+
+export const CHECKIN_XP = 10;
+
+interface CheckinResponse {
+  created?: boolean;
+}
 
 @Injectable({ providedIn: 'root' })
 export class CheckinService {
   private readonly API = environment.apiBaseUrl;
+  private readonly ranking = inject(RankingService);
 
   // Datas com check-in no período carregado (YYYY-MM-DD)
   readonly dates   = signal<string[]>([]);
@@ -38,14 +46,25 @@ export class CheckinService {
 
   // ── Check-in ────────────────────────────────────────────────────────────────
 
-  async checkIn(): Promise<void> {
-    if (this.todayChecked()) return;
+  async checkIn(): Promise<{ created: boolean; xpAwarded: number }> {
+    if (this.todayChecked()) return { created: false, xpAwarded: 0 };
+
     const res = await this.fetch('/api/checkin', { method: 'POST' });
     if (!res.ok) throw new Error('Falha ao fazer check-in.');
+
+    const payload = await res.json() as CheckinResponse;
+    const created = payload.created !== false;
+    if (!created) {
+      return { created: false, xpAwarded: 0 };
+    }
+
     const today = toLocalDate(new Date());
     this.dates.update(d => [...d, today].sort());
-    // Recalculate streak locally — server returns it on next load
-    this.streak.update(s => s + 1);
+    const nextStreak = this.streak() + 1;
+    this.streak.set(nextStreak);
+
+    await this.ranking.recordXp('streak_bonus', CHECKIN_XP, { streakDays: nextStreak });
+    return { created: true, xpAwarded: CHECKIN_XP };
   }
 
   async undoCheckIn(): Promise<void> {

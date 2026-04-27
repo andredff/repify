@@ -1,5 +1,5 @@
 import { Component, inject, signal, computed, output, OnInit } from '@angular/core';
-import { CheckinService } from '../../../core/services/checkin.service';
+import { CHECKIN_XP, CheckinService } from '../../../core/services/checkin.service';
 
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                      'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -38,7 +38,7 @@ const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
               {{ checkin.todayChecked() ? 'Check-in realizado!' : 'Check-in diário' }}
             </p>
             <p class="text-[11px] text-text-2 font-body mt-0.5">
-              {{ checkin.todayChecked() ? 'Você marcou presença hoje 💪' : 'Marque presença e mantenha seu streak' }}
+              {{ checkin.todayChecked() ? 'Você garantiu +' + checkinXp + ' XP hoje 💪' : 'Marque presença, some +' + checkinXp + ' XP e mantenha seu streak' }}
             </p>
           </div>
         </div>
@@ -57,6 +57,9 @@ const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
           </button>
 
           <div class="flex flex-col items-end gap-1.5">
+            <span class="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-body font-semibold text-primary">
+              +{{ checkinXp }} XP
+            </span>
             @if (!checkin.todayChecked()) {
               <button (click)="doCheckIn()"
                       [disabled]="busy()"
@@ -151,6 +154,7 @@ const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
 })
 export class CheckInCardComponent implements OnInit {
   readonly checkin = inject(CheckinService);
+  readonly checkinXp = CHECKIN_XP;
   readonly MONTH_NAMES = MONTH_NAMES;
 
   onWalk = output<void>();

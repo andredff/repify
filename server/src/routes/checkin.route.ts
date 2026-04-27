@@ -8,9 +8,27 @@ const router = Router();
 router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
   const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
+  const { data: existing, error: existingError } = await supabaseAdmin
+    .from('checkins')
+    .select('id, checked_at')
+    .eq('user_id', req.userId)
+    .eq('checked_at', today)
+    .maybeSingle();
+
+  if (existingError) {
+    console.error('[checkin] existing lookup error:', existingError);
+    res.status(500).json({ error: 'Failed to save check-in.' });
+    return;
+  }
+
+  if (existing) {
+    res.status(200).json({ checkin: existing, created: false });
+    return;
+  }
+
   const { data, error } = await supabaseAdmin
     .from('checkins')
-    .upsert({ user_id: req.userId, checked_at: today }, { onConflict: 'user_id,checked_at' })
+    .insert({ user_id: req.userId, checked_at: today })
     .select()
     .single();
 
@@ -20,7 +38,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  res.status(201).json({ checkin: data });
+  res.status(201).json({ checkin: data, created: true });
 });
 
 // GET /api/checkin?year=2026&month=4 — datas de check-in do mês

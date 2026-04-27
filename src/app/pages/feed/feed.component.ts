@@ -1,6 +1,7 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { CHECKIN_XP, CheckinService } from '../../core/services/checkin.service';
 import { PostService } from '../../core/services/post.service';
 import { FeedHeaderComponent } from './components/feed-header.component';
 import { CheckInCardComponent } from './components/check-in-card.component';
@@ -37,6 +38,13 @@ interface DailyChallengeView {
   actionLabel: string;
   icon: string;
   action: 'workout' | 'walk' | 'progress';
+}
+
+interface XpCarouselSlide {
+  id: 'checkin' | 'challenge' | 'walk';
+  label: string;
+  reward: string;
+  hint: string;
 }
 
 const HOME_RANK_SNAPSHOT_KEY = 'repify_home_rank_snapshot';
@@ -93,33 +101,7 @@ function isoToday(): string {
 
         <app-stories-bar />
 
-        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
-          <app-home-ranking-card
-            [currentRank]="currentRank()"
-            [previousRank]="previousRankSnapshot()"
-            [recentDelta]="recentRankDelta()"
-            [totalXp]="currentXp()"
-            [streakDays]="currentStreak()"
-            [positionsToClimb]="positionsToClimb()"
-            [xpToClimb]="xpToClimbTarget()"
-            [progressPct]="rankProgressPct()"
-            [xpDelta]="recentXpGain()"
-            (openRanking)="router.navigateByUrl('/ranking')" />
-        </div>
-
-        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.04s">
-          <app-daily-challenge-card
-            [title]="dailyChallenge().title"
-            [description]="dailyChallenge().description"
-            [reward]="dailyChallenge().reward"
-            [impact]="dailyChallenge().impact"
-            [hint]="dailyChallenge().hint"
-            [actionLabel]="dailyChallenge().actionLabel"
-            [icon]="dailyChallenge().icon"
-            (action)="handleDailyChallenge()" />
-        </div>
-
-        @if (auth.profile().yearly_goal) {
+                @if (auth.profile().yearly_goal) {
           <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
             <div class="bg-card-2 border border-border rounded-xl px-4 py-3 space-y-1.5">
               <div class="flex justify-between items-center">
@@ -136,12 +118,69 @@ function isoToday(): string {
           </div>
         }
 
-        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.07s">
-          <app-check-in-card (onWalk)="showWalk.set(true)" />
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
+          <div class="mb-3 flex items-end justify-between gap-3 px-1">
+            <div class="min-w-0">
+              <p class="text-[10px] font-body uppercase tracking-[0.22em] text-primary/75">Rotas de XP</p>
+              <p class="mt-1 text-[14px] font-display font-bold tracking-tight text-white">{{ currentXpCarouselSlide().label }}</p>
+              <p class="mt-1 text-[11px] font-body text-text-2">{{ currentXpCarouselSlide().hint }}</p>
+            </div>
+            <span class="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-body font-semibold text-primary">
+              {{ currentXpCarouselSlide().reward }}
+            </span>
+          </div>
+
+          <div class="overflow-hidden rounded-[30px]">
+            <div class="flex transition-transform duration-500 ease-out"
+                 [style.width.%]="xpCarouselSlides().length * 100"
+                 [style.transform]="'translateX(-' + (xpCarouselIndexClamped() * (100 / xpCarouselSlides().length)) + '%)'">
+              @for (slide of xpCarouselSlides(); track slide.id) {
+                <div class="shrink-0" [style.width.%]="100 / xpCarouselSlides().length">
+                  @if (slide.id === 'checkin') {
+                    <app-check-in-card (onWalk)="showWalk.set(true)" />
+                  } @else if (slide.id === 'challenge') {
+                    <app-daily-challenge-card
+                      [title]="dailyChallenge().title"
+                      [description]="dailyChallenge().description"
+                      [reward]="dailyChallenge().reward"
+                      [impact]="dailyChallenge().impact"
+                      [hint]="dailyChallenge().hint"
+                      [actionLabel]="dailyChallenge().actionLabel"
+                      [icon]="dailyChallenge().icon"
+                      (action)="handleDailyChallenge()" />
+                  } @else {
+                    <app-walk-card (onStart)="showWalk.set(true)" />
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+          @if (xpCarouselSlides().length > 1) {
+            <div class="mt-3 flex items-center justify-center gap-2">
+              @for (slide of xpCarouselSlides(); track slide.id; let i = $index) {
+                <button type="button"
+                        (click)="setXpCarouselIndex(i)"
+                        class="h-2.5 rounded-full transition-all"
+                        [attr.aria-label]="'Abrir slide ' + slide.label"
+                        [class]="xpCarouselIndexClamped() === i ? 'w-6 bg-primary' : 'w-2.5 bg-border hover:bg-border-2'"></button>
+              }
+            </div>
+          }
         </div>
 
-        <div class="px-4 mt-3 animate-slide-up" style="animation-delay:0.09s">
-          <app-walk-card (onStart)="showWalk.set(true)" />
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.03s">
+          <app-home-ranking-card
+            [currentRank]="currentRank()"
+            [previousRank]="previousRankSnapshot()"
+            [recentDelta]="recentRankDelta()"
+            [totalXp]="currentXp()"
+            [streakDays]="currentStreak()"
+            [positionsToClimb]="positionsToClimb()"
+            [xpToClimb]="xpToClimbTarget()"
+            [progressPct]="rankProgressPct()"
+            [xpDelta]="recentXpGain()"
+            (openRanking)="router.navigateByUrl('/ranking')" />
         </div>
 
         @if (!workoutService.hasProgram()) {
@@ -237,6 +276,7 @@ function isoToday(): string {
 })
 export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   auth                = inject(AuthService);
+  checkin             = inject(CheckinService);
   router              = inject(Router);
   private postService = inject(PostService);
   workoutService      = inject(WorkoutService);
@@ -252,11 +292,12 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   currentStreak  = computed(() => this.ranking.myRank()?.streakDays ?? 0);
   dailyXp        = computed(() => {
     const today = isoToday();
+    const checkinXp = this.checkin.todayChecked() ? CHECKIN_XP : 0;
     const workoutXp = this.workoutService.history()
       .filter(session => session.completedDate === today)
       .reduce((total, session) => total + session.xpEarned, 0);
     const walkXp = this.walkSvc.history().filter(session => session.finishedAt.startsWith(today)).length * 5;
-    return workoutXp + walkXp;
+    return checkinXp + workoutXp + walkXp;
   });
   todayWalkDone  = computed(() => this.walkSvc.history().some(session => session.finishedAt.startsWith(isoToday())));
   nextRankEntry  = computed(() => {
@@ -355,6 +396,48 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
         action: 'progress',
     };
   });
+  xpCarouselSlides = computed<XpCarouselSlide[]>(() => {
+    const slides: XpCarouselSlide[] = [
+      {
+        id: 'checkin',
+        label: this.checkin.todayChecked() ? 'Check-in do dia fechado' : 'Check-in com XP imediato',
+        reward: `+${CHECKIN_XP} XP`,
+        hint: this.checkin.todayChecked()
+          ? 'O ganho do check-in já contou hoje e o radar mostra esse avanço no XP total.'
+          : 'Marque presença para ganhar XP instantâneo e reforçar sua sequência diária.',
+      },
+    ];
+
+    if (this.dailyChallenge().action !== 'progress') {
+      slides.push({
+        id: 'challenge',
+        label: this.dailyChallenge().title,
+        reward: this.dailyChallenge().reward,
+        hint: this.dailyChallenge().hint,
+      });
+    }
+
+    slides.push({
+      id: 'walk',
+      label: this.walkSvc.isActive() ? 'Finalize a caminhada ativa' : 'Caminhada também soma XP',
+      reward: '+5 XP',
+      hint: this.walkSvc.isActive()
+        ? 'Feche a caminhada para transformar o percurso em XP no ranking.'
+        : 'Uma caminhada curta hoje empilha XP leve sem disputar energia do treino.',
+    });
+
+    return slides;
+  });
+  xpCarouselIndex = signal(0);
+  xpCarouselIndexClamped = computed(() => {
+    const slides = this.xpCarouselSlides();
+    if (!slides.length) return 0;
+    return Math.min(this.xpCarouselIndex(), slides.length - 1);
+  });
+  currentXpCarouselSlide = computed(() => {
+    const slides = this.xpCarouselSlides();
+    return slides[this.xpCarouselIndexClamped()] ?? null;
+  });
   showNewPost       = signal(false);
   showWalk          = signal(false);
   showNotifications = signal(false);
@@ -376,6 +459,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   private pullLocked   = false; // true once we confirmed downward drag from top
   private readonly THRESHOLD = 70;
   private rankingPoll: ReturnType<typeof setInterval> | null = null;
+  private xpCarouselTimer: ReturnType<typeof setInterval> | null = null;
   private xpFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
   private lastSeenTotalXp: number | null = null;
   private lastSeenUserId: string | null = null;
@@ -386,7 +470,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
       const userId = this.auth.user()?.id;
       if (!me || !userId) return;
 
-      const raw = localStorage.getItem(`${HOME_RANK_SNAPSHOT_KEY}:${userId}`);
+      const raw = sessionStorage.getItem(`${HOME_RANK_SNAPSHOT_KEY}:${userId}`);
       if (!raw) {
         this.previousRankSnapshot.set(me.rank);
         this.recentRankDelta.set(0);
@@ -401,7 +485,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       }
 
-      localStorage.setItem(`${HOME_RANK_SNAPSHOT_KEY}:${userId}`, JSON.stringify({ rank: me.rank, totalXp: me.totalXp }));
+      sessionStorage.setItem(`${HOME_RANK_SNAPSHOT_KEY}:${userId}`, JSON.stringify({ rank: me.rank, totalXp: me.totalXp }));
     });
 
     effect(() => {
@@ -439,6 +523,11 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadFeed();
     void this.ranking.load(true);
     this.rankingPoll = setInterval(() => void this.ranking.load(true), 60000);
+    this.xpCarouselTimer = setInterval(() => {
+      const count = this.xpCarouselSlides().length;
+      if (count <= 1) return;
+      this.xpCarouselIndex.update(index => (index + 1) % count);
+    }, 4800);
   }
 
   ngAfterViewInit(): void {
@@ -458,7 +547,12 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
       el.removeEventListener('touchcancel', this.onTouchEnd);
     }
     if (this.rankingPoll) clearInterval(this.rankingPoll);
+    if (this.xpCarouselTimer) clearInterval(this.xpCarouselTimer);
     if (this.xpFeedbackTimer) clearTimeout(this.xpFeedbackTimer);
+  }
+
+  setXpCarouselIndex(index: number): void {
+    this.xpCarouselIndex.set(index);
   }
 
   private onTouchStart = (e: TouchEvent): void => {
