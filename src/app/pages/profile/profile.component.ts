@@ -133,8 +133,13 @@ const MAX_SIZE_MB   = 5;
             <p class="mt-2 text-[11px] text-primary font-body z-10 animate-fade-in">Foto atualizada!</p>
           }
 
+                    <!-- Avatar hint -->
+          <p class="mt-1 text-[8px] text-text-2 font-body z-10">
+            JPG, PNG ou WEBP · máx {{ MAX_SIZE_MB }}MB
+          </p>
+
           <!-- Name + email -->
-          <div class="mt-3 text-center z-10">
+          <div class="mt-5 text-center z-10">
             <p class="text-[17px] font-display font-bold text-white">
               {{ displayName() || 'Sem nome' }}
             </p>
@@ -177,11 +182,6 @@ const MAX_SIZE_MB   = 5;
               <p class="text-[10px] text-text-2 font-body text-right">{{ heroProgressPct() }}% concluído</p>
             </div>
           }
-
-          <!-- Avatar hint -->
-          <p class="mt-3 text-[10px] text-text-2 font-body z-10">
-            JPG, PNG ou WEBP · máx {{ MAX_SIZE_MB }}MB
-          </p>
 
           <!-- Invite button -->
           <button (click)="shareInvite()"
@@ -495,7 +495,7 @@ const MAX_SIZE_MB   = 5;
 
       </div>
 
-      <app-bottom-nav [active]="'profile'" (onNewPost)="showNewPost.set(true)" />
+      <app-bottom-nav [active]="''" (onNewPost)="showNewPost.set(true)" />
     </div>
   `,
 })

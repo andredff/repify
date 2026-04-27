@@ -236,7 +236,7 @@ const GOAL_LABELS: Record<string, string> = {
         </div>
       }
 
-      <app-bottom-nav [active]="isOwn() ? 'profile' : 'feed'" (onNewPost)="showNewPost.set(true)" />
+      <app-bottom-nav [active]="isOwn() ? '' : 'feed'" (onNewPost)="showNewPost.set(true)" />
 
       @if (showNotifications()) {
         <app-notifications-panel (onClose)="showNotifications.set(false)" />

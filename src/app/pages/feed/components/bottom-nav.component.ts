@@ -49,6 +49,20 @@ import { RouterLink } from '@angular/router';
           <span class="text-[10px] font-body font-semibold text-primary leading-none">Postar</span>
         </div>
 
+        <!-- Progresso -->
+        <a routerLink="/progress"
+           class="flex flex-col items-center gap-1 w-14 py-1 rounded-xl transition-all relative"
+           [class]="active() === 'progress' ? 'text-primary' : 'text-text-2 hover:text-white'">
+          @if (active() === 'progress') {
+            <div class="absolute inset-0 bg-primary/8 rounded-xl"></div>
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full shadow-glow-sm"></div>
+          }
+          <svg class="relative" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19h16"/><path d="M7 16V9"/><path d="M12 16V5"/><path d="M17 16v-3"/>
+          </svg>
+          <span class="relative text-[10px] font-body font-medium leading-none">Progresso</span>
+        </a>
+
         <!-- Ranking -->
         <a routerLink="/ranking"
            class="flex flex-col items-center gap-1 w-14 py-1 rounded-xl transition-all relative"
@@ -63,20 +77,6 @@ import { RouterLink } from '@angular/router';
             <rect x="8" y="8" width="8" height="13" rx="1"/>
           </svg>
           <span class="relative text-[10px] font-body font-medium leading-none">Ranking</span>
-        </a>
-
-        <!-- Perfil -->
-        <a routerLink="/profile"
-           class="flex flex-col items-center gap-1 w-14 py-1 rounded-xl transition-all relative"
-           [class]="active() === 'profile' ? 'text-primary' : 'text-text-2 hover:text-white'">
-          @if (active() === 'profile') {
-            <div class="absolute inset-0 bg-primary/8 rounded-xl"></div>
-            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full shadow-glow-sm"></div>
-          }
-          <svg class="relative" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-          </svg>
-          <span class="relative text-[10px] font-body font-medium leading-none">Perfil</span>
         </a>
 
       </div>
