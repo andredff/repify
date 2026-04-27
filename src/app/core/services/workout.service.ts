@@ -394,7 +394,9 @@ export class WorkoutService {
         const nextToday = todayStr();
         if (nextToday === this._todayKey()) return;
         this._todayKey.set(nextToday);
-        this._daySession.set(this._loadDaySession());
+        this._daySession.set(createEmptyDaySession(nextToday));
+        this._hydrated.set(false);
+        void this.reloadState();
       }, 60_000);
     }
 
