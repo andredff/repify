@@ -6,7 +6,7 @@ import { RankingProgressBarComponent } from './ranking-progress-bar.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RankingProgressBarComponent],
   template: `
-    <section class="rank-hero relative overflow-hidden rounded-[26px] border border-white/8 bg-[linear-gradient(180deg,rgba(10,17,23,0.96),rgba(7,11,15,1))] p-4 text-white sm:rounded-[30px] sm:p-5">
+    <section class="relative overflow-hidden rounded-[28px] border border-primary/20 bg-[linear-gradient(180deg,rgba(10,17,23,0.98),rgba(8,12,16,1))] p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)] sm:p-5">
       <div class="hero-grid relative z-[1]">
         <div class="space-y-4 sm:space-y-5">
           <div class="flex items-start justify-between gap-3">
@@ -30,7 +30,7 @@ import { RankingProgressBarComponent } from './ranking-progress-bar.component';
             </button>
           </div>
 
-          <div class="message-stack min-h-[44px] sm:min-h-[48px]">
+          <div class="message-stack min-h-[18px] sm:min-h-[48px]">
             <p class="message-line text-[14px] font-display font-bold tracking-tight text-white sm:text-[16px]" [class.is-hidden]="messageStep() !== 0">
               Você está em #{{ displayedRank() }} hoje
             </p>
@@ -41,25 +41,6 @@ import { RankingProgressBarComponent } from './ranking-progress-bar.component';
         </div>
 
         <div class="space-y-3.5 sm:space-y-4">
-          <div class="grid grid-cols-2 gap-2.5 sm:gap-3">
-            <div class="metric-panel">
-              <span class="metric-label">Variação</span>
-              <span class="metric-value" [class.text-danger]="recentDelta() < 0" [class.text-primary]="recentDelta() >= 0">{{ variationLabel() }}</span>
-            </div>
-            <div class="metric-panel">
-              <span class="metric-label">XP atual</span>
-              <span class="metric-value">{{ totalXp() }}</span>
-            </div>
-            <div class="metric-panel">
-              <span class="metric-label">Streak</span>
-              <span class="metric-value">🔥 {{ streakDays() }} dias</span>
-            </div>
-            <div class="metric-panel">
-              <span class="metric-label">Sprint</span>
-              <span class="metric-value">{{ positionsToClimb() > 0 ? '+' + positionsToClimb() + ' posições' : 'Líder' }}</span>
-            </div>
-          </div>
-
           <app-ranking-progress-bar
             [progress]="progressPct()"
             [progressLabel]="xpNeedLabel()"

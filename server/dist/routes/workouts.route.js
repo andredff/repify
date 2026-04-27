@@ -74,6 +74,16 @@ router.post('/complete', auth_middleware_1.requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Failed to complete workout.' });
         return;
     }
+    const { count: workoutEventsCount, error: workoutCountError } = await supabase_1.supabaseAdmin
+        .from('xp_events')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('type', 'workout');
+    if (workoutCountError) {
+        console.error('[workouts] xp_events count error:', workoutCountError);
+        res.status(500).json({ error: 'Failed to complete workout.' });
+        return;
+    }
     const { data: existingUser, error: userFetchError } = await supabase_1.supabaseAdmin.auth.admin.getUserById(userId);
     if (userFetchError || !existingUser.user) {
         console.error('[workouts] auth user fetch error:', userFetchError);
@@ -81,7 +91,7 @@ router.post('/complete', auth_middleware_1.requireAuth, async (req, res) => {
         return;
     }
     const meta = existingUser.user.user_metadata ?? {};
-    const workoutsDone = Number(meta['workouts_done'] ?? 0) + 1;
+    const workoutsDone = Number(workoutEventsCount ?? 0);
     const yearlyGoal = Number(meta['yearly_goal'] ?? DEFAULT_YEARLY_GOAL) || DEFAULT_YEARLY_GOAL;
     const { error: updateUserError } = await supabase_1.supabaseAdmin.auth.admin.updateUserById(userId, {
         user_metadata: {
