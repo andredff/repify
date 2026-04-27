@@ -128,16 +128,16 @@ export const ACHIEVEMENTS = [
 ];
 
 const REPlFY_MOTIVATIONAL_QUOTES = [
-  'Voce nao depende de motivacao. Voce depende de decisao.',
-  'Disciplina e fazer mesmo sem vontade.',
-  'Hoje foi dificil. E por isso que valeu.',
-  'Seu corpo escuta o que sua rotina repete.',
-  'Constancia vence talento distraido.',
-  'O treino acaba. O respeito fica.',
-  'Nao negocie com a versao fraca de voce.',
-  'Quem aparece hoje domina o amanha.',
-  'Sem desculpa. Sem atalho. So execucao.',
-  'Ficar pronto e mentira. Voce comeca e vira pronto no caminho.',
+  'Hoje você venceu no ódio, ficou de pé na força e terminou no respeito.',
+  'Não foi bonito. Foi bruto. E por isso funcionou.',
+  'Você não treinou fofo. Você esmagou a fraqueza.',
+  'A raiva certa virou gasolina. A disciplina virou resultado.',
+  'Seu corpo entendeu o recado: aqui quem manda é a força.',
+  'Sem carinho. Sem desculpa. Só pressão, pulso e execução.',
+  'O cansaço pediu trégua. Você respondeu com peso e postura.',
+  'Hoje a sua parte fraca apanhou da sua parte disciplinada.',
+  'Treino concluído. Mais denso, mais duro, mais perigoso para a mediocridade.',
+  'Você entrou com pressão na mente e saiu com guerra vencida no corpo.',
 ];
 
 function weekCount(history: WorkoutSession[]): number {
