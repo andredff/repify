@@ -157,11 +157,16 @@ export class CommentsSheetComponent implements OnInit {
   }
 
   private async load(): Promise<void> {
+    const targetPostId = this.postId(); // snapshot before await
     this.loading.set(true);
     try {
-      const res  = await this.apiFetch(`/api/posts/${this.postId()}/comments`);
+      const res  = await this.apiFetch(`/api/posts/${targetPostId}/comments`);
+      if (!res.ok) return;
       const data = await res.json();
-      this.comments.set(data.comments ?? []);
+      // Only apply if still the same post
+      if (targetPostId === this.postId()) {
+        this.comments.set(data.comments ?? []);
+      }
     } finally {
       this.loading.set(false);
     }
@@ -170,21 +175,36 @@ export class CommentsSheetComponent implements OnInit {
   async submit(): Promise<void> {
     const body = this.draft.trim();
     if (!body || this.submitting()) return;
+
+    // Snapshot both values synchronously before any await
+    const targetPostId = this.postId();
+    const sentBody     = body;
+
     this.submitting.set(true);
+    this.draft = ''; // clear immediately — prevents double-submit on fast tap
+
     try {
-      const res = await this.apiFetch(`/api/posts/${this.postId()}/comments`, {
+      const res = await this.apiFetch(`/api/posts/${targetPostId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({ body: sentBody }),
       });
       if (!res.ok) throw new Error();
       const { comment } = await res.json();
-      this.comments.update(list => [...list, comment]);
+
+      // Guard: only update if sheet is still showing the same post
+      if (targetPostId !== this.postId()) return;
+
+      this.comments.update(list => {
+        // Deduplicate — realtime may have already inserted it
+        if (list.some(c => c.id === comment.id)) return list;
+        return [...list, comment];
+      });
       this.onCountChange.emit(this.comments().length);
-      this.draft = '';
       setTimeout(() => this.scrollToBottom(), 50);
     } catch {
-      // silent
+      // Restore draft so user can retry
+      if (!this.draft) this.draft = sentBody;
     } finally {
       this.submitting.set(false);
     }

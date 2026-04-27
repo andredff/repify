@@ -11,6 +11,7 @@ export interface UserProfile {
   height: number | null;
   goal: string;
   avatar_url: string;
+  avatar_version: number | null; // unix timestamp — cache-buster for storage URLs
   yearly_goal: number | null;
   workouts_done: number | null;
 }
@@ -32,15 +33,16 @@ export class AuthService {
   readonly profile = computed<UserProfile>(() => {
     const meta = this._session()?.user?.user_metadata ?? {};
     return {
-      full_name:    meta['full_name']    ?? '',
-      username:     meta['username']     ?? '',
-      bio:          meta['bio']          ?? '',
-      weight:       meta['weight']       ?? null,
-      height:       meta['height']       ?? null,
-      goal:         meta['goal']         ?? '',
-      avatar_url:   meta['avatar_url']   ?? '',
-      yearly_goal:  meta['yearly_goal']  ?? null,
-      workouts_done:meta['workouts_done']?? null,
+      full_name:      meta['full_name']      ?? '',
+      username:       meta['username']       ?? '',
+      bio:            meta['bio']            ?? '',
+      weight:         meta['weight']         ?? null,
+      height:         meta['height']         ?? null,
+      goal:           meta['goal']           ?? '',
+      avatar_url:     meta['avatar_url']     ?? '',
+      avatar_version: meta['avatar_version'] ?? null,
+      yearly_goal:    meta['yearly_goal']    ?? null,
+      workouts_done:  meta['workouts_done']  ?? null,
     };
   });
 
@@ -52,9 +54,12 @@ export class AuthService {
     supabase.auth.onAuthStateChange((_event, session) => {
       this._session.set(session);
 
-      const avatarPath = session?.user?.user_metadata?.['avatar_url'];
+      const meta        = session?.user?.user_metadata ?? {};
+      const avatarPath  = meta['avatar_url'];
+      const version     = meta['avatar_version'] ?? null;
+
       if (avatarPath) {
-        this._resolveAvatarUrl(avatarPath);
+        this._resolveAvatarUrl(avatarPath, version);
       } else {
         this._avatarUrl.set('');
       }
@@ -65,13 +70,16 @@ export class AuthService {
     });
   }
 
-  private _resolveAvatarUrl(path: string, bust = false): void {
+  // version = unix timestamp stored in user_metadata — persists across sessions
+  private _resolveAvatarUrl(path: string, version: number | null = null): void {
     if (path.startsWith('http')) {
-      this._avatarUrl.set(path);
+      // External URL (e.g. Google avatar) — append version if we have one
+      const url = version ? `${path}?v=${version}` : path;
+      this._avatarUrl.set(url);
       return;
     }
     const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
-    const url = bust ? `${data.publicUrl}?t=${Date.now()}` : data.publicUrl;
+    const url = version ? `${data.publicUrl}?v=${version}` : data.publicUrl;
     this._avatarUrl.set(url);
   }
 
@@ -83,8 +91,9 @@ export class AuthService {
     const userId = this.user()?.id;
     if (!userId) throw new Error('Usuário não autenticado.');
 
-    const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const path = `${userId}/avatar.${ext}`;
+    const ext     = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
+    const path    = `${userId}/avatar.${ext}`;
+    const version = Date.now(); // timestamp used as cache-buster, persisted in metadata
 
     const { error: uploadError } = await supabase.storage
       .from(AVATAR_BUCKET)
@@ -95,12 +104,11 @@ export class AuthService {
     const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
     const publicUrl = data.publicUrl;
 
-    // Persist path in user_metadata (not the full URL, so it survives domain changes)
-    await this.updateProfile({ avatar_url: path });
+    // Save both path and version — version survives across sessions as cache-buster
+    await this.updateProfile({ avatar_url: path, avatar_version: version });
 
-    // Bust cache so the new photo appears immediately without a stale CDN hit
-    this._resolveAvatarUrl(path, true);
-    return publicUrl;
+    this._resolveAvatarUrl(path, version);
+    return `${publicUrl}?v=${version}`;
   }
 
   async signInWithGoogle(): Promise<void> {

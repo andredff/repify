@@ -250,7 +250,16 @@ export class WorkoutPostComponent {
   editDraft        = '';
 
   constructor() {
-    effect(() => this.localComments.set(this.post().comments));
+    // Sync from server only once on init, and only when the post id changes
+    // (not on every signal update like likes — that would reset comment count mid-session)
+    let lastPostId = '';
+    effect(() => {
+      const p = this.post();
+      if (p.id !== lastPostId) {
+        lastPostId = p.id;
+        this.localComments.set(p.comments);
+      }
+    });
   }
 
   isOwner = computed(() => {
