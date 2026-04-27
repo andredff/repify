@@ -57,13 +57,13 @@ type WalkTrackerView = 'setup' | 'running' | 'paused' | 'done';
           </div>
         </div>
 
-        <div class="mt-4 min-h-0 flex-1">
+        <div class="mt-4">
           <app-map-view
             [phase]="mapPhase()"
             [center]="mapCenter()"
             [currentPosition]="mapCurrentPosition()"
             [path]="mapPath()"
-            height="100%"
+            [height]="mapHeight()"
             [emptyTitle]="mapEmptyTitle()"
             [emptyCopy]="mapEmptyCopy()" />
         </div>
@@ -363,6 +363,7 @@ export class WalkTrackerComponent implements OnInit, OnDestroy {
   readonly mapEmptyCopy = computed(() => this.viewPhase() === 'done'
     ? 'Ative o GPS durante a caminhada para salvar o trajeto completo aqui.'
     : this.locationMessage());
+  readonly mapHeight = computed(() => this.viewPhase() === 'done' ? '280px' : '340px');
   readonly doneTime = computed(() => {
     const totalSeconds = this.doneSec();
     const hours = Math.floor(totalSeconds / 3600);

@@ -21,7 +21,7 @@ type MapPhase = 'preview' | 'active' | 'result';
     </div>
   `,
   styles: [`
-    :host { display:block; min-height:0; }
+    :host { display:block; min-height:0; width:100%; }
     .map-frame {
       position:relative;
       overflow:hidden;
@@ -29,6 +29,7 @@ type MapPhase = 'preview' | 'active' | 'result';
       border:1px solid rgba(255,255,255,0.08);
       background:linear-gradient(180deg, rgba(7,11,15,0.94), rgba(10,17,23,1));
       min-height:15rem;
+      width:100%;
     }
     .map-host {
       width:100%;
