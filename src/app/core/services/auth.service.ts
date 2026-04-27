@@ -3,6 +3,8 @@ import { Session, User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '../supabase/supabaseClient';
 import { environment } from '../../../environments/environment';
 
+const DEFAULT_YEARLY_GOAL = 320;
+
 export interface UserProfile {
   full_name: string;
   username: string;
@@ -41,8 +43,8 @@ export class AuthService {
       goal:           meta['goal']           ?? '',
       avatar_url:     meta['avatar_url']     ?? '',
       avatar_version: meta['avatar_version'] ?? null,
-      yearly_goal:    meta['yearly_goal']    ?? null,
-      workouts_done:  meta['workouts_done']  ?? null,
+      yearly_goal:    this.readNumericMeta(meta['yearly_goal'], DEFAULT_YEARLY_GOAL),
+      workouts_done:  this.readNumericMeta(meta['workouts_done'], 0),
     };
   });
 
@@ -64,10 +66,35 @@ export class AuthService {
         this._avatarUrl.set('');
       }
 
+      this.ensureProfileDefaults(session?.user?.user_metadata ?? {});
+
       if (!this._initialized()) {
         this._initialized.set(true);
       }
     });
+  }
+
+  private ensureProfileDefaults(meta: Record<string, unknown>): void {
+    const missing: Partial<UserProfile> = {};
+
+    if (meta['yearly_goal'] == null) {
+      missing.yearly_goal = DEFAULT_YEARLY_GOAL;
+    }
+
+    if (meta['workouts_done'] == null) {
+      missing.workouts_done = 0;
+    }
+
+    if (!Object.keys(missing).length) {
+      return;
+    }
+
+    void this.updateProfile(missing);
+  }
+
+  private readNumericMeta(value: unknown, fallback: number): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
   }
 
   // version = unix timestamp stored in user_metadata — persists across sessions
@@ -162,6 +189,26 @@ export class AuthService {
   async updatePassword(newPassword: string): Promise<void> {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw this.mapError(error);
+  }
+
+  applyProfilePatch(data: Partial<UserProfile>): void {
+    this._session.update(session => {
+      if (!session) return session;
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          user_metadata: {
+            ...(session.user.user_metadata ?? {}),
+            ...data,
+          },
+        },
+      };
+    });
+
+    if (data.avatar_url) {
+      this._resolveAvatarUrl(data.avatar_url, data.avatar_version ?? this.profile().avatar_version);
+    }
   }
 
   private mapError(error: AuthError): Error {

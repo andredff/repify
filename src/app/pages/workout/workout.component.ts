@@ -145,11 +145,15 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
         <div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] px-4 pb-8 pt-4 glass border-t border-border">
           <button (click)="finishWorkout()"
                   class="w-full py-4 rounded-2xl font-display font-bold text-[16px] transition-all"
+                  [disabled]="finishing()"
                   [class]="allDone()
-                    ? 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-[0.98] animate-fade-in'
-                    : 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-[0.98]'">
-            {{ allDone() ? 'Finalizar treino ✓' : 'Finalizar treino' }}
+                    ? 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-[0.98] animate-fade-in disabled:opacity-70'
+                    : 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-[0.98] disabled:opacity-70'">
+            {{ finishing() ? 'Finalizando...' : allDone() ? 'Finalizar treino ✓' : 'Finalizar treino' }}
           </button>
+          @if (errorMessage()) {
+            <p class="mt-3 text-center text-[12px] font-body text-danger">{{ errorMessage() }}</p>
+          }
         </div>
       }
 
@@ -166,6 +170,8 @@ export class WorkoutComponent implements OnInit {
   private router       = inject(Router);
   private workoutService = inject(WorkoutService);
   showNotifications = signal(false);
+  finishing = signal(false);
+  errorMessage = signal('');
 
   exercises = signal<StoredExercise[]>([]);
   plan      = signal<StoredPlan | null>(null);
@@ -190,13 +196,23 @@ export class WorkoutComponent implements OnInit {
     );
   }
 
-  finishWorkout(): void {
+  async finishWorkout(): Promise<void> {
+    if (this.finishing()) return;
+
     const p = this.plan();
-    if (p) {
-      // Usa o plano com os exercises atualizados (done state)
+    if (!p) return;
+
+    this.finishing.set(true);
+    this.errorMessage.set('');
+
+    try {
       const planWithState: StoredPlan = { ...p, exercises: this.exercises() };
-      this.workoutService.markFinished(planWithState, this.doneCount());
+      await this.workoutService.markFinished(planWithState, this.doneCount());
+      await this.router.navigateByUrl('/feed');
+    } catch {
+      this.errorMessage.set('Não foi possível concluir o treino agora. Tente novamente.');
+    } finally {
+      this.finishing.set(false);
     }
-    this.router.navigateByUrl('/feed');
   }
 }

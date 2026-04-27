@@ -29,6 +29,14 @@ export interface MyRank {
   streakDays: number;
 }
 
+export interface CurrentUserRankingMetrics {
+  totalXp: number;
+  weeklyXp: number;
+  workoutsDone: number;
+  totalKm: number;
+  streakDays: number;
+}
+
 export type RankSort = 'xp' | 'workouts' | 'distance';
 
 interface RankingResponse {
@@ -64,6 +72,25 @@ function normalizeEntry(entry: RankEntry): RankEntry {
 
 function normalizeMyRank(entry: MyRank | null): MyRank | null {
   return entry ? normalizeEntry(entry) : null;
+}
+
+function applyXpDelta<T extends RankEntry | MyRank>(
+  entry: T,
+  type: 'workout' | 'walk' | 'streak_bonus',
+  xp: number,
+  extras: { streakDays?: number; distanceKm?: number },
+): T {
+  const nextWorkoutsDone = type === 'workout' ? entry.workoutsDone + 1 : entry.workoutsDone;
+  const nextTotalKm = type === 'walk' ? entry.totalKm + Number(extras.distanceKm ?? 0) : entry.totalKm;
+
+  return {
+    ...entry,
+    totalXp: entry.totalXp + xp,
+    weeklyXp: entry.weeklyXp + xp,
+    workoutsDone: nextWorkoutsDone,
+    totalKm: nextTotalKm,
+    streakDays: extras.streakDays ?? entry.streakDays,
+  };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -165,14 +192,124 @@ export class RankingService {
     extras: { streakDays?: number; distanceKm?: number } = {},
   ): Promise<void> {
     try {
-      await this._fetch('/api/ranking/xp', {
+      const res = await this._fetch('/api/ranking/xp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, xp, streakDays: extras.streakDays, distanceKm: extras.distanceKm }),
       });
-      // Reload ranking after XP recorded
-      setTimeout(() => this.load(true), 300);
+
+      if (!res.ok) {
+        return;
+      }
+
+      this.applyLocalDelta(type, xp, extras);
+
+      // Reload ranking after XP recorded to reconcile with backend ordering/ranks.
+      setTimeout(() => void this.load(true), 300);
     } catch { /* non-critical */ }
+  }
+
+  syncCurrentUserMetrics(metrics: CurrentUserRankingMetrics): void {
+    const userId = this.auth.user()?.id;
+    if (!userId) return;
+
+    const profile = this.auth.profile();
+    const fallbackName = profile.full_name?.trim() || this.auth.user()?.email?.split('@')[0] || 'Usuário';
+    const fallbackUsername = profile.username?.trim() || null;
+    const fallbackAvatar = this.auth.avatarUrl();
+
+    this.myRank.update(entry => {
+      if (!entry) {
+        return {
+          rank: this.entries().length + 1,
+          userId,
+          name: fallbackName,
+          username: fallbackUsername,
+          avatar: fallbackAvatar,
+          totalXp: metrics.totalXp,
+          weeklyXp: metrics.weeklyXp,
+          workoutsDone: metrics.workoutsDone,
+          totalKm: metrics.totalKm,
+          streakDays: metrics.streakDays,
+        };
+      }
+      if (entry.userId !== userId) return entry;
+      return {
+        ...entry,
+        totalXp: metrics.totalXp,
+        weeklyXp: metrics.weeklyXp,
+        workoutsDone: metrics.workoutsDone,
+        totalKm: metrics.totalKm,
+        streakDays: metrics.streakDays,
+      };
+    });
+
+    this.entries.update(entries => {
+      const hasCurrentUser = entries.some(entry => entry.userId === userId);
+      const baseEntries = hasCurrentUser ? entries : [
+        ...entries,
+        {
+          rank: entries.length + 1,
+          userId,
+          name: fallbackName,
+          username: fallbackUsername,
+          avatar: fallbackAvatar,
+          totalXp: metrics.totalXp,
+          weeklyXp: metrics.weeklyXp,
+          workoutsDone: metrics.workoutsDone,
+          totalKm: metrics.totalKm,
+          streakDays: metrics.streakDays,
+        },
+      ];
+
+      const updated = baseEntries.map(entry => {
+        if (entry.userId !== userId) return entry;
+        return {
+          ...entry,
+          totalXp: metrics.totalXp,
+          weeklyXp: metrics.weeklyXp,
+          workoutsDone: metrics.workoutsDone,
+          totalKm: metrics.totalKm,
+          streakDays: metrics.streakDays,
+        };
+      });
+
+      const sort = this.sortBy();
+      const sorted = [...updated].sort((left, right) => {
+        const primary = sort === 'workouts'
+          ? right.workoutsDone - left.workoutsDone
+          : sort === 'distance'
+            ? right.totalKm - left.totalKm
+            : right.totalXp - left.totalXp;
+
+        if (primary !== 0) return primary;
+        if (right.totalXp !== left.totalXp) return right.totalXp - left.totalXp;
+        if (right.workoutsDone !== left.workoutsDone) return right.workoutsDone - left.workoutsDone;
+        if (right.totalKm !== left.totalKm) return right.totalKm - left.totalKm;
+        return left.name.localeCompare(right.name, 'pt-BR');
+      });
+
+      return sorted.map((entry, index) => ({ ...entry, rank: index + 1 }));
+    });
+  }
+
+  private applyLocalDelta(
+    type: 'workout' | 'walk' | 'streak_bonus',
+    xp: number,
+    extras: { streakDays?: number; distanceKm?: number },
+  ): void {
+    const userId = this.auth.user()?.id;
+    if (!userId) return;
+
+    this.myRank.update(entry => {
+      if (!entry || entry.userId !== userId) return entry;
+      return applyXpDelta(entry, type, xp, extras);
+    });
+
+    this.entries.update(entries => entries.map(entry => {
+      if (entry.userId !== userId) return entry;
+      return applyXpDelta(entry, type, xp, extras);
+    }));
   }
 
   private async _fetch(path: string, init: RequestInit = {}): Promise<Response> {

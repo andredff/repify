@@ -15,6 +15,7 @@ const posts_route_1 = __importDefault(require("./routes/posts.route"));
 const users_route_1 = __importDefault(require("./routes/users.route"));
 const notifications_route_1 = __importDefault(require("./routes/notifications.route"));
 const ranking_route_1 = __importDefault(require("./routes/ranking.route"));
+const workouts_route_1 = __importDefault(require("./routes/workouts.route"));
 const app = (0, express_1.default)();
 // ── Security & parsing ──────────────────────────────────────────────────────
 app.use((0, helmet_1.default)({
@@ -47,6 +48,7 @@ app.use('/api/posts', posts_route_1.default);
 app.use('/api/users', users_route_1.default);
 app.use('/api/notifications', notifications_route_1.default);
 app.use('/api/ranking', ranking_route_1.default);
+app.use('/api/workouts', workouts_route_1.default);
 // ── 404 fallback ────────────────────────────────────────────────────────────
 app.use((_req, res) => {
     res.status(404).json({ error: 'Not found.' });

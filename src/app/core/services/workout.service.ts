@@ -1,6 +1,8 @@
-import { Injectable, inject, signal, computed } from '@angular/core';
+import { Injectable, inject, signal, computed, effect } from '@angular/core';
 import { AuthService } from './auth.service';
-import { RankingService } from './ranking.service';
+import { CurrentUserRankingMetrics, RankingService } from './ranking.service';
+import { environment } from '../../../environments/environment';
+import { supabase } from '../supabase/supabaseClient';
 
 export interface StoredExercise {
   id: string;
@@ -42,6 +44,14 @@ export interface WorkoutSession {
   totalExercises: number;
   estimatedDuration: number;
   xpEarned: number;
+}
+
+interface CompleteWorkoutResponse {
+  ok: boolean;
+  metrics: CurrentUserRankingMetrics & {
+    yearlyGoal: number;
+    xpEarned: number;
+  };
 }
 
 const LS_PROGRAM  = 'repify_program';
@@ -115,6 +125,7 @@ const MUSCLE_EMOJI: Record<string, string> = {
 export class WorkoutService {
   private auth    = inject(AuthService);
   private ranking = inject(RankingService);
+  private readonly API = environment.apiBaseUrl;
   private _program  = signal<ActiveProgram | null>(this._loadProgram());
   private _finished = signal<Record<string, string>>(this._loadFinished());
   private _history  = signal<WorkoutSession[]>(this._loadHistory());
@@ -196,16 +207,36 @@ export class WorkoutService {
 
   readonly muscleEmoji = (mg: string) => MUSCLE_EMOJI[mg] ?? '💪';
 
+  constructor() {
+    effect(() => {
+      if (!this.auth.initialized()) return;
+
+      const userId = this.auth.user()?.id ?? null;
+      if (!userId) {
+        this._program.set(null);
+        this._finished.set({});
+        this._history.set([]);
+        this._totalXp.set(0);
+        return;
+      }
+
+      this._program.set(this._loadProgram());
+      this._finished.set(this._loadFinished());
+      this._history.set(this._loadHistory());
+      this._totalXp.set(this._loadXp());
+    });
+  }
+
   // ── Program management ───────────────────────────────────────────────────────
 
   saveProgram(program: ActiveProgram): void {
     this._program.set(program);
-    localStorage.setItem(LS_PROGRAM, JSON.stringify(program));
+    localStorage.setItem(this._storageKey(LS_PROGRAM), JSON.stringify(program));
   }
 
   clearProgram(): void {
     this._program.set(null);
-    localStorage.removeItem(LS_PROGRAM);
+    localStorage.removeItem(this._storageKey(LS_PROGRAM));
   }
 
   getPlan(id: string): StoredPlan | null {
@@ -214,15 +245,22 @@ export class WorkoutService {
 
   // ── Session tracking ─────────────────────────────────────────────────────────
 
-  markFinished(plan: StoredPlan, exercisesDone: number): void {
+  async markFinished(plan: StoredPlan, exercisesDone: number): Promise<void> {
+    if (this.isFinishedToday(plan.id)) return;
+
     const date  = todayStr();
     const allDone = exercisesDone === plan.totalExercises;
     const xp    = xpForSession(plan, allDone);
+    const previousFinished = this._finished();
+    const previousHistory = this._history();
+    const previousTotalXp = this._totalXp();
+    const previousProfile = this.auth.profile();
+    const previousRank = this.ranking.myRank();
 
     // finished map (for today indicator)
     this._finished.update(rec => {
       const next = { ...rec, [plan.id]: date };
-      localStorage.setItem(LS_FINISHED, JSON.stringify(next));
+      localStorage.setItem(this._storageKey(LS_FINISHED), JSON.stringify(next));
       return next;
     });
 
@@ -242,26 +280,82 @@ export class WorkoutService {
     };
     this._history.update(h => {
       const next = [session, ...h];
-      localStorage.setItem(LS_HISTORY, JSON.stringify(next));
+      localStorage.setItem(this._storageKey(LS_HISTORY), JSON.stringify(next));
       return next;
     });
 
     // XP
     this._totalXp.update(x => {
       const next = x + xp;
-      localStorage.setItem(LS_XP, String(next));
+      localStorage.setItem(this._storageKey(LS_XP), String(next));
       return next;
     });
 
-    // Incrementa meta anual se configurada
-    const profile = this.auth.profile();
-    if (profile.yearly_goal) {
-      const current = profile.workouts_done ?? 0;
-      this.auth.updateProfile({ workouts_done: current + 1 });
-    }
+    const optimisticWorkoutsDone = (previousProfile.workouts_done ?? 0) + 1;
+    const optimisticYearlyGoal = previousProfile.yearly_goal ?? 320;
+    const optimisticStreakDays = this.streak();
+    const optimisticMetrics: CurrentUserRankingMetrics = {
+      totalXp: (previousRank?.totalXp ?? previousTotalXp) + xp,
+      weeklyXp: (previousRank?.weeklyXp ?? 0) + xp,
+      workoutsDone: optimisticWorkoutsDone,
+      totalKm: previousRank?.totalKm ?? 0,
+      streakDays: optimisticStreakDays,
+    };
 
-    // Push XP to ranking (fire-and-forget)
-    this.ranking.recordXp('workout', xp, { streakDays: this.streak() });
+    this.auth.applyProfilePatch({
+      workouts_done: optimisticWorkoutsDone,
+      yearly_goal: optimisticYearlyGoal,
+    });
+    this.ranking.syncCurrentUserMetrics(optimisticMetrics);
+
+    try {
+      const res = await this._fetch('/api/workouts/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planId: plan.id,
+          planName: plan.name,
+          muscleGroup: plan.muscleGroup,
+          difficulty: plan.difficulty,
+          estimatedDuration: plan.estimatedDuration,
+          totalExercises: plan.totalExercises,
+          exercisesDone,
+          streakDays: optimisticStreakDays,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Falha ao concluir treino.');
+      }
+
+      const data = await res.json() as CompleteWorkoutResponse;
+      this.auth.applyProfilePatch({
+        workouts_done: data.metrics.workoutsDone,
+        yearly_goal: data.metrics.yearlyGoal,
+      });
+      this.ranking.syncCurrentUserMetrics(data.metrics);
+      setTimeout(() => void this.ranking.load(true), 250);
+    } catch (error) {
+      this._finished.set(previousFinished);
+      this._history.set(previousHistory);
+      this._totalXp.set(previousTotalXp);
+      this.auth.applyProfilePatch({
+        workouts_done: previousProfile.workouts_done ?? 0,
+        yearly_goal: previousProfile.yearly_goal,
+      });
+
+      if (previousRank) {
+        this.ranking.syncCurrentUserMetrics({
+          totalXp: previousRank.totalXp,
+          weeklyXp: previousRank.weeklyXp,
+          workoutsDone: previousRank.workoutsDone,
+          totalKm: previousRank.totalKm,
+          streakDays: previousRank.streakDays,
+        });
+      }
+
+      throw error;
+    }
   }
 
   isFinishedToday(planId: string): boolean {
@@ -271,16 +365,47 @@ export class WorkoutService {
   // ── Private loaders ──────────────────────────────────────────────────────────
 
   private _loadProgram(): ActiveProgram | null {
-    try { const r = localStorage.getItem(LS_PROGRAM); return r ? JSON.parse(r) : null; } catch { return null; }
+    try {
+      const r = localStorage.getItem(this._storageKey(LS_PROGRAM));
+      return r ? JSON.parse(r) : null;
+    } catch {
+      return null;
+    }
   }
   private _loadFinished(): Record<string, string> {
-    try { const r = localStorage.getItem(LS_FINISHED); return r ? JSON.parse(r) : {}; } catch { return {}; }
+    try {
+      const r = localStorage.getItem(this._storageKey(LS_FINISHED));
+      return r ? JSON.parse(r) : {};
+    } catch {
+      return {};
+    }
   }
   private _loadHistory(): WorkoutSession[] {
-    try { const r = localStorage.getItem(LS_HISTORY); return r ? JSON.parse(r) : []; } catch { return []; }
+    try {
+      const r = localStorage.getItem(this._storageKey(LS_HISTORY));
+      return r ? JSON.parse(r) : [];
+    } catch {
+      return [];
+    }
   }
   private _loadXp(): number {
-    try { return Number(localStorage.getItem(LS_XP) ?? '0'); } catch { return 0; }
+    try {
+      return Number(localStorage.getItem(this._storageKey(LS_XP)) ?? '0');
+    } catch {
+      return 0;
+    }
+  }
+
+  private _storageKey(baseKey: string): string {
+    const userId = this.auth.user()?.id;
+    return userId ? `${baseKey}:${userId}` : `${baseKey}:guest`;
+  }
+
+  private async _fetch(path: string, init: RequestInit = {}): Promise<Response> {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers = new Headers(init.headers);
+    if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
+    return fetch(`${this.API}${path}`, { ...init, headers });
   }
 }
 
