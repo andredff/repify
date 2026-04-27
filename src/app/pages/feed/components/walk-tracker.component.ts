@@ -39,7 +39,7 @@ type WalkTrackerView = 'setup' | 'running' | 'paused' | 'done';
         </div>
       </header>
 
-      <div class="relative z-[1] flex min-h-0 flex-1 flex-col px-4 pb-4">
+      <div class="walk-scroll relative z-[1] flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
         <div class="space-y-3">
           <app-timer [elapsedSec]="displayElapsedSec()" [phase]="timerPhase()" [label]="timerLabel()" />
 
@@ -230,9 +230,16 @@ type WalkTrackerView = 'setup' | 'running' | 'paused' | 'done';
   styles: [`
     :host { display:block; }
     .walk-shell {
+      height:100dvh;
+      overflow:hidden;
       background:
         radial-gradient(circle at top, rgba(0,255,136,0.08), transparent 30%),
         linear-gradient(180deg, rgba(8,12,16,0.98), rgba(5,8,12,1));
+    }
+    .walk-scroll {
+      overscroll-behavior:contain;
+      -webkit-overflow-scrolling:touch;
+      touch-action:pan-y;
     }
     .metric-card {
       display:flex;
@@ -273,6 +280,10 @@ export class WalkTrackerComponent implements OnInit, OnDestroy {
   readonly walkSvc = inject(WalkService);
   readonly checkin = inject(CheckinService);
   private readonly postSvc = inject(PostService);
+  private previousBodyOverflow = '';
+  private previousBodyOverscroll = '';
+  private previousHtmlOverflow = '';
+  private previousHtmlOverscroll = '';
 
   readonly autoPost = signal(true);
   readonly publishing = signal(false);
@@ -380,12 +391,15 @@ export class WalkTrackerComponent implements OnInit, OnDestroy {
   readonly isLocating = computed(() => this.walkSvc.locationState() === 'locating');
 
   ngOnInit(): void {
+    this.lockPageScroll();
     if (this.viewPhase() === 'setup' && !this.walkSvc.currentPosition()) {
       void this.walkSvc.requestCurrentPosition();
     }
   }
 
-  ngOnDestroy(): void {}
+  ngOnDestroy(): void {
+    this.unlockPageScroll();
+  }
 
   refreshLocation(): void {
     void this.walkSvc.requestCurrentPosition();
@@ -424,6 +438,25 @@ export class WalkTrackerComponent implements OnInit, OnDestroy {
       return;
     }
     this.onClose.emit();
+  }
+
+  private lockPageScroll(): void {
+    this.previousBodyOverflow = document.body.style.overflow;
+    this.previousBodyOverscroll = document.body.style.overscrollBehavior;
+    this.previousHtmlOverflow = document.documentElement.style.overflow;
+    this.previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
+
+    document.body.style.overflow = 'hidden';
+    document.body.style.overscrollBehavior = 'none';
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
+  }
+
+  private unlockPageScroll(): void {
+    document.body.style.overflow = this.previousBodyOverflow;
+    document.body.style.overscrollBehavior = this.previousBodyOverscroll;
+    document.documentElement.style.overflow = this.previousHtmlOverflow;
+    document.documentElement.style.overscrollBehavior = this.previousHtmlOverscroll;
   }
 
   async finish(): Promise<void> {
@@ -469,8 +502,8 @@ export class WalkTrackerComponent implements OnInit, OnDestroy {
   }
 
   private async generateCardImage(): Promise<File | null> {
-    const width = 1080;
-    const height = 1350;
+    const width = 864;
+    const height = 1080;
     const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
@@ -490,7 +523,7 @@ export class WalkTrackerComponent implements OnInit, OnDestroy {
       }
     }
 
-    const glow = context.createRadialGradient(0, 0, 0, 0, 0, 640);
+    const glow = context.createRadialGradient(0, 0, 0, 0, 0, 520);
     glow.addColorStop(0, 'rgba(0,255,136,0.08)');
     glow.addColorStop(1, 'transparent');
     context.fillStyle = glow;
@@ -498,25 +531,25 @@ export class WalkTrackerComponent implements OnInit, OnDestroy {
 
     context.textAlign = 'center';
     context.fillStyle = '#00FF88';
-    context.font = 'bold 30px system-ui, sans-serif';
-    context.fillText('Repify Walk', width / 2, 112);
+    context.font = 'bold 24px system-ui, sans-serif';
+    context.fillText('Repify Walk', width / 2, 90);
 
     context.fillStyle = '#F5F7FA';
-    context.font = 'bold 78px system-ui, sans-serif';
-    context.fillText(this.doneTime(), width / 2, 222);
+    context.font = 'bold 62px system-ui, sans-serif';
+    context.fillText(this.doneTime(), width / 2, 178);
 
     context.fillStyle = '#96A0AA';
-    context.font = '24px system-ui, sans-serif';
-    context.fillText(`${this.displayDistance().toFixed(2)} km • ${this.walkSvc.formatPace(this.finalPace())}/km`, width / 2, 270);
+    context.font = '20px system-ui, sans-serif';
+    context.fillText(`${this.displayDistance().toFixed(2)} km • ${this.walkSvc.formatPace(this.finalPace())}/km`, width / 2, 218);
 
     const mapCanvas = document.createElement('canvas');
-    mapCanvas.width = 1800;
-    mapCanvas.height = 860;
+    mapCanvas.width = 1400;
+    mapCanvas.height = 700;
     this.walkSvc.drawRouteOnCanvas(mapCanvas, this.finalPositions(), { W: mapCanvas.width, H: mapCanvas.height, padding: 54 });
-    context.drawImage(mapCanvas, 64, 330, width - 128, 520);
+    context.drawImage(mapCanvas, 52, 264, width - 104, 416);
 
     context.fillStyle = 'rgba(255,255,255,0.05)';
-    this.roundRect(context, 64, 900, width - 128, 214, 28);
+    this.roundRect(context, 52, 720, width - 104, 176, 24);
     context.fill();
 
     const metrics = [
@@ -526,25 +559,49 @@ export class WalkTrackerComponent implements OnInit, OnDestroy {
     ] as const;
 
     metrics.forEach(([label, value], index) => {
-      const cellWidth = (width - 160) / 3;
-      const x = 80 + cellWidth * index + cellWidth / 2;
+      const cellWidth = (width - 128) / 3;
+      const x = 64 + cellWidth * index + cellWidth / 2;
       context.fillStyle = '#96A0AA';
-      context.font = '22px system-ui, sans-serif';
-      context.fillText(label, x, 964);
+      context.font = '18px system-ui, sans-serif';
+      context.fillText(label, x, 772);
       context.fillStyle = index === 1 ? '#00FF88' : '#F5F7FA';
-      context.font = 'bold 38px system-ui, sans-serif';
-      context.fillText(value, x, 1038);
+      context.font = 'bold 31px system-ui, sans-serif';
+      context.fillText(value, x, 834);
     });
 
+    return this.exportCanvasAsJpeg(canvas, 'repify-walk.jpg');
+  }
+
+  private exportCanvasAsJpeg(canvas: HTMLCanvasElement, fileName: string): Promise<File | null> {
     return new Promise(resolve => {
       canvas.toBlob(blob => {
-        if (!blob) {
-          resolve(null);
+        if (blob) {
+          resolve(new File([blob], fileName, { type: 'image/jpeg' }));
           return;
         }
-        resolve(new File([blob], 'repify-walk.jpg', { type: 'image/jpeg' }));
-      }, 'image/jpeg', 0.92);
+
+        try {
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          const file = this.dataUrlToFile(dataUrl, fileName);
+          resolve(file);
+        } catch {
+          resolve(null);
+        }
+      }, 'image/jpeg', 0.9);
     });
+  }
+
+  private dataUrlToFile(dataUrl: string, fileName: string): File {
+    const [header, base64] = dataUrl.split(',');
+    const mime = /data:(.*?);base64/.exec(header)?.[1] ?? 'image/jpeg';
+    const binary = atob(base64 ?? '');
+    const bytes = new Uint8Array(binary.length);
+
+    for (let index = 0; index < binary.length; index++) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+
+    return new File([bytes], fileName, { type: mime });
   }
 
   private roundRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number): void {
