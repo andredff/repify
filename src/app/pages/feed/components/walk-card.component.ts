@@ -23,9 +23,11 @@ import { WalkService } from '../../../core/services/walk.service';
 
         <!-- Text -->
         <div class="flex-1 min-w-0">
-          <p class="text-[13px] font-body font-semibold text-white leading-snug">Registrar caminhada</p>
+          <p class="text-[13px] font-body font-semibold text-white leading-snug">{{ title() }}</p>
           <p class="text-[11px] font-body text-text-2 mt-0.5">
-            @if (walk.totalWalks() > 0) {
+            @if (walk.isActive()) {
+              {{ statusLine() }}
+            } @else if (walk.totalWalks() > 0) {
               {{ walk.totalWalks() }} caminhada{{ walk.totalWalks() > 1 ? 's' : '' }} registrada{{ walk.totalWalks() > 1 ? 's' : '' }}
               @if (walk.totalKm() > 0) {
                 · {{ walk.totalKm() | number:'1.1-1' }} km total
@@ -38,11 +40,19 @@ import { WalkService } from '../../../core/services/walk.service';
 
         <!-- CTA -->
         <button (click)="onStart.emit()"
-                class="shrink-0 flex items-center gap-1.5 bg-primary text-bg text-[12px] font-body font-bold px-4 py-2 rounded-xl shadow-glow hover:shadow-glow-lg active:scale-95 transition-all">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3"/>
-          </svg>
-          Iniciar
+                class="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-body font-bold transition-all"
+                [class]="walk.isActive()
+                  ? 'border border-primary/30 bg-primary/12 text-primary hover:bg-primary/18 active:scale-95'
+                  : 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-95'">
+          @if (walk.isActive()) {
+            <span class="inline-flex h-2.5 w-2.5 rounded-full bg-primary shadow-[0_0_10px_rgba(0,255,136,0.6)] animate-pulse"></span>
+            Caminhando
+          } @else {
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            Iniciar caminhada
+          }
         </button>
 
       </div>
@@ -53,4 +63,18 @@ import { WalkService } from '../../../core/services/walk.service';
 export class WalkCardComponent {
   walk    = inject(WalkService);
   onStart = output<void>();
+
+  title(): string {
+    if (this.walk.activePhase() === 'running') return 'Caminhada em andamento';
+    if (this.walk.activePhase() === 'paused') return 'Caminhada pausada';
+    return 'Registrar caminhada';
+  }
+
+  statusLine(): string {
+    if (this.walk.activePhase() === 'paused') {
+      return `Pausada em ${this.walk.formattedTime()}${this.walk.liveKm() > 0 ? ' · ' + this.walk.liveKm().toFixed(1) + ' km' : ''}`;
+    }
+
+    return `Caminhando há ${this.walk.formattedTime()}${this.walk.liveKm() > 0 ? ' · ' + this.walk.liveKm().toFixed(1) + ' km' : ''}`;
+  }
 }

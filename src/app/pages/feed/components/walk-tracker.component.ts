@@ -363,7 +363,7 @@ export class WalkTrackerComponent implements OnInit, OnDestroy {
   readonly mapEmptyCopy = computed(() => this.viewPhase() === 'done'
     ? 'Ative o GPS durante a caminhada para salvar o trajeto completo aqui.'
     : this.locationMessage());
-  readonly mapHeight = computed(() => this.viewPhase() === 'done' ? '280px' : '340px');
+  readonly mapHeight = computed(() => this.viewPhase() === 'done' ? '220px' : '250px');
   readonly doneTime = computed(() => {
     const totalSeconds = this.doneSec();
     const hours = Math.floor(totalSeconds / 3600);
