@@ -27,7 +27,7 @@ async function listAllUsers(): Promise<AuthUserSummary[]> {
 
     const batch = data.users.map(user => ({
       id: user.id,
-      user_metadata: (user.user_metadata ?? user.raw_user_meta_data ?? {}) as UserMetadata,
+      user_metadata: (user.user_metadata ?? {}) as UserMetadata,
     }));
 
     users.push(...batch);

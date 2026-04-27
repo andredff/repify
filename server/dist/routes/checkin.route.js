@@ -7,9 +7,24 @@ const router = (0, express_1.Router)();
 // POST /api/checkin — registra check-in do dia (idempotente)
 router.post('/', auth_middleware_1.requireAuth, async (req, res) => {
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const { data: existing, error: existingError } = await supabase_1.supabaseAdmin
+        .from('checkins')
+        .select('id, checked_at')
+        .eq('user_id', req.userId)
+        .eq('checked_at', today)
+        .maybeSingle();
+    if (existingError) {
+        console.error('[checkin] existing lookup error:', existingError);
+        res.status(500).json({ error: 'Failed to save check-in.' });
+        return;
+    }
+    if (existing) {
+        res.status(200).json({ checkin: existing, created: false });
+        return;
+    }
     const { data, error } = await supabase_1.supabaseAdmin
         .from('checkins')
-        .upsert({ user_id: req.userId, checked_at: today }, { onConflict: 'user_id,checked_at' })
+        .insert({ user_id: req.userId, checked_at: today })
         .select()
         .single();
     if (error) {
@@ -17,7 +32,7 @@ router.post('/', auth_middleware_1.requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Failed to save check-in.' });
         return;
     }
-    res.status(201).json({ checkin: data });
+    res.status(201).json({ checkin: data, created: true });
 });
 // GET /api/checkin?year=2026&month=4 — datas de check-in do mês
 // GET /api/checkin?year=2026         — datas de check-in do ano
