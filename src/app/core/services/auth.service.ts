@@ -18,6 +18,18 @@ export interface UserProfile {
   workouts_done: number | null;
 }
 
+interface BackendProfileResponse {
+  full_name?: string;
+  username?: string;
+  bio?: string;
+  weight?: number | null;
+  height?: number | null;
+  goal?: string;
+  avatar_url?: string;
+  yearly_goal?: number | null;
+  workouts_done?: number | null;
+}
+
 const AVATAR_BUCKET = 'avatars';
 
 @Injectable({ providedIn: 'root' })
@@ -25,6 +37,7 @@ export class AuthService {
   private readonly _session     = signal<Session | null>(null);
   private readonly _initialized = signal(false);
   private readonly _avatarUrl   = signal<string>('');
+  private syncingProfile = false;
 
   readonly session         = this._session.asReadonly();
   readonly user            = computed<User | null>(() => this._session()?.user ?? null);
@@ -68,6 +81,10 @@ export class AuthService {
 
       this.ensureProfileDefaults(session?.user?.user_metadata ?? {});
 
+      if (session) {
+        void this.refreshProfileFromBackend();
+      }
+
       if (!this._initialized()) {
         this._initialized.set(true);
       }
@@ -95,6 +112,19 @@ export class AuthService {
   private readNumericMeta(value: unknown, fallback: number): number {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  private readOptionalNumericMeta(value: unknown, fallback: number | null): number | null {
+    if (value == null) return fallback;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  private async authorizedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+    const { data: { session } } = await supabase.auth.getSession();
+    const headers = new Headers(init.headers);
+    if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
+    return fetch(`${environment.apiBaseUrl}${path}`, { ...init, headers });
   }
 
   // version = unix timestamp stored in user_metadata — persists across sessions
@@ -178,6 +208,33 @@ export class AuthService {
     if (error) throw this.mapError(error);
     if (updated.user) {
       this._session.update(s => s ? { ...s, user: updated.user! } : s);
+    }
+  }
+
+  async refreshProfileFromBackend(): Promise<void> {
+    if (this.syncingProfile || !this.user()) return;
+    this.syncingProfile = true;
+
+    try {
+      const res = await this.authorizedFetch('/api/profile/me');
+      if (!res.ok) return;
+
+      const profile = await res.json() as BackendProfileResponse;
+      this.applyProfilePatch({
+        full_name: profile.full_name ?? this.profile().full_name,
+        username: profile.username ?? this.profile().username,
+        bio: profile.bio ?? this.profile().bio,
+        weight: profile.weight ?? this.profile().weight,
+        height: profile.height ?? this.profile().height,
+        goal: profile.goal ?? this.profile().goal,
+        avatar_url: profile.avatar_url ?? this.profile().avatar_url,
+        yearly_goal: this.readOptionalNumericMeta(profile.yearly_goal, this.profile().yearly_goal),
+        workouts_done: this.readOptionalNumericMeta(profile.workouts_done, this.profile().workouts_done),
+      });
+    } catch {
+      // Best effort hydration only.
+    } finally {
+      this.syncingProfile = false;
     }
   }
 

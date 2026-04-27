@@ -13,7 +13,6 @@ const ProfileSchema = z.object({
   height:        z.number().min(50).max(300).nullable().optional(),
   goal:          z.string().max(50).optional(),
   yearly_goal:   z.number().int().min(1).max(999).nullable().optional(),
-  workouts_done: z.number().int().min(0).max(9999).nullable().optional(),
 });
 
 // GET /api/profile/me
@@ -22,6 +21,18 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
 
   if (error || !data.user) {
     res.status(404).json({ error: 'User not found.' });
+    return;
+  }
+
+  const { count: workoutsDone, error: workoutCountError } = await supabaseAdmin
+    .from('xp_events')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', req.userId!)
+    .eq('type', 'workout');
+
+  if (workoutCountError) {
+    console.error('[profile] xp_events count error:', workoutCountError);
+    res.status(500).json({ error: 'Failed to load profile.' });
     return;
   }
 
@@ -36,6 +47,8 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response) => {
     height:    meta['height']    ?? null,
     goal:      meta['goal']      ?? '',
     avatar_url:meta['avatar_url']?? '',
+    yearly_goal: meta['yearly_goal'] ?? null,
+    workouts_done: Number(workoutsDone ?? meta['workouts_done'] ?? 0),
   });
 });
 
