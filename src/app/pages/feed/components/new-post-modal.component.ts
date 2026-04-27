@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { PostService } from '../../../core/services/post.service';
 import { WorkoutService } from '../../../core/services/workout.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { RankingService } from '../../../core/services/ranking.service';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 import { ImageCropperComponent } from '../../../shared/image-cropper.component';
 
@@ -213,7 +214,7 @@ interface WorkoutOption {
                 <div>
                   <p class="text-[12px] font-body font-semibold text-white">Exibir meta anual</p>
                   <p class="text-[10px] font-body text-text-2">
-                    {{ auth.profile().workouts_done ?? 0 }}/{{ auth.profile().yearly_goal }} treinos
+                    {{ workoutsDone() }}/{{ auth.profile().yearly_goal }} treinos
                   </p>
                 </div>
               </div>
@@ -251,6 +252,7 @@ export class NewPostModalComponent {
   private postService    = inject(PostService);
   private workoutService = inject(WorkoutService);
   auth                   = inject(AuthService);
+  ranking                = inject(RankingService);
 
   onClose   = output<void>();
   onPublish = output<WorkoutPost>();
@@ -263,6 +265,7 @@ export class NewPostModalComponent {
   caption          = '';
   selectedWorkout  = signal<WorkoutOption | null>(null);
   showGoal         = signal(true);
+  workoutsDone     = computed(() => this.ranking.myRank()?.workoutsDone ?? Number(this.auth.profile().workouts_done ?? 0));
 
   publishing = signal(false);
   error      = signal('');
@@ -358,7 +361,7 @@ export class NewPostModalComponent {
       const profile = this.auth.profile();
       if (this.showGoal() && profile.yearly_goal) {
         post.user.yearlyGoal   = profile.yearly_goal;
-        post.user.workoutsDone = profile.workouts_done ?? 0;
+        post.user.workoutsDone = this.workoutsDone();
       }
 
       this.onPublish.emit(post);

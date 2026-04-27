@@ -2,6 +2,7 @@ import { Component, inject, computed, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Location } from '@angular/common';
 import { WorkoutService, LEVELS, ACHIEVEMENTS, WorkoutSession } from '../../core/services/workout.service';
+import { RankingService } from '../../core/services/ranking.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
@@ -50,7 +51,7 @@ const MUSCLE_GRADIENT: Record<string, string> = {
 
       <main class="flex-1 overflow-y-auto px-4 pb-28 space-y-5" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
-        <section class="pt-5 pb-1">
+        <section class="pt-0 pb-5">
           <p class="text-[22px] font-display font-bold text-white">Progresso</p>
           <p class="text-[12px] font-body text-text-2 mt-1">{{ motivational }}</p>
         </section>
@@ -58,21 +59,21 @@ const MUSCLE_GRADIENT: Record<string, string> = {
         <!-- ── NÍVEL + XP ── -->
         <div class="bg-card-2 border border-border rounded-2xl p-4 relative overflow-hidden">
           <div class="absolute right-4 top-1/2 -translate-y-1/2 text-[56px] opacity-[0.07] select-none">
-            {{ ws.currentLevel().emoji }}
+            {{ currentLevel().emoji }}
           </div>
           <div class="relative">
             <div class="flex items-center justify-between mb-1">
               <div class="flex items-center gap-2">
-                <span class="text-[22px]">{{ ws.currentLevel().emoji }}</span>
+                <span class="text-[22px]">{{ currentLevel().emoji }}</span>
                 <div>
-                  <p class="text-[16px] font-display font-bold text-white leading-none">{{ ws.currentLevel().name }}</p>
-                  <p class="text-[11px] font-body text-text-2">{{ ws.totalXp() }} XP total</p>
+                  <p class="text-[16px] font-display font-bold text-white leading-none">{{ currentLevel().name }}</p>
+                  <p class="text-[11px] font-body text-text-2">{{ summaryXp() }} XP total</p>
                 </div>
               </div>
-              @if (ws.nextLevel()) {
+              @if (nextLevel()) {
                 <div class="text-right">
                   <p class="text-[11px] font-body text-text-2">próximo nível</p>
-                  <p class="text-[13px] font-display font-bold text-primary">+{{ ws.xpToNextLevel() }} XP</p>
+                  <p class="text-[13px] font-display font-bold text-primary">+{{ xpToNextLevel() }} XP</p>
                 </div>
               } @else {
                 <span class="text-[11px] font-body text-primary">Nível máximo 🏆</span>
@@ -81,13 +82,13 @@ const MUSCLE_GRADIENT: Record<string, string> = {
             <!-- XP bar -->
             <div class="h-2 bg-card rounded-full overflow-hidden mt-3">
               <div class="h-full rounded-full shadow-glow-sm transition-all duration-700"
-                   [style.width]="ws.levelProgress() + '%'"
-                   [style.background]="ws.currentLevel().color"></div>
+                   [style.width]="levelProgress() + '%'"
+                   [style.background]="currentLevel().color"></div>
             </div>
-            @if (ws.nextLevel()) {
+            @if (nextLevel()) {
               <div class="flex justify-between mt-1">
-                <span class="text-[10px] font-mono text-text-2">{{ ws.currentLevel().minXp }} XP</span>
-                <span class="text-[10px] font-mono text-text-2">{{ ws.nextLevel()!.minXp }} XP</span>
+                <span class="text-[10px] font-mono text-text-2">{{ currentLevel().minXp }} XP</span>
+                <span class="text-[10px] font-mono text-text-2">{{ nextLevel()!.minXp }} XP</span>
               </div>
             }
           </div>
@@ -97,17 +98,17 @@ const MUSCLE_GRADIENT: Record<string, string> = {
         <div class="grid grid-cols-3 gap-3">
           <div class="bg-card-2 border border-border rounded-2xl p-3 flex flex-col items-center gap-1">
             <span class="text-[24px]">🔥</span>
-            <p class="text-[22px] font-display font-bold text-white leading-none">{{ ws.streak() }}</p>
+            <p class="text-[22px] font-display font-bold text-white leading-none">{{ summaryStreak() }}</p>
             <p class="text-[10px] font-body text-text-2">dias seguidos</p>
           </div>
           <div class="bg-card-2 border border-border rounded-2xl p-3 flex flex-col items-center gap-1">
-            <span class="text-[24px]">📅</span>
-            <p class="text-[22px] font-display font-bold text-white leading-none">{{ ws.weekSessions() }}</p>
-            <p class="text-[10px] font-body text-text-2">essa semana</p>
+            <span class="text-[24px]">🚶</span>
+            <p class="text-[22px] font-display font-bold text-white leading-none">{{ formatKm(summaryKm()) }}</p>
+            <p class="text-[10px] font-body text-text-2">km no total</p>
           </div>
           <div class="bg-card-2 border border-border rounded-2xl p-3 flex flex-col items-center gap-1">
             <span class="text-[24px]">🏋️</span>
-            <p class="text-[22px] font-display font-bold text-white leading-none">{{ ws.history().length }}</p>
+            <p class="text-[22px] font-display font-bold text-white leading-none">{{ summaryWorkouts() }}</p>
             <p class="text-[10px] font-body text-text-2">total treinos</p>
           </div>
         </div>
@@ -225,11 +226,41 @@ export class DashboardComponent {
   showNewPost = signal(false);
   showNotifications = signal(false);
   ws     = inject(WorkoutService);
+  ranking = inject(RankingService);
   router = inject(Router);
   location = inject(Location);
   readonly motivational = MOTIVATIONAL[Math.floor(Math.random() * MOTIVATIONAL.length)];
   readonly achievements = ACHIEVEMENTS;
   readonly total        = ACHIEVEMENTS.length;
+  readonly summaryXp = computed(() => this.ranking.myRank()?.totalXp ?? this.ws.totalXp());
+  readonly summaryStreak = computed(() => this.ranking.myRank()?.streakDays ?? this.ws.streak());
+  readonly summaryWorkouts = computed(() => this.ranking.myRank()?.workoutsDone ?? this.ws.history().length);
+  readonly summaryKm = computed(() => this.ranking.myRank()?.totalKm ?? 0);
+  readonly currentLevel = computed(() => {
+    const totalXp = this.summaryXp();
+    return [...LEVELS].reverse().find(level => totalXp >= level.minXp) ?? LEVELS[0];
+  });
+  readonly nextLevel = computed(() => {
+    const totalXp = this.summaryXp();
+    return LEVELS.find(level => level.minXp > totalXp) ?? null;
+  });
+  readonly xpToNextLevel = computed(() => {
+    const next = this.nextLevel();
+    return next ? Math.max(next.minXp - this.summaryXp(), 0) : 0;
+  });
+  readonly levelProgress = computed(() => {
+    const current = this.currentLevel();
+    const next = this.nextLevel();
+    if (!next) return 100;
+    const range = next.minXp - current.minXp;
+    if (!range) return 100;
+    return Math.max(0, Math.min(100, ((this.summaryXp() - current.minXp) / range) * 100));
+  });
+
+  formatKm(value: number): string {
+    return value >= 10 ? value.toFixed(0) : value.toFixed(1);
+  }
+
   isUnlocked(id: string): boolean {
     return this.ws.unlockedAchievements().some(a => a.id === id);
   }

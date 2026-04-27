@@ -417,7 +417,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
 
       <main class="flex-1 px-4 pb-28 overflow-y-auto" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
-        <section class="pt-5 pb-1">
+        <section class="pt-0 pb-5">
           <p class="text-[22px] font-display font-bold text-white">Meu Treino</p>
           <p class="text-[12px] font-body text-text-2 mt-1">
             {{ step() !== 'result' && step() !== 'plan' ? 'Passo ' + (stepIndex() + 1) + ' de 3' : 'Monte, ajuste e acompanhe seu programa' }}

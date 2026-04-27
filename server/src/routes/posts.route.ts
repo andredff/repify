@@ -322,6 +322,15 @@ interface PostRow {
   created_at: string;
 }
 
+interface UserStatsRow {
+  user_id: string;
+  total_xp?: number | null;
+}
+
+interface XpEventRow {
+  user_id: string;
+}
+
 async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string) {
   if (posts.length === 0) return [];
 
@@ -344,11 +353,34 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
     .eq('user_id', currentUserId)
     .in('post_id', postIds);
 
+  const [{ data: statsRows }, { data: workoutRows }] = await Promise.all([
+    supabaseAdmin
+      .from('user_stats')
+      .select('user_id, total_xp')
+      .in('user_id', userIds),
+    supabaseAdmin
+      .from('xp_events')
+      .select('user_id')
+      .eq('type', 'workout')
+      .in('user_id', userIds),
+  ]);
+
+  const statsMap = new Map<string, UserStatsRow>();
+  for (const row of (statsRows ?? []) as UserStatsRow[]) {
+    statsMap.set(row.user_id, row);
+  }
+
+  const workoutMap = new Map<string, number>();
+  for (const row of (workoutRows ?? []) as XpEventRow[]) {
+    workoutMap.set(row.user_id, (workoutMap.get(row.user_id) ?? 0) + 1);
+  }
+
   const likedSet = new Set((myLikes ?? []).map(l => l.post_id));
 
   return posts.map(p => {
     const u    = userMap.get(p.user_id);
     const meta = u?.user_metadata ?? u?.raw_user_meta_data ?? {};
+    const totalXp = Number(statsMap.get(p.user_id)?.total_xp ?? 0);
     return {
       id:          p.id,
       caption:     p.caption,
@@ -364,12 +396,20 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
         name:         meta['full_name'] || u?.email?.split('@')[0] || 'Usuário',
         username:     meta['username']  || null,
         avatar:       resolveAvatarUrl(meta['avatar_url']),
-        level:        'Elite',
+        level:        levelFromXp(totalXp),
         yearly_goal:  meta['yearly_goal']   != null ? Number(meta['yearly_goal'])   : null,
-        workouts_done:meta['workouts_done'] != null ? Number(meta['workouts_done']) : null,
+        workouts_done:workoutMap.get(p.user_id) ?? 0,
       },
     };
   });
+}
+
+function levelFromXp(totalXp: number): string {
+  if (totalXp >= 1500) return 'Elite';
+  if (totalXp >= 900) return 'Pro';
+  if (totalXp >= 500) return 'Avançado';
+  if (totalXp >= 200) return 'Intermediário';
+  return 'Iniciante';
 }
 
 function resolveAvatarUrl(path: string | undefined | null): string {

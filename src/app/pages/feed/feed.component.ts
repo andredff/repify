@@ -16,6 +16,7 @@ import { DecimalPipe } from '@angular/common';
 import { WalkModalComponent } from './components/walk-modal.component';
 import { WalkCardComponent } from './components/walk-card.component';
 import { WalkService } from '../../core/services/walk.service';
+import { RankingService } from '../../core/services/ranking.service';
 import { NotificationsPanelComponent } from './components/notifications-panel.component';
 
 export type { WorkoutPost };
@@ -72,7 +73,7 @@ export type { WorkoutPost };
               <div class="flex justify-between items-center">
                 <span class="text-[11px] font-body text-text-2">Meta anual de treinos</span>
                 <span class="text-[11px] font-mono font-semibold text-primary">
-                  {{ auth.profile().workouts_done ?? 0 }}/{{ auth.profile().yearly_goal }}
+                  {{ workoutsDone() }}/{{ auth.profile().yearly_goal }}
                 </span>
               </div>
               <div class="h-1.5 bg-border rounded-full overflow-hidden">
@@ -188,12 +189,14 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   private postService = inject(PostService);
   workoutService      = inject(WorkoutService);
   walkSvc             = inject(WalkService);
+  ranking             = inject(RankingService);
 
   @ViewChild('mainScroll') private mainScrollRef!: ElementRef<HTMLElement>;
 
   userEmail      = computed(() => this.auth.user()?.email ?? '');
+  workoutsDone   = computed(() => this.ranking.myRank()?.workoutsDone ?? Number(this.auth.profile().workouts_done ?? 0));
   yearlyGoalPct  = computed(() => {
-    const done = Number(this.auth.profile().workouts_done ?? 0);
+    const done = this.workoutsDone();
     const goal = Number(this.auth.profile().yearly_goal  ?? 0);
     if (!goal) return 0;
     return Math.min(Math.round((done / goal) * 100), 100);

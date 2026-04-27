@@ -22,6 +22,11 @@ interface RankingStatsRow {
   total_walk_km?: number | null;
 }
 
+interface XpEventRow {
+  user_id: string;
+  type?: string | null;
+}
+
 interface RankingEntry {
   rank: number;
   userId: string;
@@ -35,16 +40,37 @@ interface RankingEntry {
   streakDays: number;
 }
 
+function cleanString(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim();
+  if (!normalized) return '';
+  if (normalized.toLowerCase() === 'null' || normalized.toLowerCase() === 'undefined') return '';
+  return normalized;
+}
+
+function resolveAvatarUrl(path: unknown, version: unknown = null): string {
+  const avatarPath = cleanString(path);
+  if (!avatarPath) return '';
+
+  const avatarVersion = typeof version === 'number' ? version : null;
+  if (avatarPath.startsWith('http')) {
+    return avatarVersion ? `${avatarPath}?v=${avatarVersion}` : avatarPath;
+  }
+
+  const { data } = supabaseAdmin.storage.from('avatars').getPublicUrl(avatarPath);
+  return avatarVersion ? `${data.publicUrl}?v=${avatarVersion}` : data.publicUrl;
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 async function listAllUsers() {
-  const users: NonNullable<Awaited<ReturnType<typeof supabaseAdmin.auth.admin.listUsers>>['data']>['users'] = [];
+  const users: any[] = [];
   let page = 1;
   while (true) {
     const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
     if (error) throw error;
     const chunk = data.users ?? [];
-    users.push(...chunk);
+    users.push(...(chunk as any));
     if (chunk.length < 1000) break;
     page++;
   }
@@ -56,22 +82,15 @@ async function enrichUsers() {
   const map = new Map<string, RankingUserMeta>();
   for (const u of users) {
     const meta = u.user_metadata ?? {};
-    const avatarPath: string = meta['avatar_url'] ?? '';
-    const version: number | null = meta['avatar_version'] ?? null;
-    let avatarUrl = '';
-    if (avatarPath) {
-      if (avatarPath.startsWith('http')) {
-        avatarUrl = version ? `${avatarPath}?v=${version}` : avatarPath;
-      } else {
-        const { data: pub } = supabaseAdmin.storage.from('avatars').getPublicUrl(avatarPath);
-        avatarUrl = version ? `${pub.publicUrl}?v=${version}` : pub.publicUrl;
-      }
-    }
+    const fullName = cleanString(meta['full_name']);
+    const username = cleanString(meta['username']);
+    const avatarUrl = resolveAvatarUrl(meta['avatar_url'], meta['avatar_version']);
+
     map.set(u.id, {
-      name:     meta['full_name'] || u.email?.split('@')[0] || 'Usuário',
-      username: meta['username'] ?? null,
+      name:     fullName || u.email?.split('@')[0] || 'Usuário',
+      username: username || null,
       avatar:   avatarUrl,
-      workoutsDone: Number(meta['workouts_done'] ?? 0),
+      workoutsDone: 0,
     });
   }
   return map;
@@ -125,9 +144,26 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
     return;
   }
 
+  const { data: xpEvents, error: xpEventsError } = await supabaseAdmin
+    .from('xp_events')
+    .select('user_id, type')
+    .eq('type', 'workout');
+
+  if (xpEventsError) {
+    console.error('[ranking] xp_events error:', xpEventsError);
+    res.status(500).json({ error: 'Failed to load ranking.' });
+    return;
+  }
+
   const statsMap = new Map<string, RankingStatsRow>();
   for (const row of (statsRows ?? []) as RankingStatsRow[]) {
     statsMap.set(row.user_id, row);
+  }
+
+  const workoutCountMap = new Map<string, number>();
+  for (const event of (xpEvents ?? []) as XpEventRow[]) {
+    if (!event.user_id) continue;
+    workoutCountMap.set(event.user_id, (workoutCountMap.get(event.user_id) ?? 0) + 1);
   }
 
   const allEntries = sortEntries(
@@ -140,7 +176,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
         username: user.username,
         avatar: user.avatar,
         totalXp: Number(stats?.total_xp ?? 0),
-        workoutsDone: Number(user.workoutsDone ?? 0),
+        workoutsDone: Number(workoutCountMap.get(userId) ?? user.workoutsDone ?? 0),
         totalKm: Number(stats?.total_walk_km ?? 0),
         weeklyXp: Number(stats?.weekly_xp ?? 0),
         streakDays: Number(stats?.streak_days ?? 0),
@@ -224,3 +260,5 @@ router.post('/xp', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 export default router;
+
+

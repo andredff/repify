@@ -1,57 +1,96 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const zod_1 = require("zod");
 const auth_middleware_1 = require("../middleware/auth.middleware");
 const supabase_1 = require("../supabase");
 const router = (0, express_1.Router)();
-const CheckInSchema = zod_1.z.object({
-    latitude: zod_1.z.number().min(-90).max(90),
-    longitude: zod_1.z.number().min(-180).max(180),
-    gym_name: zod_1.z.string().max(120).optional(),
-    notes: zod_1.z.string().max(500).optional(),
-});
-// POST /api/checkin — register a GPS check-in
+// POST /api/checkin — registra check-in do dia (idempotente)
 router.post('/', auth_middleware_1.requireAuth, async (req, res) => {
-    const parsed = CheckInSchema.safeParse(req.body);
-    if (!parsed.success) {
-        res.status(400).json({ error: 'Invalid payload', details: parsed.error.flatten() });
-        return;
-    }
-    const { latitude, longitude, gym_name, notes } = parsed.data;
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     const { data, error } = await supabase_1.supabaseAdmin
         .from('checkins')
-        .insert({
-        user_id: req.userId,
-        latitude,
-        longitude,
-        gym_name: gym_name ?? null,
-        notes: notes ?? null,
-        checked_at: new Date().toISOString(),
-    })
+        .upsert({ user_id: req.userId, checked_at: today }, { onConflict: 'user_id,checked_at' })
         .select()
         .single();
     if (error) {
-        console.error('[checkin] insert error:', error);
+        console.error('[checkin] upsert error:', error);
         res.status(500).json({ error: 'Failed to save check-in.' });
         return;
     }
     res.status(201).json({ checkin: data });
 });
-// GET /api/checkin — list user's check-ins (most recent first)
+// GET /api/checkin?year=2026&month=4 — datas de check-in do mês
+// GET /api/checkin?year=2026         — datas de check-in do ano
+// GET /api/checkin                   — últimos 365 dias
 router.get('/', auth_middleware_1.requireAuth, async (req, res) => {
-    const limit = Math.min(Number(req.query['limit']) || 20, 100);
-    const offset = Math.max(Number(req.query['offset']) || 0, 0);
+    const year = req.query['year'] ? Number(req.query['year']) : null;
+    const month = req.query['month'] ? Number(req.query['month']) : null;
+    let from;
+    let to;
+    if (year && month) {
+        const lastDay = new Date(year, month, 0).getDate();
+        from = `${year}-${String(month).padStart(2, '0')}-01`;
+        to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    }
+    else if (year) {
+        from = `${year}-01-01`;
+        to = `${year}-12-31`;
+    }
+    else {
+        const d = new Date();
+        to = d.toISOString().slice(0, 10);
+        d.setFullYear(d.getFullYear() - 1);
+        from = d.toISOString().slice(0, 10);
+    }
     const { data, error } = await supabase_1.supabaseAdmin
         .from('checkins')
-        .select('*')
+        .select('id, checked_at')
         .eq('user_id', req.userId)
-        .order('checked_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+        .gte('checked_at', from)
+        .lte('checked_at', to)
+        .order('checked_at', { ascending: true });
     if (error) {
         res.status(500).json({ error: 'Failed to fetch check-ins.' });
         return;
     }
-    res.json({ checkins: data, limit, offset });
+    // Streak atual
+    const dates = (data ?? []).map(c => c.checked_at).sort();
+    const streak = calcStreak(dates);
+    res.json({ dates, streak, from, to });
 });
+// DELETE /api/checkin/today — desfaz check-in do dia
+router.delete('/today', auth_middleware_1.requireAuth, async (req, res) => {
+    const today = new Date().toISOString().slice(0, 10);
+    const { error } = await supabase_1.supabaseAdmin
+        .from('checkins')
+        .delete()
+        .eq('user_id', req.userId)
+        .eq('checked_at', today);
+    if (error) {
+        res.status(500).json({ error: 'Failed to delete check-in.' });
+        return;
+    }
+    res.status(204).send();
+});
+function calcStreak(sortedDates) {
+    if (!sortedDates.length)
+        return 0;
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    const last = sortedDates[sortedDates.length - 1];
+    // Streak só conta se o último check-in foi hoje ou ontem
+    if (last !== today && last !== yesterday)
+        return 0;
+    let streak = 1;
+    for (let i = sortedDates.length - 2; i >= 0; i--) {
+        const curr = new Date(sortedDates[i + 1]);
+        const prev = new Date(sortedDates[i]);
+        const diff = (curr.getTime() - prev.getTime()) / 86400000;
+        if (diff === 1)
+            streak++;
+        else
+            break;
+    }
+    return streak;
+}
 exports.default = router;

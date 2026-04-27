@@ -16,10 +16,9 @@ router.get('/', auth_middleware_1.requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch users.' });
         return;
     }
-    const users = (data.users ?? [])
-        .filter(u => u.id !== req.userId)
-        .map(toPublicUser);
-    res.json({ users, page, limit });
+    const users = (data.users ?? []).filter(u => u.id !== req.userId);
+    const enriched = await enrichUsers(users);
+    res.json({ users: enriched, page, limit });
 });
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/users/:handle — busca usuário por id ou username
@@ -38,7 +37,8 @@ router.get('/:handle', auth_middleware_1.requireAuth, async (req, res) => {
             res.status(404).json({ error: 'User not found.' });
             return;
         }
-        res.json({ user: toPublicUser(data.user) });
+        const [user] = await enrichUsers([data.user]);
+        res.json({ user: user ?? null });
         return;
     }
     // Busca por username — listUsers retorna até 1000 por página, suficiente p/ MVP
@@ -52,13 +52,40 @@ router.get('/:handle', auth_middleware_1.requireAuth, async (req, res) => {
         res.status(404).json({ error: 'User not found.' });
         return;
     }
-    res.json({ user: toPublicUser(user) });
+    const [enriched] = await enrichUsers([user]);
+    res.json({ user: enriched ?? null });
 });
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
-function toPublicUser(u) {
-    const meta = u.user_metadata ?? {};
+async function enrichUsers(users) {
+    if (users.length === 0)
+        return [];
+    const userIds = users.map(user => user.id);
+    const [{ data: statsRows }, { data: workoutRows }] = await Promise.all([
+        supabase_1.supabaseAdmin
+            .from('user_stats')
+            .select('user_id, total_xp, streak_days, total_walk_km')
+            .in('user_id', userIds),
+        supabase_1.supabaseAdmin
+            .from('xp_events')
+            .select('user_id')
+            .eq('type', 'workout')
+            .in('user_id', userIds),
+    ]);
+    const statsMap = new Map();
+    for (const row of (statsRows ?? [])) {
+        statsMap.set(row.user_id, row);
+    }
+    const workoutMap = new Map();
+    for (const row of (workoutRows ?? [])) {
+        workoutMap.set(row.user_id, (workoutMap.get(row.user_id) ?? 0) + 1);
+    }
+    return users.map(user => toPublicUser(user, statsMap.get(user.id), workoutMap.get(user.id) ?? 0));
+}
+function toPublicUser(u, stats, workoutsDone = 0) {
+    const meta = u.user_metadata ?? u.raw_user_meta_data ?? {};
+    const totalXp = Number(stats?.total_xp ?? 0);
     return {
         id: u.id,
         email: u.email ?? '',
@@ -67,9 +94,25 @@ function toPublicUser(u) {
         bio: meta['bio'] || '',
         avatar: resolveAvatarUrl(meta['avatar_url']),
         goal: meta['goal'] || '',
-        level: 'Elite',
+        level: levelFromXp(totalXp),
+        yearly_goal: meta['yearly_goal'] ?? null,
+        workouts_done: workoutsDone,
+        total_xp: totalXp,
+        total_walk_km: Number(stats?.total_walk_km ?? 0),
+        streak_days: Number(stats?.streak_days ?? 0),
         created_at: u.created_at,
     };
+}
+function levelFromXp(totalXp) {
+    if (totalXp >= 1500)
+        return 'Elite';
+    if (totalXp >= 900)
+        return 'Pro';
+    if (totalXp >= 500)
+        return 'Avançado';
+    if (totalXp >= 200)
+        return 'Intermediário';
+    return 'Iniciante';
 }
 function resolveAvatarUrl(path) {
     if (!path)

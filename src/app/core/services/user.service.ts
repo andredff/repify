@@ -13,6 +13,9 @@ export interface PublicUser {
   level: string;
   yearly_goal: number | null;
   workouts_done: number | null;
+  total_xp: number;
+  total_walk_km: number;
+  streak_days: number;
   created_at: string;
 }
 

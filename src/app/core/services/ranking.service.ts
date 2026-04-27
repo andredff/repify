@@ -40,6 +40,32 @@ interface RankingResponse {
   hasMore: boolean;
 }
 
+function cleanText(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  const normalized = value.trim();
+  if (!normalized) return '';
+  if (normalized.toLowerCase() === 'null' || normalized.toLowerCase() === 'undefined') return '';
+  return normalized;
+}
+
+function normalizeEntry(entry: RankEntry): RankEntry {
+  return {
+    ...entry,
+    name: cleanText(entry.name) || 'Usuário',
+    username: cleanText(entry.username) || null,
+    avatar: cleanText(entry.avatar),
+    totalXp: Number(entry.totalXp ?? 0),
+    workoutsDone: Number(entry.workoutsDone ?? 0),
+    totalKm: Number(entry.totalKm ?? 0),
+    weeklyXp: Number(entry.weeklyXp ?? 0),
+    streakDays: Number(entry.streakDays ?? 0),
+  };
+}
+
+function normalizeMyRank(entry: MyRank | null): MyRank | null {
+  return entry ? normalizeEntry(entry) : null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class RankingService {
   private auth = inject(AuthService);
@@ -88,17 +114,42 @@ export class RankingService {
       this.loadingMore.set(true);
     }
 
-    const nextPage = reset ? 1 : this.page() + 1;
-
     try {
-      const res = await this._fetch(`/api/ranking?sort=${this.sortBy()}&page=${nextPage}&limit=${this.LIMIT}`);
-      if (!res.ok) return;
-      const data = await res.json() as RankingResponse;
-      this.entries.set(reset ? (data.entries ?? []) : [...this.entries(), ...(data.entries ?? [])]);
-      this.myRank.set(data.me ?? null);
-      this.page.set(data.page ?? nextPage);
-      this.total.set(data.total ?? 0);
-      this.hasMore.set(data.hasMore ?? false);
+      if (reset) {
+        const allEntries: RankEntry[] = [];
+        let currentPage = 1;
+        let total = 0;
+        let myRank: MyRank | null = null;
+        let hasMore = false;
+
+        do {
+          const data = await this.fetchPage(currentPage);
+          if (!data) return;
+
+          allEntries.push(...(data.entries ?? []).map(normalizeEntry));
+          myRank = normalizeMyRank(data.me ?? null);
+          total = data.total ?? total;
+          hasMore = data.hasMore ?? false;
+          currentPage = (data.page ?? currentPage) + 1;
+        } while (hasMore);
+
+        this.entries.set(allEntries);
+        this.myRank.set(myRank);
+        this.page.set(Math.max(currentPage - 1, 1));
+        this.total.set(total);
+        this.hasMore.set(false);
+      } else {
+        const nextPage = this.page() + 1;
+        const data = await this.fetchPage(nextPage);
+        if (!data) return;
+
+        const normalizedEntries = (data.entries ?? []).map(normalizeEntry);
+        this.entries.set([...this.entries(), ...normalizedEntries]);
+        this.myRank.set(normalizeMyRank(data.me ?? null));
+        this.page.set(data.page ?? nextPage);
+        this.total.set(data.total ?? 0);
+        this.hasMore.set(data.hasMore ?? false);
+      }
     } finally {
       if (reset) {
         this.loading.set(false);
@@ -129,5 +180,11 @@ export class RankingService {
     const headers = new Headers(init.headers);
     if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
     return fetch(`${this.API}${path}`, { ...init, headers });
+  }
+
+  private async fetchPage(page: number): Promise<RankingResponse | null> {
+    const res = await this._fetch(`/api/ranking?sort=${this.sortBy()}&page=${page}&limit=${this.LIMIT}`);
+    if (!res.ok) return null;
+    return await res.json() as RankingResponse;
   }
 }

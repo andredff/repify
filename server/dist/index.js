@@ -13,9 +13,18 @@ const checkin_route_1 = __importDefault(require("./routes/checkin.route"));
 const profile_route_1 = __importDefault(require("./routes/profile.route"));
 const posts_route_1 = __importDefault(require("./routes/posts.route"));
 const users_route_1 = __importDefault(require("./routes/users.route"));
+const notifications_route_1 = __importDefault(require("./routes/notifications.route"));
+const ranking_route_1 = __importDefault(require("./routes/ranking.route"));
 const app = (0, express_1.default)();
 // ── Security & parsing ──────────────────────────────────────────────────────
-app.use((0, helmet_1.default)());
+app.use((0, helmet_1.default)({
+    contentSecurityPolicy: {
+        directives: {
+            ...helmet_1.default.contentSecurityPolicy.getDefaultDirectives(),
+            'img-src': ["'self'", 'data:', 'https://*.supabase.co'],
+        },
+    },
+}));
 const allowedOrigins = [
     'http://localhost:4200',
     'http://localhost:4201',
@@ -36,6 +45,8 @@ app.use('/api/checkin', checkin_route_1.default);
 app.use('/api/profile', profile_route_1.default);
 app.use('/api/posts', posts_route_1.default);
 app.use('/api/users', users_route_1.default);
+app.use('/api/notifications', notifications_route_1.default);
+app.use('/api/ranking', ranking_route_1.default);
 // ── 404 fallback ────────────────────────────────────────────────────────────
 app.use((_req, res) => {
     res.status(404).json({ error: 'Not found.' });

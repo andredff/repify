@@ -1,25 +1,22 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireAuth = requireAuth;
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-const config_1 = require("../config");
-function requireAuth(req, res, next) {
+const supabase_1 = require("../supabase");
+async function requireAuth(req, res, next) {
     const header = req.headers.authorization;
     if (!header?.startsWith('Bearer ')) {
         res.status(401).json({ error: 'Missing or invalid Authorization header.' });
         return;
     }
     const token = header.slice(7);
-    try {
-        const payload = jsonwebtoken_1.default.verify(token, config_1.config.supabaseJwtSecret);
-        req.userId = payload['sub'];
-        req.userEmail = payload['email'];
-        next();
-    }
-    catch {
+    // Delega a validação ao Supabase Auth — funciona com JWT legacy (HS256)
+    // e com JWT signing keys assimétricas (ES256/RS256) sem precisar do JWT_SECRET.
+    const { data, error } = await supabase_1.supabaseAdmin.auth.getUser(token);
+    if (error || !data.user) {
         res.status(401).json({ error: 'Invalid or expired token.' });
+        return;
     }
+    req.userId = data.user.id;
+    req.userEmail = data.user.email;
+    next();
 }

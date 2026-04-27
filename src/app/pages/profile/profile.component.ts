@@ -5,6 +5,7 @@ import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractContro
 import { AuthService } from '../../core/services/auth.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { CheckinService } from '../../core/services/checkin.service';
+import { RankingService } from '../../core/services/ranking.service';
 import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
 import { ImageCropperComponent } from '../../shared/image-cropper.component';
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
@@ -57,7 +58,7 @@ const MAX_SIZE_MB   = 5;
       <!-- Scrollable body -->
       <div class="flex-1 overflow-y-auto pb-28" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
-        <section class="px-4 pt-5 pb-1">
+        <section class="px-4 pt-0 pb-5">
           <p class="text-[22px] font-display font-bold text-white">Meu Perfil</p>
           <p class="text-[12px] font-body text-text-2 mt-1">Edite sua conta e acompanhe seus dados</p>
         </section>
@@ -143,7 +144,7 @@ const MAX_SIZE_MB   = 5;
           <!-- Stats strip -->
           <div class="mt-4 flex gap-4 z-10">
             <div class="flex flex-col items-center">
-              <span class="text-[18px] font-display font-bold text-primary">🔥 {{ checkin.streak() }}</span>
+              <span class="text-[18px] font-display font-bold text-primary">🔥 {{ backendStreak() }}</span>
               <span class="text-[10px] text-text-2 font-body">streak</span>
             </div>
             <div class="w-px bg-border"></div>
@@ -166,7 +167,7 @@ const MAX_SIZE_MB   = 5;
               <div class="flex justify-between items-center">
                 <span class="text-[11px] font-body text-text-2">Meta anual</span>
                 <span class="text-[11px] font-mono font-semibold text-primary">
-                  {{ auth.profile().workouts_done ?? 0 }} / {{ auth.profile().yearly_goal }} treinos
+                  {{ backendWorkoutsDone() }} / {{ auth.profile().yearly_goal }} treinos
                 </span>
               </div>
               <div class="h-1.5 bg-border rounded-full overflow-hidden">
@@ -306,18 +307,19 @@ const MAX_SIZE_MB   = 5;
                 <div class="space-y-1.5">
                   <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Já realizados</label>
                   <div class="relative">
-                    <input type="number" formControlName="workouts_done" placeholder="0" min="0" max="9999"
-                           class="w-full bg-card border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted focus:border-primary/60 pr-16" />
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">treinos</span>
+                    <div class="w-full bg-card border border-border rounded-xl px-4 py-3 text-[14px] font-body text-white pr-16">
+                      {{ backendWorkoutsDone() }}
+                    </div>
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">backend</span>
                   </div>
                 </div>
               </div>
-              @if (profileForm.get('yearly_goal')?.value && profileForm.get('workouts_done')?.value != null) {
+              @if (profileForm.get('yearly_goal')?.value) {
                 <div class="space-y-1">
                   <div class="flex justify-between text-[11px] font-body">
                     <span class="text-text-2">Progresso</span>
                     <span class="text-primary font-semibold">
-                      {{ profileForm.get('workouts_done')?.value }} / {{ profileForm.get('yearly_goal')?.value }}
+                      {{ backendWorkoutsDone() }} / {{ profileForm.get('yearly_goal')?.value }}
                     </span>
                   </div>
                   <div class="h-1.5 bg-border rounded-full overflow-hidden">
@@ -500,6 +502,7 @@ const MAX_SIZE_MB   = 5;
 export class ProfileComponent implements OnInit {
   auth    = inject(AuthService);
   checkin = inject(CheckinService);
+  ranking = inject(RankingService);
   router  = inject(Router);
   location = inject(Location);
   private fb = inject(FormBuilder);
@@ -571,16 +574,18 @@ export class ProfileComponent implements OnInit {
   strengthColor     = computed(() => ['bg-danger','bg-danger','bg-yellow-400','bg-secondary','bg-primary'][this.passwordStrength()]);
   strengthTextColor = computed(() => ['text-danger','text-danger','text-yellow-400','text-secondary','text-primary'][this.passwordStrength()]);
   strengthLabel     = computed(() => ['Muito fraca','Fraca','Média','Forte','Muito forte'][this.passwordStrength()] ?? '');
+  backendWorkoutsDone = computed(() => this.ranking.myRank()?.workoutsDone ?? Number(this.auth.profile().workouts_done ?? 0));
+  backendStreak = computed(() => this.ranking.myRank()?.streakDays ?? this.checkin.streak());
 
   heroProgressPct = computed(() => {
-    const done = Number(this.auth.profile().workouts_done ?? 0);
+    const done = this.backendWorkoutsDone();
     const goal = Number(this.auth.profile().yearly_goal ?? 0);
     if (!goal) return 0;
     return Math.min(Math.round((done / goal) * 100), 100);
   });
 
   progressPct = computed(() => {
-    const done = Number(this.profileForm?.get('workouts_done')?.value);
+    const done = this.backendWorkoutsDone();
     const goal = Number(this.profileForm?.get('yearly_goal')?.value);
     if (!goal || !done) return 0;
     return Math.min(Math.round((done / goal) * 100), 100);
@@ -596,7 +601,6 @@ export class ProfileComponent implements OnInit {
       weight:       [p.weight,       [Validators.min(20), Validators.max(400)]],
       height:       [p.height,       [Validators.min(50), Validators.max(300)]],
       yearly_goal:  [p.yearly_goal,  [Validators.min(1), Validators.max(999)]],
-      workouts_done:[p.workouts_done,[Validators.min(0), Validators.max(9999)]],
     });
     this.emailForm = this.fb.group({
       newEmail: ['', [Validators.required, Validators.email]],

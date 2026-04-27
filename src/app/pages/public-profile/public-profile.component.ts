@@ -4,6 +4,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { PostService } from '../../core/services/post.service';
 import { UserService } from '../../core/services/user.service';
+import { RankingService } from '../../core/services/ranking.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { WorkoutPostComponent } from '../feed/components/workout-post.component';
 import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
@@ -21,6 +22,9 @@ interface PublicUser {
   goal: string;
   yearly_goal: number | null;
   workouts_done: number | null;
+  total_xp: number;
+  total_walk_km: number;
+  streak_days: number;
   isOwn: boolean;
 }
 
@@ -64,7 +68,7 @@ const GOAL_LABELS: Record<string, string> = {
 
         <div class="flex-1 overflow-y-auto pb-28" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
-          <section class="px-4 pt-5 pb-1 text-center">
+          <section class="px-4 pt-0 pb-5 text-center">
             <p class="text-[22px] font-display font-bold text-white truncate">
               {{ publicUser()?.username ? '@' + publicUser()!.username : publicUser()?.name || 'Perfil' }}
             </p>
@@ -99,7 +103,7 @@ const GOAL_LABELS: Record<string, string> = {
                 <!-- Level badge -->
                 <div class="absolute -bottom-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold whitespace-nowrap border"
                      [class]="levelBadgeClass()">
-                  {{ publicUser()!.level }}
+                  {{ profileLevel() }}
                 </div>
               </div>
 
@@ -134,17 +138,17 @@ const GOAL_LABELS: Record<string, string> = {
                   <span class="text-[10px] text-text-2 font-body mt-0.5">posts</span>
                 </div>
                 <div class="flex-1 flex flex-col items-center py-3 border-r border-border">
-                  <span class="text-[18px] font-display font-bold text-primary">🔥 7</span>
+                  <span class="text-[18px] font-display font-bold text-primary">🔥 {{ profileStreak() }}</span>
                   <span class="text-[10px] text-text-2 font-body mt-0.5">streak</span>
                 </div>
                 <div class="flex-1 flex flex-col items-center py-3">
-                  <span class="text-[18px] font-display font-bold text-white">Elite</span>
+                  <span class="text-[18px] font-display font-bold text-white">{{ profileLevel() }}</span>
                   <span class="text-[10px] text-text-2 font-body mt-0.5">nível</span>
                 </div>
                 @if (publicUser()!.yearly_goal) {
                   <div class="flex-1 flex flex-col items-center py-3 border-l border-border">
                     <span class="text-[15px] font-mono font-bold text-primary leading-tight">
-                      {{ publicUser()!.workouts_done ?? 0 }}/{{ publicUser()!.yearly_goal }}
+                      {{ profileWorkoutsDone() }}/{{ publicUser()!.yearly_goal }}
                     </span>
                     <span class="text-[10px] text-text-2 font-body mt-0.5">meta</span>
                   </div>
@@ -157,7 +161,7 @@ const GOAL_LABELS: Record<string, string> = {
                   <div class="flex justify-between items-center">
                     <span class="text-[11px] font-body text-text-2">Meta anual</span>
                     <span class="text-[11px] font-mono font-semibold text-primary">
-                      {{ publicUser()!.workouts_done ?? 0 }}/{{ publicUser()!.yearly_goal }} treinos
+                      {{ profileWorkoutsDone() }}/{{ publicUser()!.yearly_goal }} treinos
                     </span>
                   </div>
                   <div class="h-1.5 bg-border rounded-full overflow-hidden">
@@ -244,6 +248,7 @@ export class PublicProfileComponent implements OnInit {
   private auth        = inject(AuthService);
   private postService = inject(PostService);
   private userService = inject(UserService);
+  private ranking     = inject(RankingService);
   router              = inject(Router);
   location            = inject(Location);
   private route       = inject(ActivatedRoute);
@@ -271,16 +276,37 @@ export class PublicProfileComponent implements OnInit {
   );
 
   goalLabel = computed(() => GOAL_LABELS[this.publicUser()?.goal ?? ''] ?? '');
+  profileWorkoutsDone = computed(() => {
+    if (this.publicUser()?.isOwn) {
+      return this.ranking.myRank()?.workoutsDone ?? Number(this.publicUser()?.workouts_done ?? 0);
+    }
+    return Number(this.publicUser()?.workouts_done ?? 0);
+  });
+  profileStreak = computed(() => {
+    if (this.publicUser()?.isOwn) {
+      return this.ranking.myRank()?.streakDays ?? Number(this.publicUser()?.streak_days ?? 0);
+    }
+    return Number(this.publicUser()?.streak_days ?? 0);
+  });
+  profileXp = computed(() => {
+    if (this.publicUser()?.isOwn) {
+      return this.ranking.myRank()?.totalXp ?? Number(this.publicUser()?.total_xp ?? 0);
+    }
+    return Number(this.publicUser()?.total_xp ?? 0);
+  });
+  profileLevel = computed(() => {
+    return levelFromXp(this.profileXp(), this.publicUser()?.level ?? 'Iniciante');
+  });
 
   yearlyGoalPct = computed(() => {
-    const done = Number(this.publicUser()?.workouts_done ?? 0);
+    const done = this.profileWorkoutsDone();
     const goal = Number(this.publicUser()?.yearly_goal  ?? 0);
     if (!goal) return 0;
     return Math.min(Math.round((done / goal) * 100), 100);
   });
 
   levelBadgeClass(): string {
-    const level = this.publicUser()?.level ?? '';
+    const level = this.profileLevel();
     if (level === 'Elite') return 'bg-primary/15 text-primary border-primary/30';
     if (level === 'Pro')   return 'bg-secondary/15 text-secondary border-secondary/30';
     return 'bg-border text-text-2 border-border-2';
@@ -323,10 +349,13 @@ export class PublicProfileComponent implements OnInit {
         username:     myMeta.username,
         bio:          myMeta.bio,
         avatar:       this.auth.avatarUrl(),
-        level:        'Elite',
+        level:        levelFromXp(this.ranking.myRank()?.totalXp ?? 0),
         goal:         myMeta.goal,
         yearly_goal:  myMeta.yearly_goal,
         workouts_done:myMeta.workouts_done,
+        total_xp:     this.ranking.myRank()?.totalXp ?? 0,
+        total_walk_km:this.ranking.myRank()?.totalKm ?? 0,
+        streak_days:  this.ranking.myRank()?.streakDays ?? 0,
         isOwn:        true,
       });
 
@@ -361,6 +390,9 @@ export class PublicProfileComponent implements OnInit {
         goal:         found.goal,
         yearly_goal:  found.yearly_goal,
         workouts_done:found.workouts_done,
+        total_xp:     found.total_xp,
+        total_walk_km:found.total_walk_km,
+        streak_days:  found.streak_days,
         isOwn:        false,
       });
 
@@ -414,4 +446,12 @@ export class PublicProfileComponent implements OnInit {
       );
     }
   }
+}
+
+function levelFromXp(totalXp: number, fallback = 'Iniciante'): string {
+  if (totalXp >= 1500) return 'Elite';
+  if (totalXp >= 900) return 'Pro';
+  if (totalXp >= 500) return 'Avançado';
+  if (totalXp >= 200) return 'Intermediário';
+  return fallback;
 }

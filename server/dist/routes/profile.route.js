@@ -12,6 +12,8 @@ const ProfileSchema = zod_1.z.object({
     weight: zod_1.z.number().min(20).max(400).nullable().optional(),
     height: zod_1.z.number().min(50).max(300).nullable().optional(),
     goal: zod_1.z.string().max(50).optional(),
+    yearly_goal: zod_1.z.number().int().min(1).max(999).nullable().optional(),
+    workouts_done: zod_1.z.number().int().min(0).max(9999).nullable().optional(),
 });
 // GET /api/profile/me
 router.get('/me', auth_middleware_1.requireAuth, async (req, res) => {

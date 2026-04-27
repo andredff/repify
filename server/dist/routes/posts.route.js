@@ -118,6 +118,29 @@ router.delete('/:id', auth_middleware_1.requireAuth, async (req, res) => {
     res.status(204).send();
 });
 // ─────────────────────────────────────────────────────────────────────────────
+// PATCH /api/posts/:id — editar descrição (dono apenas)
+// ─────────────────────────────────────────────────────────────────────────────
+router.patch('/:id', auth_middleware_1.requireAuth, async (req, res) => {
+    const id = req.params['id'];
+    const caption = (req.body?.caption ?? '').toString().trim().slice(0, 500);
+    const { data: existing, error: fetchErr } = await supabase_1.supabaseAdmin
+        .from('posts').select('user_id').eq('id', id).maybeSingle();
+    if (fetchErr || !existing) {
+        res.status(404).json({ error: 'Post not found.' });
+        return;
+    }
+    if (existing.user_id !== req.userId) {
+        res.status(403).json({ error: 'Not allowed.' });
+        return;
+    }
+    const { error } = await supabase_1.supabaseAdmin.from('posts').update({ caption }).eq('id', id);
+    if (error) {
+        res.status(500).json({ error: 'Failed to update post.' });
+        return;
+    }
+    res.json({ caption });
+});
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/posts/:id/like — toggle like
 // ─────────────────────────────────────────────────────────────────────────────
 router.post('/:id/like', auth_middleware_1.requireAuth, async (req, res) => {
@@ -151,6 +174,120 @@ router.post('/:id/like', auth_middleware_1.requireAuth, async (req, res) => {
     }
     res.json({ liked: true });
 });
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/posts/:id/comments — lista comentários do post
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/:id/comments', auth_middleware_1.requireAuth, async (req, res) => {
+    const postId = req.params['id'];
+    const limit = Math.min(Number(req.query['limit']) || 50, 100);
+    const offset = Math.max(Number(req.query['offset']) || 0, 0);
+    const { data, error } = await supabase_1.supabaseAdmin
+        .from('post_comments')
+        .select('id, body, user_id, created_at')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true })
+        .range(offset, offset + limit - 1);
+    if (error) {
+        res.status(500).json({ error: 'Failed to fetch comments.' });
+        return;
+    }
+    const rows = data ?? [];
+    const userIds = Array.from(new Set(rows.map(c => c.user_id)));
+    const authors = await Promise.all(userIds.map(id => supabase_1.supabaseAdmin.auth.admin.getUserById(id)));
+    const userMap = new Map();
+    for (const a of authors) {
+        if (a.data?.user)
+            userMap.set(a.data.user.id, a.data.user);
+    }
+    const comments = rows.map(c => {
+        const u = userMap.get(c.user_id);
+        const meta = u?.user_metadata ?? {};
+        return {
+            id: c.id,
+            body: c.body,
+            time_ago: timeAgo(c.created_at),
+            created_at: c.created_at,
+            is_own: c.user_id === req.userId,
+            user: {
+                id: c.user_id,
+                name: meta['full_name'] || u?.email?.split('@')[0] || 'Usuário',
+                username: meta['username'] || null,
+                avatar: resolveAvatarUrl(meta['avatar_url']),
+            },
+        };
+    });
+    res.json({ comments, total: rows.length });
+});
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/posts/:id/comments — adiciona comentário
+// ─────────────────────────────────────────────────────────────────────────────
+router.post('/:id/comments', auth_middleware_1.requireAuth, async (req, res) => {
+    const postId = req.params['id'];
+    const body = (req.body?.body ?? '').trim();
+    if (!body || body.length > 500) {
+        res.status(400).json({ error: 'Comentário inválido.' });
+        return;
+    }
+    const { data, error } = await supabase_1.supabaseAdmin
+        .from('post_comments')
+        .insert({ post_id: postId, user_id: req.userId, body })
+        .select('id, body, user_id, created_at')
+        .single();
+    if (error) {
+        res.status(500).json({ error: 'Failed to save comment.' });
+        return;
+    }
+    const { data: { user } } = await supabase_1.supabaseAdmin.auth.admin.getUserById(req.userId);
+    const meta = user?.user_metadata ?? {};
+    // Notify post owner (if not the same user)
+    const { data: postRow } = await supabase_1.supabaseAdmin
+        .from('posts').select('user_id').eq('id', postId).maybeSingle();
+    if (postRow && postRow.user_id !== req.userId) {
+        void supabase_1.supabaseAdmin.from('notifications').insert({
+            recipient_id: postRow.user_id,
+            actor_id: req.userId,
+            type: 'comment',
+            post_id: postId,
+            body: body.slice(0, 120),
+        }); // non-critical, fire-and-forget
+    }
+    res.status(201).json({
+        comment: {
+            id: data.id,
+            body: data.body,
+            time_ago: 'agora',
+            created_at: data.created_at,
+            is_own: true,
+            user: {
+                id: req.userId,
+                name: meta['full_name'] || user?.email?.split('@')[0] || 'Usuário',
+                username: meta['username'] || null,
+                avatar: resolveAvatarUrl(meta['avatar_url']),
+            },
+        },
+    });
+});
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/posts/:id/comments/:commentId — apaga comentário próprio
+// ─────────────────────────────────────────────────────────────────────────────
+router.delete('/:id/comments/:commentId', auth_middleware_1.requireAuth, async (req, res) => {
+    const commentId = req.params['commentId'];
+    const { data: existing } = await supabase_1.supabaseAdmin
+        .from('post_comments')
+        .select('user_id')
+        .eq('id', commentId)
+        .maybeSingle();
+    if (!existing) {
+        res.status(404).json({ error: 'Comment not found.' });
+        return;
+    }
+    if (existing.user_id !== req.userId) {
+        res.status(403).json({ error: 'Not allowed.' });
+        return;
+    }
+    await supabase_1.supabaseAdmin.from('post_comments').delete().eq('id', commentId);
+    res.status(204).send();
+});
 async function enrichWithAuthorsAndLikes(posts, currentUserId) {
     if (posts.length === 0)
         return [];
@@ -169,10 +306,30 @@ async function enrichWithAuthorsAndLikes(posts, currentUserId) {
         .select('post_id')
         .eq('user_id', currentUserId)
         .in('post_id', postIds);
+    const [{ data: statsRows }, { data: workoutRows }] = await Promise.all([
+        supabase_1.supabaseAdmin
+            .from('user_stats')
+            .select('user_id, total_xp')
+            .in('user_id', userIds),
+        supabase_1.supabaseAdmin
+            .from('xp_events')
+            .select('user_id')
+            .eq('type', 'workout')
+            .in('user_id', userIds),
+    ]);
+    const statsMap = new Map();
+    for (const row of (statsRows ?? [])) {
+        statsMap.set(row.user_id, row);
+    }
+    const workoutMap = new Map();
+    for (const row of (workoutRows ?? [])) {
+        workoutMap.set(row.user_id, (workoutMap.get(row.user_id) ?? 0) + 1);
+    }
     const likedSet = new Set((myLikes ?? []).map(l => l.post_id));
     return posts.map(p => {
         const u = userMap.get(p.user_id);
-        const meta = u?.user_metadata ?? {};
+        const meta = u?.user_metadata ?? u?.raw_user_meta_data ?? {};
+        const totalXp = Number(statsMap.get(p.user_id)?.total_xp ?? 0);
         return {
             id: p.id,
             caption: p.caption,
@@ -188,10 +345,23 @@ async function enrichWithAuthorsAndLikes(posts, currentUserId) {
                 name: meta['full_name'] || u?.email?.split('@')[0] || 'Usuário',
                 username: meta['username'] || null,
                 avatar: resolveAvatarUrl(meta['avatar_url']),
-                level: 'Elite',
+                level: levelFromXp(totalXp),
+                yearly_goal: meta['yearly_goal'] != null ? Number(meta['yearly_goal']) : null,
+                workouts_done: workoutMap.get(p.user_id) ?? 0,
             },
         };
     });
+}
+function levelFromXp(totalXp) {
+    if (totalXp >= 1500)
+        return 'Elite';
+    if (totalXp >= 900)
+        return 'Pro';
+    if (totalXp >= 500)
+        return 'Avançado';
+    if (totalXp >= 200)
+        return 'Intermediário';
+    return 'Iniciante';
 }
 function resolveAvatarUrl(path) {
     if (!path)
