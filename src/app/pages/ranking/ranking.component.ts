@@ -1,9 +1,9 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { Router } from '@angular/router';
-import { RankingService, RankEntry } from '../../core/services/ranking.service';
+import { RankingService } from '../../core/services/ranking.service';
 import { AuthService } from '../../core/services/auth.service';
-import { WorkoutService, LEVELS } from '../../core/services/workout.service';
+import { LEVELS } from '../../core/services/workout.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { Location } from '@angular/common';
 
@@ -56,75 +56,81 @@ import { Location } from '@angular/common';
         } @else {
 
           <!-- Podium — top 3 -->
-          @if (rankSvc.top3().length >= 3) {
+          @if (podiumEntries().length > 0) {
             <div class="flex items-end justify-center gap-3 mb-8">
 
+              @if (podiumSecond(); as entry) {
               <!-- 2nd place -->
               <div class="flex flex-col items-center gap-2">
                 <div class="relative">
                   <div class="w-14 h-14 rounded-full border-2 border-border overflow-hidden bg-card">
-                    @if (rankSvc.top3()[1].avatar) {
-                      <img [src]="rankSvc.top3()[1].avatar" class="w-full h-full object-cover" />
+                    @if (entry.avatar) {
+                      <img [src]="entry.avatar" class="w-full h-full object-cover" />
                     } @else {
                       <div class="w-full h-full flex items-center justify-center text-[18px] font-display font-bold text-white">
-                        {{ rankSvc.top3()[1].name.charAt(0) }}
+                        {{ entry.name.charAt(0) }}
                       </div>
                     }
                   </div>
                   <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#8896A8] flex items-center justify-center text-[10px] font-display font-bold text-white shadow-md">2</div>
                 </div>
-                <p class="text-[11px] font-body font-semibold text-white max-w-[60px] text-center truncate">{{ rankSvc.top3()[1].name }}</p>
+                <p class="text-[11px] font-body font-semibold text-white max-w-[60px] text-center truncate">{{ entry.name }}</p>
                 <div class="h-16 w-20 bg-card-2 rounded-t-xl flex flex-col items-center justify-center border border-border border-b-0">
                   <span class="text-[18px]">🥈</span>
-                  <span class="text-[11px] font-body font-semibold text-white">{{ rankSvc.top3()[1].xp | number }}</span>
+                  <span class="text-[11px] font-body font-semibold text-white">{{ entry.xp | number }}</span>
                   <span class="text-[9px] text-text-2">XP</span>
                 </div>
               </div>
+              }
 
+              @if (podiumFirst(); as entry) {
               <!-- 1st place -->
               <div class="flex flex-col items-center gap-2">
                 <div class="text-2xl animate-bounce">👑</div>
                 <div class="relative">
                   <div class="w-18 h-18 w-[72px] h-[72px] rounded-full border-2 border-primary overflow-hidden bg-card shadow-glow">
-                    @if (rankSvc.top3()[0].avatar) {
-                      <img [src]="rankSvc.top3()[0].avatar" class="w-full h-full object-cover" />
+                    @if (entry.avatar) {
+                      <img [src]="entry.avatar" class="w-full h-full object-cover" />
                     } @else {
                       <div class="w-full h-full flex items-center justify-center text-[22px] font-display font-bold text-primary">
-                        {{ rankSvc.top3()[0].name.charAt(0) }}
+                        {{ entry.name.charAt(0) }}
                       </div>
                     }
                   </div>
                   <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center text-[10px] font-display font-bold text-bg shadow-glow-sm">1</div>
                 </div>
-                <p class="text-[12px] font-body font-bold text-white max-w-[70px] text-center truncate">{{ rankSvc.top3()[0].name }}</p>
+                <p class="text-[12px] font-body font-bold text-white max-w-[70px] text-center truncate">{{ entry.name }}</p>
                 <div class="h-24 w-20 bg-card-2 rounded-t-xl flex flex-col items-center justify-center border border-primary/30 border-b-0">
                   <span class="text-[22px]">🥇</span>
-                  <span class="text-[12px] font-body font-bold text-primary">{{ rankSvc.top3()[0].xp | number }}</span>
+                  <span class="text-[12px] font-body font-bold text-primary">{{ entry.xp | number }}</span>
                   <span class="text-[9px] text-text-2">XP</span>
                 </div>
               </div>
+              }
 
+              @if (podiumThird(); as entry) {
               <!-- 3rd place -->
               <div class="flex flex-col items-center gap-2">
                 <div class="relative">
                   <div class="w-14 h-14 rounded-full border-2 border-border overflow-hidden bg-card">
-                    @if (rankSvc.top3()[2].avatar) {
-                      <img [src]="rankSvc.top3()[2].avatar" class="w-full h-full object-cover" />
+                    @if (entry.avatar) {
+                      <img [src]="entry.avatar" class="w-full h-full object-cover" />
                     } @else {
                       <div class="w-full h-full flex items-center justify-center text-[18px] font-display font-bold text-white">
-                        {{ rankSvc.top3()[2].name.charAt(0) }}
+                        {{ entry.name.charAt(0) }}
                       </div>
                     }
                   </div>
                   <div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-[#B45309] flex items-center justify-center text-[10px] font-display font-bold text-white shadow-md">3</div>
                 </div>
-                <p class="text-[11px] font-body font-semibold text-white max-w-[60px] text-center truncate">{{ rankSvc.top3()[2].name }}</p>
+                <p class="text-[11px] font-body font-semibold text-white max-w-[60px] text-center truncate">{{ entry.name }}</p>
                 <div class="h-12 w-20 bg-card-2 rounded-t-xl flex flex-col items-center justify-center border border-border border-b-0">
                   <span class="text-[18px]">🥉</span>
-                  <span class="text-[11px] font-body font-semibold text-white">{{ rankSvc.top3()[2].xp | number }}</span>
+                  <span class="text-[11px] font-body font-semibold text-white">{{ entry.xp | number }}</span>
                   <span class="text-[9px] text-text-2">XP</span>
                 </div>
               </div>
+              }
 
             </div>
           }
@@ -212,6 +218,11 @@ export class RankingComponent {
   auth    = inject(AuthService);
   router  = inject(Router);
   location = inject(Location);
+
+  podiumEntries = computed(() => this.rankSvc.top3());
+  podiumFirst = computed(() => this.podiumEntries()[0] ?? null);
+  podiumSecond = computed(() => this.podiumEntries()[1] ?? null);
+  podiumThird = computed(() => this.podiumEntries()[2] ?? null);
 
   get myUserId(): string { return this.auth.user()?.id ?? ''; }
 
