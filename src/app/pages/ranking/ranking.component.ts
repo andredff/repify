@@ -5,6 +5,7 @@ import { RankingService, RankEntry } from '../../core/services/ranking.service';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkoutService, LEVELS } from '../../core/services/workout.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
+import { Location } from '@angular/common';
 
 @Component({
   selector: 'app-ranking',
@@ -16,7 +17,7 @@ import { BottomNavComponent } from '../feed/components/bottom-nav.component';
       <!-- Header -->
       <div class="sticky top-0 z-30 glass border-b border-border px-4 pt-safe-top pb-3">
         <div class="flex items-center justify-between max-w-[430px] mx-auto">
-          <button (click)="router.back()" class="w-8 h-8 flex items-center justify-center text-text-2 hover:text-white transition-colors">
+          <button (click)="location.back()" class="w-8 h-8 flex items-center justify-center text-text-2 hover:text-white transition-colors">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
           <h1 class="text-[15px] font-display font-bold text-white">Ranking</h1>
@@ -210,6 +211,7 @@ export class RankingComponent {
   rankSvc = inject(RankingService);
   auth    = inject(AuthService);
   router  = inject(Router);
+  location = inject(Location);
 
   get myUserId(): string { return this.auth.user()?.id ?? ''; }
 
