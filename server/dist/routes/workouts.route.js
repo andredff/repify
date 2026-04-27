@@ -21,6 +21,12 @@ function xpForWorkout(difficulty, allDone) {
     const diffBonus = { Iniciante: 0, Intermediário: 20, Avançado: 40 };
     return base + diffBonus[difficulty] + (allDone ? 30 : 0);
 }
+function sendStageError(res, stage, error) {
+    res.status(500).json({
+        error: `Workout completion failed at ${stage}.`,
+        details: error?.message ?? 'Unknown server error.',
+    });
+}
 router.post('/complete', auth_middleware_1.requireAuth, async (req, res) => {
     const parsed = CompleteWorkoutSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -35,18 +41,17 @@ router.post('/complete', auth_middleware_1.requireAuth, async (req, res) => {
     const weekStartStr = weekStart.toISOString().slice(0, 10);
     const { data: existingStats, error: statsFetchError } = await supabase_1.supabaseAdmin
         .from('user_stats')
-        .select('total_xp, weekly_xp, week_start, total_walk_km, streak_days')
+        .select('total_xp, weekly_xp, week_start, streak_days')
         .eq('user_id', userId)
         .maybeSingle();
     if (statsFetchError) {
         console.error('[workouts] user_stats fetch error:', statsFetchError);
-        res.status(500).json({ error: 'Failed to complete workout.' });
+        sendStageError(res, 'user_stats fetch', statsFetchError);
         return;
     }
     const weekRolled = existingStats && existingStats.week_start !== weekStartStr;
     const previousTotalXp = Number(existingStats?.total_xp ?? 0);
     const previousWeeklyXp = weekRolled ? 0 : Number(existingStats?.weekly_xp ?? 0);
-    const totalWalkKm = Number(existingStats?.total_walk_km ?? 0);
     const streakDays = payload.streakDays ?? Number(existingStats?.streak_days ?? 0);
     const totalXp = previousTotalXp + xp;
     const weeklyXp = previousWeeklyXp + xp;
@@ -57,13 +62,12 @@ router.post('/complete', auth_middleware_1.requireAuth, async (req, res) => {
         total_xp: totalXp,
         weekly_xp: weeklyXp,
         streak_days: streakDays,
-        total_walk_km: totalWalkKm,
         week_start: weekStartStr,
         updated_at: new Date().toISOString(),
     }, { onConflict: 'user_id' });
     if (upsertError) {
         console.error('[workouts] user_stats upsert error:', upsertError);
-        res.status(500).json({ error: 'Failed to complete workout.' });
+        sendStageError(res, 'user_stats upsert', upsertError);
         return;
     }
     const { error: xpInsertError } = await supabase_1.supabaseAdmin
@@ -71,7 +75,7 @@ router.post('/complete', auth_middleware_1.requireAuth, async (req, res) => {
         .insert({ user_id: userId, type: 'workout', xp });
     if (xpInsertError) {
         console.error('[workouts] xp_events insert error:', xpInsertError);
-        res.status(500).json({ error: 'Failed to complete workout.' });
+        sendStageError(res, 'xp_events insert', xpInsertError);
         return;
     }
     const { count: workoutEventsCount, error: workoutCountError } = await supabase_1.supabaseAdmin
@@ -81,13 +85,13 @@ router.post('/complete', auth_middleware_1.requireAuth, async (req, res) => {
         .eq('type', 'workout');
     if (workoutCountError) {
         console.error('[workouts] xp_events count error:', workoutCountError);
-        res.status(500).json({ error: 'Failed to complete workout.' });
+        sendStageError(res, 'xp_events count', workoutCountError);
         return;
     }
     const { data: existingUser, error: userFetchError } = await supabase_1.supabaseAdmin.auth.admin.getUserById(userId);
     if (userFetchError || !existingUser.user) {
         console.error('[workouts] auth user fetch error:', userFetchError);
-        res.status(500).json({ error: 'Failed to complete workout.' });
+        sendStageError(res, 'auth user fetch', userFetchError);
         return;
     }
     const meta = existingUser.user.user_metadata ?? {};
@@ -111,7 +115,6 @@ router.post('/complete', auth_middleware_1.requireAuth, async (req, res) => {
             workoutsDone,
             yearlyGoal,
             streakDays,
-            totalKm: totalWalkKm,
             xpEarned: xp,
         },
     });

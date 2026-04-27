@@ -209,8 +209,8 @@ export class WorkoutComponent implements OnInit {
       const planWithState: StoredPlan = { ...p, exercises: this.exercises() };
       await this.workoutService.markFinished(planWithState, this.doneCount());
       await this.router.navigateByUrl('/feed');
-    } catch {
-      this.errorMessage.set('Não foi possível concluir o treino agora. Tente novamente.');
+    } catch (error: any) {
+      this.errorMessage.set(error?.message ?? 'Não foi possível concluir o treino agora. Tente novamente.');
     } finally {
       this.finishing.set(false);
     }

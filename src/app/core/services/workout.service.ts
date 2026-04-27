@@ -48,7 +48,7 @@ export interface WorkoutSession {
 
 interface CompleteWorkoutResponse {
   ok: boolean;
-  metrics: CurrentUserRankingMetrics & {
+  metrics: Omit<CurrentUserRankingMetrics, 'totalKm'> & {
     yearlyGoal: number;
     xpEarned: number;
   };
@@ -325,7 +325,9 @@ export class WorkoutService {
       });
 
       if (!res.ok) {
-        throw new Error('Falha ao concluir treino.');
+        const errorBody = await res.json().catch(() => null) as { error?: string; details?: string } | null;
+        const message = [errorBody?.error, errorBody?.details].filter(Boolean).join(' ');
+        throw new Error(message || 'Falha ao concluir treino.');
       }
 
       const data = await res.json() as CompleteWorkoutResponse;
@@ -333,7 +335,13 @@ export class WorkoutService {
         workouts_done: data.metrics.workoutsDone,
         yearly_goal: data.metrics.yearlyGoal,
       });
-      this.ranking.syncCurrentUserMetrics(data.metrics);
+      this.ranking.syncCurrentUserMetrics({
+        totalXp: data.metrics.totalXp,
+        weeklyXp: data.metrics.weeklyXp,
+        workoutsDone: data.metrics.workoutsDone,
+        totalKm: previousRank?.totalKm ?? 0,
+        streakDays: data.metrics.streakDays,
+      });
       setTimeout(() => void this.ranking.load(true), 250);
     } catch (error) {
       this._finished.set(previousFinished);

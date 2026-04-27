@@ -7,13 +7,14 @@ import { CheckinService } from '../../../core/services/checkin.service';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 import { TimerComponent } from './timer.component';
 import { MapViewComponent } from './map-view.component';
+import { BottomNavComponent } from './bottom-nav.component';
 
 type WalkTrackerView = 'setup' | 'running' | 'paused' | 'done';
 
 @Component({
   selector: 'app-walk-tracker',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, DecimalPipe, NgClass, TimerComponent, MapViewComponent],
+  imports: [FormsModule, DecimalPipe, NgClass, TimerComponent, MapViewComponent, BottomNavComponent],
   template: `
     <div class="walk-shell fixed inset-0 z-[70] mx-auto flex max-w-[430px] flex-col bg-bg text-white"
          style="padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)">
@@ -39,7 +40,7 @@ type WalkTrackerView = 'setup' | 'running' | 'paused' | 'done';
         </div>
       </header>
 
-      <div class="walk-scroll relative z-[1] flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-4">
+      <div class="walk-scroll relative z-[1] flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-[104px]">
         <div class="space-y-3">
           <app-timer [elapsedSec]="displayElapsedSec()" [phase]="timerPhase()" [label]="timerLabel()" />
 
@@ -225,6 +226,8 @@ type WalkTrackerView = 'setup' | 'running' | 'paused' | 'done';
           }
         </div>
       </div>
+
+      <app-bottom-nav [active]="'feed'" />
     </div>
   `,
   styles: [`
