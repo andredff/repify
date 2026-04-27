@@ -30,6 +30,7 @@ export class RegisterComponent {
   showPassword = signal(false);
   showConfirmPassword = signal(false);
   loading = signal(false);
+  loadingGoogle = signal(false);
   serverError = signal('');
 
   form: FormGroup = this.fb.group({
@@ -49,6 +50,18 @@ export class RegisterComponent {
   get password() { return this.passwords.get('password')!; }
   get confirmPassword() { return this.passwords.get('confirmPassword')!; }
   get acceptedTerms() { return this.form.get('acceptedTerms')!; }
+
+  async registerWithGoogle(): Promise<void> {
+    this.loadingGoogle.set(true);
+    this.serverError.set('');
+    try {
+      await this.auth.signInWithGoogle();
+      // redirects the browser — execution stops here
+    } catch (err: any) {
+      this.serverError.set(err?.message ?? 'Erro ao entrar com Google.');
+      this.loadingGoogle.set(false);
+    }
+  }
 
   async register(): Promise<void> {
     if (this.form.invalid) {

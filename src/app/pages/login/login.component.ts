@@ -12,10 +12,11 @@ export class LoginComponent {
   private auth = inject(AuthService);
   private router = inject(Router);
 
-  email = signal('');
-  password = signal('');
-  loading = signal(false);
-  error = signal('');
+  email         = signal('');
+  password      = signal('');
+  loading       = signal(false);
+  loadingGoogle = signal(false);
+  error         = signal('');
 
   async login(): Promise<void> {
     if (!this.email() || !this.password()) {
@@ -33,6 +34,18 @@ export class LoginComponent {
       this.error.set(err?.message ?? 'Erro ao entrar. Tente novamente.');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  async loginWithGoogle(): Promise<void> {
+    this.loadingGoogle.set(true);
+    this.error.set('');
+    try {
+      await this.auth.signInWithGoogle();
+      // signInWithGoogle redirects the browser — execution stops here
+    } catch (err: any) {
+      this.error.set(err?.message ?? 'Erro ao entrar com Google.');
+      this.loadingGoogle.set(false);
     }
   }
 }

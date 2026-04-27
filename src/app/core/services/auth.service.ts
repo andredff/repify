@@ -102,6 +102,17 @@ export class AuthService {
     return publicUrl;
   }
 
+  async signInWithGoogle(): Promise<void> {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/feed`,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+    if (error) throw this.mapError(error);
+  }
+
   async signUp(email: string, password: string): Promise<void> {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw this.mapError(error);
