@@ -4,6 +4,8 @@ import { Location } from '@angular/common';
 import { WorkoutService, ActiveProgram, StoredPlan, DAY_INDEX_MAP } from '../../core/services/workout.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
+import { FeedHeaderComponent } from '../feed/components/feed-header.component';
+import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
 
 type Step = 'plan' | 'goal' | 'level' | 'days' | 'result';
 type Goal = 'hipertrofia' | 'emagrecimento' | 'forca' | 'condicionamento';
@@ -401,38 +403,35 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
 @Component({
   selector: 'app-my-workout',
   standalone: true,
-  imports: [BottomNavComponent, NewPostModalComponent],
+  imports: [BottomNavComponent, NewPostModalComponent, FeedHeaderComponent, NotificationsPanelComponent],
   template: `
     @if (showNewPost()) {
       <app-new-post-modal (onClose)="showNewPost.set(false)" />
     }
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
-      <!-- Header -->
-      <header class="glass border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 safe-top z-40">
-        <button (click)="back()"
-                class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white transition-colors shrink-0">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-        </button>
-        <div class="flex-1">
-          <p class="text-[15px] font-body font-semibold text-white">Meu Treino</p>
-          @if (step() !== 'result' && step() !== 'plan') {
-            <p class="text-[11px] text-text-2 font-body">Passo {{ stepIndex() + 1 }} de 3</p>
-          }
-        </div>
+      <app-feed-header
+        [showBack]="true"
+        (onBack)="back()"
+        (onOpenNotifications)="showNotifications.set(true)" />
+
+      <main class="flex-1 px-4 pb-28 overflow-y-auto" style="padding-top: calc(76px + env(safe-area-inset-top))">
+
+        <section class="pt-5 pb-1">
+          <p class="text-[22px] font-display font-bold text-white">Meu Treino</p>
+          <p class="text-[12px] font-body text-text-2 mt-1">
+            {{ step() !== 'result' && step() !== 'plan' ? 'Passo ' + (stepIndex() + 1) + ' de 3' : 'Monte, ajuste e acompanhe seu programa' }}
+          </p>
+        </section>
+
         @if (step() !== 'result' && step() !== 'plan') {
-          <div class="flex gap-1.5">
+          <div class="flex gap-1.5 mb-5">
             @for (s of stepKeys; track s) {
               <div class="h-1.5 rounded-full transition-all duration-300"
-                   [class]="s === step() ? 'w-5 bg-primary' : stepDone(s) ? 'w-2 bg-primary/50' : 'w-2 bg-border'"></div>
+                   [class]="s === step() ? 'w-6 bg-primary' : stepDone(s) ? 'w-2 bg-primary/50' : 'w-2 bg-border'"></div>
             }
           </div>
         }
-      </header>
-
-      <main class="flex-1 px-4 pt-6 pb-28 overflow-y-auto">
 
         <!-- ── PLANO EXISTENTE ── -->
         @if (step() === 'plan') {
@@ -476,6 +475,10 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                     </div>
                   }
                 </div>
+
+                        @if (showNotifications()) {
+                          <app-notifications-panel (onClose)="showNotifications.set(false)" />
+                        }
               </div>
             } @else {
               <div class="mb-6 bg-card-2 border border-border rounded-2xl p-4 text-center">
@@ -802,6 +805,7 @@ export class MyWorkoutComponent implements OnInit {
   workoutService   = inject(WorkoutService);
 
   readonly stepKeys: Step[] = ['goal', 'level', 'days'];
+  showNotifications = signal(false);
   readonly goalOptions  = GOAL_OPTIONS;
   readonly levelOptions = LEVEL_OPTIONS;
   readonly daysOptions  = DAYS_OPTIONS;

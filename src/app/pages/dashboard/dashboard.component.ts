@@ -1,8 +1,11 @@
 import { Component, inject, computed, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { Location } from '@angular/common';
 import { WorkoutService, LEVELS, ACHIEVEMENTS, WorkoutSession } from '../../core/services/workout.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
+import { FeedHeaderComponent } from '../feed/components/feed-header.component';
+import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
 
 const MOTIVATIONAL: string[] = [
   'O corpo conquista o que a mente acredita. 💪',
@@ -33,20 +36,24 @@ const MUSCLE_GRADIENT: Record<string, string> = {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [BottomNavComponent, NewPostModalComponent],
+  imports: [BottomNavComponent, NewPostModalComponent, FeedHeaderComponent, NotificationsPanelComponent],
   template: `
     @if (showNewPost()) {
       <app-new-post-modal (onClose)="showNewPost.set(false)" />
     }
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
-      <!-- Header -->
-      <header class="glass border-b border-border px-4 py-3 sticky top-0 safe-top z-40">
-        <h1 class="text-[18px] font-display font-bold text-white">Progresso</h1>
-        <p class="text-[11px] font-body text-text-2">{{ motivational }}</p>
-      </header>
+      <app-feed-header
+        [showBack]="true"
+        (onBack)="location.back()"
+        (onOpenNotifications)="showNotifications.set(true)" />
 
-      <main class="flex-1 overflow-y-auto px-4 pt-5 pb-28 space-y-5">
+      <main class="flex-1 overflow-y-auto px-4 pb-28 space-y-5" style="padding-top: calc(76px + env(safe-area-inset-top))">
+
+        <section class="pt-5 pb-1">
+          <p class="text-[22px] font-display font-bold text-white">Progresso</p>
+          <p class="text-[12px] font-body text-text-2 mt-1">{{ motivational }}</p>
+        </section>
 
         <!-- ── NÍVEL + XP ── -->
         <div class="bg-card-2 border border-border rounded-2xl p-4 relative overflow-hidden">
@@ -207,13 +214,19 @@ const MUSCLE_GRADIENT: Record<string, string> = {
       </main>
 
       <app-bottom-nav [active]="'progress'" (onNewPost)="showNewPost.set(true)" />
+
+      @if (showNotifications()) {
+        <app-notifications-panel (onClose)="showNotifications.set(false)" />
+      }
     </div>
   `,
 })
 export class DashboardComponent {
   showNewPost = signal(false);
+  showNotifications = signal(false);
   ws     = inject(WorkoutService);
   router = inject(Router);
+  location = inject(Location);
   readonly motivational = MOTIVATIONAL[Math.floor(Math.random() * MOTIVATIONAL.length)];
   readonly achievements = ACHIEVEMENTS;
   readonly total        = ACHIEVEMENTS.length;

@@ -22,10 +22,15 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
-    path: 'dashboard',
+    path: 'progress',
     loadComponent: () =>
       import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
     canActivate: [authGuard],
+  },
+  {
+    path: 'dashboard',
+    redirectTo: 'progress',
+    pathMatch: 'full',
   },
   {
     path: 'u/:handle',

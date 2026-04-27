@@ -7,6 +7,8 @@ import { UserService } from '../../core/services/user.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { WorkoutPostComponent } from '../feed/components/workout-post.component';
 import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
+import { FeedHeaderComponent } from '../feed/components/feed-header.component';
+import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
 import { WorkoutPost } from '../../core/models/workout-post.model';
 
 interface PublicUser {
@@ -34,38 +36,21 @@ const GOAL_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-public-profile',
   standalone: true,
-  imports: [BottomNavComponent, WorkoutPostComponent, NewPostModalComponent],
+  imports: [BottomNavComponent, WorkoutPostComponent, NewPostModalComponent, FeedHeaderComponent, NotificationsPanelComponent],
   template: `
     @if (showNewPost()) {
       <app-new-post-modal (onClose)="showNewPost.set(false)" />
     }
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
-      <!-- Header -->
-      <header class="glass border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 safe-top z-40">
-        <button (click)="location.back()"
-                class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white transition-colors shrink-0">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-        </button>
-        <div class="flex-1 min-w-0">
-          <p class="text-[15px] font-body font-semibold text-white truncate">
-            {{ publicUser()?.username ? '@' + publicUser()!.username : publicUser()?.name || '...' }}
-          </p>
-          <p class="text-[11px] text-text-2 font-body">{{ posts().length }} publicações</p>
-        </div>
-        @if (publicUser()?.isOwn) {
-          <button (click)="router.navigateByUrl('/profile')"
-                  class="text-[12px] font-body text-primary border border-primary/30 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors">
-            Editar
-          </button>
-        }
-      </header>
+      <app-feed-header
+        [showBack]="true"
+        (onBack)="location.back()"
+        (onOpenNotifications)="showNotifications.set(true)" />
 
       @if (loading()) {
         <!-- Skeleton -->
-        <div class="flex flex-col items-center pt-10 px-4 gap-4 animate-pulse">
+        <div class="flex flex-col items-center px-4 gap-4 animate-pulse" style="padding-top: calc(86px + env(safe-area-inset-top))">
           <div class="w-24 h-24 rounded-full bg-card-2 border-2 border-border"></div>
           <div class="h-4 w-32 bg-card-2 rounded-lg"></div>
           <div class="h-3 w-48 bg-card-2 rounded-lg"></div>
@@ -77,10 +62,17 @@ const GOAL_LABELS: Record<string, string> = {
         </div>
       } @else if (publicUser()) {
 
-        <div class="flex-1 overflow-y-auto pb-28">
+        <div class="flex-1 overflow-y-auto pb-28" style="padding-top: calc(76px + env(safe-area-inset-top))">
+
+          <section class="px-4 pt-5 pb-1 text-center">
+            <p class="text-[22px] font-display font-bold text-white truncate">
+              {{ publicUser()?.username ? '@' + publicUser()!.username : publicUser()?.name || 'Perfil' }}
+            </p>
+            <p class="text-[12px] font-body text-text-2 mt-1">{{ posts().length }} publicações</p>
+          </section>
 
           <!-- ── Profile Header ── -->
-          <div class="relative px-4 pt-8 pb-6">
+          <div class="relative px-4 pt-6 pb-6">
 
             <!-- Background glow -->
             <div class="absolute top-0 left-1/2 -translate-x-1/2 w-56 h-56 rounded-full blur-3xl pointer-events-none"
@@ -241,6 +233,10 @@ const GOAL_LABELS: Record<string, string> = {
       }
 
       <app-bottom-nav [active]="isOwn() ? 'profile' : 'feed'" (onNewPost)="showNewPost.set(true)" />
+
+      @if (showNotifications()) {
+        <app-notifications-panel (onClose)="showNotifications.set(false)" />
+      }
     </div>
   `,
 })
@@ -257,6 +253,7 @@ export class PublicProfileComponent implements OnInit {
   posts      = signal<WorkoutPost[]>([]);
   following  = signal(false);
   showNewPost = signal(false);
+  showNotifications = signal(false);
 
   isOwn = computed(() => this.publicUser()?.isOwn ?? false);
 

@@ -2,6 +2,8 @@ import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { WorkoutService, StoredPlan, StoredExercise } from '../../core/services/workout.service';
+import { FeedHeaderComponent } from '../feed/components/feed-header.component';
+import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
 
 // Planos estáticos com todos os campos necessários para o histórico
 const STATIC_PLANS: Record<string, StoredPlan> = {
@@ -47,25 +49,22 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
 @Component({
   selector: 'app-workout',
   standalone: true,
+  imports: [FeedHeaderComponent, NotificationsPanelComponent],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
 
-      <!-- Header -->
-      <header class="glass border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 safe-top z-40">
-        <button (click)="location.back()"
-                class="flex items-center gap-2 text-text-2 hover:text-white transition-colors">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-          <span class="text-[14px] font-body font-medium">Treino</span>
-        </button>
-        @if (plan()) {
-          <span class="text-[11px] font-body text-text-2">{{ plan()!.difficulty }}</span>
-        }
-      </header>
+      <app-feed-header
+        [showBack]="true"
+        (onBack)="location.back()"
+        (onOpenNotifications)="showNotifications.set(true)" />
 
       <!-- Content -->
-      <main class="flex-1 px-4 pt-6 pb-32 overflow-y-auto">
+      <main class="flex-1 px-4 pb-32 overflow-y-auto" style="padding-top: calc(76px + env(safe-area-inset-top))">
+
+        <section class="pt-5 pb-1">
+          <p class="text-[22px] font-display font-bold text-white">Treino</p>
+          <p class="text-[12px] font-body text-text-2 mt-1">{{ plan()?.difficulty ?? 'Execução do treino' }}</p>
+        </section>
 
         @if (plan()) {
 
@@ -155,6 +154,10 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
       }
 
     </div>
+
+    @if (showNotifications()) {
+      <app-notifications-panel (onClose)="showNotifications.set(false)" />
+    }
   `,
 })
 export class WorkoutComponent implements OnInit {
@@ -162,6 +165,7 @@ export class WorkoutComponent implements OnInit {
   private route        = inject(ActivatedRoute);
   private router       = inject(Router);
   private workoutService = inject(WorkoutService);
+  showNotifications = signal(false);
 
   exercises = signal<StoredExercise[]>([]);
   plan      = signal<StoredPlan | null>(null);

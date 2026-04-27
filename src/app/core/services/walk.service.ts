@@ -167,7 +167,7 @@ export class WalkService {
       return next;
     });
     // XP: +5 per walk, fire-and-forget
-    this.ranking.recordXp('walk', 5);
+    this.ranking.recordXp('walk', 5, { distanceKm: full.distanceKm ?? 0 });
     return full;
   }
 

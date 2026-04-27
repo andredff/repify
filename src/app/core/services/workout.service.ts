@@ -261,7 +261,7 @@ export class WorkoutService {
     }
 
     // Push XP to ranking (fire-and-forget)
-    this.ranking.recordXp('workout', xp, this.streak());
+    this.ranking.recordXp('workout', xp, { streakDays: this.streak() });
   }
 
   isFinishedToday(planId: string): boolean {

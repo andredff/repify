@@ -9,72 +9,118 @@ export interface RankEntry {
   name:       string;
   username:   string | null;
   avatar:     string;
-  xp:         number;
   totalXp:    number;
+  workoutsDone: number;
+  totalKm:    number;
   weeklyXp:   number;
   streakDays: number;
 }
 
 export interface MyRank {
   rank:       number;
+  userId:     string;
+  name:       string;
+  username:   string | null;
+  avatar:     string;
   totalXp:    number;
+  workoutsDone: number;
+  totalKm:    number;
   weeklyXp:   number;
   streakDays: number;
 }
 
-type RankMode = 'global' | 'weekly';
+export type RankSort = 'xp' | 'workouts' | 'distance';
+
+interface RankingResponse {
+  entries: RankEntry[];
+  me: MyRank | null;
+  page: number;
+  limit: number;
+  total: number;
+  hasMore: boolean;
+}
 
 @Injectable({ providedIn: 'root' })
 export class RankingService {
   private auth = inject(AuthService);
   private API  = environment.apiBaseUrl;
+  private readonly LIMIT = 20;
 
-  readonly mode    = signal<RankMode>('global');
+  readonly sortBy  = signal<RankSort>('xp');
   readonly entries = signal<RankEntry[]>([]);
   readonly myRank  = signal<MyRank | null>(null);
   readonly loading = signal(false);
+  readonly loadingMore = signal(false);
+  readonly page = signal(1);
+  readonly total = signal(0);
+  readonly hasMore = signal(false);
 
-  readonly top3    = computed(() => this.entries().slice(0, 3));
-  readonly rest    = computed(() => this.entries().slice(3));
+  readonly myEntry = computed(() => this.myRank());
 
   constructor() {
     effect(() => {
       if (this.auth.isAuthenticated()) {
-        this.load();
+        this.load(true);
       } else {
         this.entries.set([]);
         this.myRank.set(null);
+        this.page.set(1);
+        this.total.set(0);
+        this.hasMore.set(false);
       }
     });
   }
 
-  setMode(m: RankMode): void {
-    this.mode.set(m);
-    this.load();
+  setSort(sort: RankSort): void {
+    if (this.sortBy() === sort) return;
+    this.sortBy.set(sort);
+    this.load(true);
   }
 
-  async load(): Promise<void> {
-    this.loading.set(true);
+  async load(reset = false): Promise<void> {
+    if (!this.auth.isAuthenticated()) return;
+
+    if (reset) {
+      this.loading.set(true);
+      this.page.set(1);
+    } else {
+      if (this.loadingMore() || !this.hasMore()) return;
+      this.loadingMore.set(true);
+    }
+
+    const nextPage = reset ? 1 : this.page() + 1;
+
     try {
-      const res = await this._fetch(`/api/ranking?mode=${this.mode()}&limit=10`);
+      const res = await this._fetch(`/api/ranking?sort=${this.sortBy()}&page=${nextPage}&limit=${this.LIMIT}`);
       if (!res.ok) return;
-      const data = await res.json();
-      this.entries.set(data.entries ?? []);
+      const data = await res.json() as RankingResponse;
+      this.entries.set(reset ? (data.entries ?? []) : [...this.entries(), ...(data.entries ?? [])]);
       this.myRank.set(data.me ?? null);
+      this.page.set(data.page ?? nextPage);
+      this.total.set(data.total ?? 0);
+      this.hasMore.set(data.hasMore ?? false);
     } finally {
-      this.loading.set(false);
+      if (reset) {
+        this.loading.set(false);
+      } else {
+        this.loadingMore.set(false);
+      }
     }
   }
 
-  async recordXp(type: 'workout' | 'walk' | 'streak_bonus', xp: number, streakDays?: number): Promise<void> {
+  async recordXp(
+    type: 'workout' | 'walk' | 'streak_bonus',
+    xp: number,
+    extras: { streakDays?: number; distanceKm?: number } = {},
+  ): Promise<void> {
     try {
       await this._fetch('/api/ranking/xp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, xp, streakDays }),
+        body: JSON.stringify({ type, xp, streakDays: extras.streakDays, distanceKm: extras.distanceKm }),
       });
       // Reload ranking after XP recorded
-      setTimeout(() => this.load(), 300);
+      setTimeout(() => this.load(true), 300);
     } catch { /* non-critical */ }
   }
 

@@ -40,7 +40,7 @@ export type { WorkoutPost };
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
 
-      <app-feed-header [userEmail]="userEmail()" (onLogout)="logout()" (onOpenNotifications)="showNotifications.set(true)" />
+      <app-feed-header [userEmail]="userEmail()" (onOpenNotifications)="showNotifications.set(true)" />
 
       <main #mainScroll class="flex-1 overflow-y-auto pb-24 pt-[64px]" style="padding-top: calc(64px + env(safe-area-inset-top))">
 

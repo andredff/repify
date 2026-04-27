@@ -1,4 +1,5 @@
 import { Component, inject, signal, computed, OnInit, ElementRef, ViewChild } from '@angular/core';
+import { Location } from '@angular/common';
 import { Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
@@ -6,6 +7,8 @@ import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { CheckinService } from '../../core/services/checkin.service';
 import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
 import { ImageCropperComponent } from '../../shared/image-cropper.component';
+import { FeedHeaderComponent } from '../feed/components/feed-header.component';
+import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   const a = control.get('newPassword')?.value;
@@ -21,7 +24,7 @@ const MAX_SIZE_MB   = 5;
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [ReactiveFormsModule, BottomNavComponent, NewPostModalComponent, ImageCropperComponent],
+  imports: [ReactiveFormsModule, BottomNavComponent, NewPostModalComponent, ImageCropperComponent, FeedHeaderComponent, NotificationsPanelComponent],
   template: `
     @if (showNewPost()) {
       <app-new-post-modal (onClose)="showNewPost.set(false)" />
@@ -46,23 +49,18 @@ const MAX_SIZE_MB   = 5;
         (change)="onFileSelected($event)"
       />
 
-      <!-- Header -->
-      <header class="glass border-b border-border px-4 py-3 flex items-center justify-between sticky top-0 safe-top z-40">
-        <button (click)="router.navigateByUrl('/feed')"
-                class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white hover:border-border-2 transition-colors">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-        </button>
-        <h1 class="text-[15px] font-body font-semibold text-white">Meu Perfil</h1>
-        <button (click)="logout()"
-                class="text-[12px] font-body text-text-2 hover:text-danger transition-colors px-2 py-1">
-          Sair
-        </button>
-      </header>
+      <app-feed-header
+        [showBack]="true"
+        (onBack)="location.back()"
+        (onOpenNotifications)="showNotifications.set(true)" />
 
       <!-- Scrollable body -->
-      <div class="flex-1 overflow-y-auto pb-28">
+      <div class="flex-1 overflow-y-auto pb-28" style="padding-top: calc(76px + env(safe-area-inset-top))">
+
+        <section class="px-4 pt-5 pb-1">
+          <p class="text-[22px] font-display font-bold text-white">Meu Perfil</p>
+          <p class="text-[12px] font-body text-text-2 mt-1">Edite sua conta e acompanhe seus dados</p>
+        </section>
 
         <!-- Avatar hero -->
         <div class="relative flex flex-col items-center pt-8 pb-6 px-4">
@@ -82,7 +80,6 @@ const MAX_SIZE_MB   = 5;
                           style="transition: stroke-dashoffset 0.2s ease"/>
                 </svg>
               }
-
               <!-- Avatar image or initials -->
               <div class="w-full h-full rounded-full border-2 overflow-hidden flex items-center justify-center text-3xl font-display font-bold bg-gradient-to-br from-primary/20 to-secondary/10 select-none"
                    [class]="avatarUploading() ? 'border-primary/30' : 'border-primary/50 shadow-glow'">
@@ -96,6 +93,10 @@ const MAX_SIZE_MB   = 5;
                   {{ avatarInitial() }}
                 }
               </div>
+
+                      @if (showNotifications()) {
+                        <app-notifications-panel (onClose)="showNotifications.set(false)" />
+                      }
 
               <!-- Loading overlay -->
               @if (avatarUploading()) {
@@ -500,6 +501,7 @@ export class ProfileComponent implements OnInit {
   auth    = inject(AuthService);
   checkin = inject(CheckinService);
   router  = inject(Router);
+  location = inject(Location);
   private fb = inject(FormBuilder);
 
   readonly MAX_SIZE_MB = MAX_SIZE_MB;
@@ -514,6 +516,7 @@ export class ProfileComponent implements OnInit {
   avatarUploading = signal(false);
   uploadProgress  = signal(0);
   showNewPost = signal(false);
+  showNotifications = signal(false);
   avatarError     = signal('');
   avatarSuccess   = signal(false);
 
