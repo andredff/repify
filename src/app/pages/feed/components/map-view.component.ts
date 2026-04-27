@@ -4,6 +4,30 @@ import { GeoPoint } from '../../../core/services/walk.service';
 
 type MapPhase = 'preview' | 'active' | 'result';
 
+interface TileSource {
+  url: string;
+  options: L.TileLayerOptions;
+}
+
+const PRIMARY_TILE_SOURCE: TileSource = {
+  url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  options: {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd',
+    crossOrigin: true,
+  },
+};
+
+const FALLBACK_TILE_SOURCE: TileSource = {
+  url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  options: {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap contributors',
+    crossOrigin: true,
+  },
+};
+
 @Component({
   selector: 'app-map-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -92,6 +116,7 @@ export class MapViewComponent implements AfterViewInit, OnDestroy {
   private endMarker: L.CircleMarker | null = null;
   private ready = false;
   private resizeObserver: ResizeObserver | null = null;
+  private usingFallbackTiles = false;
 
   constructor() {
     effect(() => {
@@ -113,11 +138,7 @@ export class MapViewComponent implements AfterViewInit, OnDestroy {
       preferCanvas: true,
     }).setView([-23.5505, -46.6333], 13);
 
-    this.tileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
-    });
-    this.tileLayer.addTo(this.map);
+    this.attachTileLayer(PRIMARY_TILE_SOURCE);
     this.ready = true;
     this.resizeObserver = new ResizeObserver(() => {
       this.map?.invalidateSize();
@@ -133,6 +154,23 @@ export class MapViewComponent implements AfterViewInit, OnDestroy {
       this.map?.invalidateSize();
       this.syncMap();
     }, 280);
+  }
+
+  private attachTileLayer(source: TileSource): void {
+    if (!this.map) return;
+
+    this.tileLayer?.off();
+    this.tileLayer?.remove();
+
+    this.tileLayer = L.tileLayer(source.url, source.options);
+    this.tileLayer.on('tileerror', () => {
+      if (this.usingFallbackTiles) {
+        return;
+      }
+      this.usingFallbackTiles = true;
+      this.attachTileLayer(FALLBACK_TILE_SOURCE);
+    });
+    this.tileLayer.addTo(this.map);
   }
 
   ngOnDestroy(): void {
