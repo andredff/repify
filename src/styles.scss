@@ -1,3 +1,5 @@
+@import 'leaflet/dist/leaflet.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -15,6 +17,21 @@ body {
   @apply bg-bg text-white font-body;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.leaflet-container {
+  background: #0a1117;
+  font: inherit;
+}
+
+.leaflet-control-attribution {
+  background: rgba(8, 12, 16, 0.76) !important;
+  color: #96a0aa !important;
+  border-radius: 10px 0 0 0;
+}
+
+.leaflet-control-attribution a {
+  color: #d6dde5 !important;
 }
 
 /* Scrollbar */

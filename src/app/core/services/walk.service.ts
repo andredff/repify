@@ -16,8 +16,10 @@ export interface WalkSession {
 }
 
 export type ActivePhase = 'idle' | 'running' | 'paused';
+export type WalkLocationState = 'idle' | 'locating' | 'ready' | 'denied' | 'unsupported' | 'error';
 
 const LS_KEY = 'repify_walks';
+const MIN_MOVEMENT_KM = 0.005;
 
 @Injectable({ providedIn: 'root' })
 export class WalkService {
@@ -39,6 +41,13 @@ export class WalkService {
   readonly activeGpsMode = signal(false);
   readonly liveKm       = signal(0);
   readonly isActive     = computed(() => this.activePhase() !== 'idle');
+  readonly locationState = signal<WalkLocationState>('idle');
+
+  private _currentPosition = signal<GeoPoint | null>(null);
+  private _activeTrail = signal<GeoPoint[]>([]);
+
+  readonly currentPosition = this._currentPosition.asReadonly();
+  readonly activeTrail = this._activeTrail.asReadonly();
 
   readonly formattedTime = computed(() => {
     const s = this.elapsedSec();
@@ -52,18 +61,56 @@ export class WalkService {
 
   // ── GPS tracking ─────────────────────────────────────────────────────────
 
-  private _positions: GeoPoint[] = [];
   private _watchId: number | null = null;
 
-  getPositions(): GeoPoint[] { return [...this._positions]; }
+  getPositions(): GeoPoint[] { return [...this._activeTrail()]; }
 
-  startGps(): void {
+  async requestCurrentPosition(): Promise<GeoPoint | null> {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      this.locationState.set('unsupported');
+      return null;
+    }
+
+    this.locationState.set('locating');
+
+    return new Promise(resolve => {
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          this.zone.run(() => {
+            const point = { lat: position.coords.latitude, lng: position.coords.longitude };
+            this._currentPosition.set(point);
+            this.locationState.set('ready');
+            resolve(point);
+          });
+        },
+        error => {
+          this.zone.run(() => {
+            this.locationState.set(error.code === error.PERMISSION_DENIED ? 'denied' : 'error');
+            resolve(null);
+          });
+        },
+        { enableHighAccuracy: true, maximumAge: 15000, timeout: 10000 },
+      );
+    });
+  }
+
+  startGps(resetTrail = true): void {
+    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+      this.locationState.set('unsupported');
+      return;
+    }
     if (this._watchId !== null) return;
-    this._positions = [];
+    if (resetTrail) {
+      this._activeTrail.set([]);
+    }
     this._watchId = navigator.geolocation.watchPosition(
-      pos => this._positions.push({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => {},
-      { enableHighAccuracy: true, maximumAge: 3000 },
+      position => this.zone.run(() => {
+        this._pushPoint({ lat: position.coords.latitude, lng: position.coords.longitude });
+      }),
+      error => this.zone.run(() => {
+        this.locationState.set(error.code === error.PERMISSION_DENIED ? 'denied' : 'error');
+      }),
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 },
     );
   }
 
@@ -72,9 +119,9 @@ export class WalkService {
       navigator.geolocation.clearWatch(this._watchId);
       this._watchId = null;
     }
-    const positions  = [...this._positions];
+    const positions  = [...this._activeTrail()];
     const distanceKm = this.calcDistance(positions);
-    this._positions  = [];
+    this._activeTrail.set([]);
     return { distanceKm, positions };
   }
 
@@ -85,7 +132,11 @@ export class WalkService {
     this.activeGpsMode.set(gpsMode);
     this.elapsedSec.set(0);
     this.liveKm.set(0);
-    if (gpsMode) this.startGps();
+    this._activeTrail.set([]);
+    if (gpsMode) {
+      void this.requestCurrentPosition();
+      this.startGps(true);
+    }
     this.activePhase.set('running');
     this._startTimer();
   }
@@ -93,11 +144,18 @@ export class WalkService {
   pauseWalk(): void {
     if (this.activePhase() !== 'running') return;
     this._clearTimer();
+    if (this.activeGpsMode() && this._watchId !== null) {
+      navigator.geolocation.clearWatch(this._watchId);
+      this._watchId = null;
+    }
     this.activePhase.set('paused');
   }
 
   resumeWalk(): void {
     if (this.activePhase() !== 'paused') return;
+    if (this.activeGpsMode()) {
+      this.startGps(false);
+    }
     this.activePhase.set('running');
     this._startTimer();
   }
@@ -122,6 +180,7 @@ export class WalkService {
     this.elapsedSec.set(0);
     this.liveKm.set(0);
     this.activeGpsMode.set(false);
+    this._activeTrail.set([]);
   }
 
   /** Cancels without saving. */
@@ -132,6 +191,7 @@ export class WalkService {
     this.elapsedSec.set(0);
     this.liveKm.set(0);
     this.activeGpsMode.set(false);
+    this._activeTrail.set([]);
   }
 
   // ── Calculations ───────────────────────────────────────────────────────────
@@ -251,10 +311,6 @@ export class WalkService {
     this._interval = setInterval(() => {
       this.zone.run(() => {
         this.elapsedSec.update(s => s + 1);
-        if (this.activeGpsMode() && this.elapsedSec() % 5 === 0) {
-          const pts = this.getPositions();
-          if (pts.length >= 2) this.liveKm.set(this.calcDistance(pts));
-        }
       });
     }, 1000);
   }
@@ -270,6 +326,26 @@ export class WalkService {
     const x  = Math.sin(dL / 2) ** 2 +
                Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dG / 2) ** 2;
     return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+  }
+
+  private _pushPoint(point: GeoPoint): void {
+    this._currentPosition.set(point);
+    this.locationState.set('ready');
+
+    this._activeTrail.update(trail => {
+      const previous = trail[trail.length - 1];
+      if (!previous) {
+        return [point];
+      }
+
+      const segmentKm = this._haversine(previous, point);
+      if (segmentKm < MIN_MOVEMENT_KM) {
+        return trail;
+      }
+
+      this.liveKm.update(distance => Math.round((distance + segmentKm) * 100) / 100);
+      return [...trail, point];
+    });
   }
 
   private _load(): WalkSession[] {
