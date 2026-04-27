@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, OnInit, OnDestroy, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { PostService } from '../../core/services/post.service';
@@ -18,12 +18,36 @@ import { WalkCardComponent } from './components/walk-card.component';
 import { WalkService } from '../../core/services/walk.service';
 import { RankingService } from '../../core/services/ranking.service';
 import { NotificationsPanelComponent } from './components/notifications-panel.component';
+import { DailyChallengeCardComponent } from './components/daily-challenge-card.component';
+import { HomeRankingCardComponent } from './components/home-ranking-card.component';
 
 export type { WorkoutPost };
 
+interface RankSnapshot {
+  rank: number;
+  totalXp: number;
+}
+
+interface DailyChallengeView {
+  title: string;
+  description: string;
+  reward: string;
+  impact: string;
+  hint: string;
+  actionLabel: string;
+  icon: string;
+  action: 'workout' | 'walk';
+}
+
+const HOME_RANK_SNAPSHOT_KEY = 'repify_home_rank_snapshot';
+
+function isoToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 @Component({
   selector: 'app-feed',
-  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FeedHeaderComponent,
     CheckInCardComponent,
@@ -37,6 +61,8 @@ export type { WorkoutPost };
     WalkCardComponent,
     NotificationsPanelComponent,
     DecimalPipe,
+    HomeRankingCardComponent,
+    DailyChallengeCardComponent,
   ],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
@@ -67,8 +93,34 @@ export type { WorkoutPost };
 
         <app-stories-bar />
 
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
+          <app-home-ranking-card
+            [currentRank]="currentRank()"
+            [previousRank]="previousRankSnapshot()"
+            [recentDelta]="recentRankDelta()"
+            [totalXp]="currentXp()"
+            [streakDays]="currentStreak()"
+            [positionsToClimb]="positionsToClimb()"
+            [xpToClimb]="xpToClimbTarget()"
+            [progressPct]="rankProgressPct()"
+            [xpDelta]="recentXpGain()"
+            (openRanking)="router.navigateByUrl('/ranking')" />
+        </div>
+
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.04s">
+          <app-daily-challenge-card
+            [title]="dailyChallenge().title"
+            [description]="dailyChallenge().description"
+            [reward]="dailyChallenge().reward"
+            [impact]="dailyChallenge().impact"
+            [hint]="dailyChallenge().hint"
+            [actionLabel]="dailyChallenge().actionLabel"
+            [icon]="dailyChallenge().icon"
+            (action)="handleDailyChallenge()" />
+        </div>
+
         @if (auth.profile().yearly_goal) {
-          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.03s">
+          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
             <div class="bg-card-2 border border-border rounded-xl px-4 py-3 space-y-1.5">
               <div class="flex justify-between items-center">
                 <span class="text-[11px] font-body text-text-2">Meta anual de treinos</span>
@@ -84,22 +136,22 @@ export type { WorkoutPost };
           </div>
         }
 
-        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.07s">
           <app-check-in-card (onWalk)="showWalk.set(true)" />
         </div>
 
-        <div class="px-4 mt-3 animate-slide-up" style="animation-delay:0.07s">
+        <div class="px-4 mt-3 animate-slide-up" style="animation-delay:0.09s">
           <app-walk-card (onStart)="showWalk.set(true)" />
         </div>
 
         @if (!workoutService.hasProgram()) {
-          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.08s">
+          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
             <app-setup-workout-card (onSetup)="router.navigateByUrl('/my-workout')" />
           </div>
         }
 
         @if (todayWorkout()) {
-          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
+          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.12s">
             <app-daily-workout-card
               [workout]="todayWorkout()!"
               [finished]="workoutService.todayFinished()"
@@ -195,15 +247,103 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
 
   userEmail      = computed(() => this.auth.user()?.email ?? '');
   workoutsDone   = computed(() => this.ranking.myRank()?.workoutsDone ?? Number(this.auth.profile().workouts_done ?? 0));
+  currentRank    = computed(() => this.ranking.myRank()?.rank ?? 0);
+  currentXp      = computed(() => this.ranking.myRank()?.totalXp ?? 0);
+  currentStreak  = computed(() => this.ranking.myRank()?.streakDays ?? 0);
+  dailyXp        = computed(() => {
+    const today = isoToday();
+    const workoutXp = this.workoutService.history()
+      .filter(session => session.completedAt === today)
+      .reduce((total, session) => total + session.xpEarned, 0);
+    const walkXp = this.walkSvc.history().filter(session => session.finishedAt.startsWith(today)).length * 5;
+    return workoutXp + walkXp;
+  });
+  todayWalkDone  = computed(() => this.walkSvc.history().some(session => session.finishedAt.startsWith(isoToday())));
+  nextRankEntry  = computed(() => {
+    const me = this.ranking.myRank();
+    if (!me || me.rank <= 1) return null;
+    return this.ranking.entries().find(entry => entry.rank === me.rank - 1) ?? this.ranking.entries()[me.rank - 2] ?? null;
+  });
+  positionsToClimb = computed(() => {
+    const me = this.ranking.myRank();
+    return me ? Math.min(3, Math.max(me.rank - 1, 0)) : 0;
+  });
+  xpToNextRank = computed(() => {
+    const me = this.ranking.myRank();
+    const above = this.nextRankEntry();
+    if (!me || !above) return 0;
+    return Math.max(above.totalXp - me.totalXp + 1, 0);
+  });
+  xpToClimbTarget = computed(() => {
+    const me = this.ranking.myRank();
+    const steps = this.positionsToClimb();
+    if (!me || !steps) return 0;
+    const targetRank = Math.max(me.rank - steps, 1);
+    const target = this.ranking.entries().find(entry => entry.rank === targetRank) ?? this.ranking.entries()[targetRank - 1] ?? null;
+    if (!target) return 0;
+    return Math.max(target.totalXp - me.totalXp + 1, 0);
+  });
+  rankProgressPct = computed(() => {
+    const me = this.ranking.myRank();
+    const above = this.nextRankEntry();
+    if (!me || !above) return 100;
+    if (above.totalXp <= 0 || me.totalXp >= above.totalXp) return 100;
+    return Math.max(4, Math.min(99, Math.round((me.totalXp / above.totalXp) * 100)));
+  });
   yearlyGoalPct  = computed(() => {
     const done = this.workoutsDone();
     const goal = Number(this.auth.profile().yearly_goal  ?? 0);
     if (!goal) return 0;
     return Math.min(Math.round((done / goal) * 100), 100);
   });
+  dailyChallenge = computed<DailyChallengeView>(() => {
+    const hasWorkoutReady = !!this.todayWorkout() && !this.workoutService.todayFinished();
+    const positions = this.positionsToClimb();
+    const xpNeed = this.xpToClimbTarget();
+
+    if (hasWorkoutReady) {
+      return {
+        title: 'Complete 1 treino',
+        description: 'Seu treino de hoje é o atalho mais forte para subir agora no ranking.',
+        reward: '+70 XP estimados',
+        impact: positions > 0 ? `até +${positions} posições` : 'segurar a liderança',
+        hint: xpNeed > 0 ? `Mais ${xpNeed} XP colocam você na cola de quem está acima.` : 'Um treino agora mantém sua vantagem viva.',
+        actionLabel: 'Completar agora',
+        icon: '🏋️',
+        action: 'workout',
+      };
+    }
+
+    if (!this.todayWalkDone()) {
+      return {
+        title: 'Caminhe 2km',
+        description: 'Uma caminhada curta hoje mantém seu ritmo e empilha XP com esforço leve.',
+        reward: '+5 XP garantidos',
+        impact: positions > 0 ? 'pressão sobre o topo' : 'liderança protegida',
+        hint: 'Ative a caminhada e transforme um intervalo do dia em avanço no ranking.',
+        actionLabel: 'Completar agora',
+        icon: '🚶',
+        action: 'walk',
+      };
+    }
+
+    return {
+      title: 'Mantenha sua streak',
+      description: 'Sua consistência diária já está viva. Feche o dia com mais uma ação para não esfriar.',
+      reward: `🔥 ${Math.max(this.currentStreak(), 1)} dias ativos`,
+      impact: positions > 0 ? `suba ${positions} posições hoje` : 'continue no topo',
+      hint: 'Quem mantém a sequência aparece todos os dias na frente do feed e do ranking.',
+      actionLabel: 'Completar agora',
+      icon: '🔥',
+      action: 'workout',
+    };
+  });
   showNewPost       = signal(false);
   showWalk          = signal(false);
   showNotifications = signal(false);
+  previousRankSnapshot = signal<number | null>(null);
+  recentRankDelta = signal(0);
+  recentXpGain = signal(0);
   todayWorkout = computed(() => this.workoutService.todayWorkout());
 
   posts      = signal<WorkoutPost[]>([]);
@@ -217,9 +357,70 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   private pulling      = false;
   private pullLocked   = false; // true once we confirmed downward drag from top
   private readonly THRESHOLD = 70;
+  private rankingPoll: ReturnType<typeof setInterval> | null = null;
+  private xpFeedbackTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastSeenTotalXp: number | null = null;
+  private lastSeenUserId: string | null = null;
+
+  constructor() {
+    effect(() => {
+      const me = this.ranking.myRank();
+      const userId = this.auth.user()?.id;
+      if (!me || !userId) return;
+
+      const raw = localStorage.getItem(`${HOME_RANK_SNAPSHOT_KEY}:${userId}`);
+      if (!raw) {
+        this.previousRankSnapshot.set(me.rank);
+        this.recentRankDelta.set(0);
+      } else {
+        try {
+          const snapshot = JSON.parse(raw) as RankSnapshot;
+          this.previousRankSnapshot.set(snapshot.rank ?? me.rank);
+          this.recentRankDelta.set(Math.max((snapshot.rank ?? me.rank) - me.rank, -99));
+        } catch {
+          this.previousRankSnapshot.set(me.rank);
+          this.recentRankDelta.set(0);
+        }
+      }
+
+      localStorage.setItem(`${HOME_RANK_SNAPSHOT_KEY}:${userId}`, JSON.stringify({ rank: me.rank, totalXp: me.totalXp }));
+    });
+
+    effect(() => {
+      const userId = this.auth.user()?.id ?? null;
+      const totalXp = this.currentXp();
+
+      if (userId !== this.lastSeenUserId) {
+        this.lastSeenUserId = userId;
+        this.lastSeenTotalXp = totalXp;
+        this.recentXpGain.set(0);
+        if (this.xpFeedbackTimer) {
+          clearTimeout(this.xpFeedbackTimer);
+          this.xpFeedbackTimer = null;
+        }
+        return;
+      }
+
+      if (this.lastSeenTotalXp === null) {
+        this.lastSeenTotalXp = totalXp;
+        return;
+      }
+
+      const gainedXp = totalXp - this.lastSeenTotalXp;
+      this.lastSeenTotalXp = totalXp;
+
+      if (gainedXp <= 0) return;
+
+      this.recentXpGain.set(gainedXp);
+      if (this.xpFeedbackTimer) clearTimeout(this.xpFeedbackTimer);
+      this.xpFeedbackTimer = setTimeout(() => this.recentXpGain.set(0), 1800);
+    });
+  }
 
   ngOnInit(): void {
     this.loadFeed();
+    void this.ranking.load(true);
+    this.rankingPoll = setInterval(() => void this.ranking.load(true), 60000);
   }
 
   ngAfterViewInit(): void {
@@ -232,11 +433,14 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     const el = this.mainScrollRef?.nativeElement;
-    if (!el) return;
-    el.removeEventListener('touchstart',  this.onTouchStart);
-    el.removeEventListener('touchmove',   this.onTouchMove);
-    el.removeEventListener('touchend',    this.onTouchEnd);
-    el.removeEventListener('touchcancel', this.onTouchEnd);
+    if (el) {
+      el.removeEventListener('touchstart',  this.onTouchStart);
+      el.removeEventListener('touchmove',   this.onTouchMove);
+      el.removeEventListener('touchend',    this.onTouchEnd);
+      el.removeEventListener('touchcancel', this.onTouchEnd);
+    }
+    if (this.rankingPoll) clearInterval(this.rankingPoll);
+    if (this.xpFeedbackTimer) clearTimeout(this.xpFeedbackTimer);
   }
 
   private onTouchStart = (e: TouchEvent): void => {
@@ -310,6 +514,20 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
 
   startWorkout(id: string): void {
     this.router.navigateByUrl(`/workout/${id}`);
+  }
+
+  handleDailyChallenge(): void {
+    if (this.dailyChallenge().action === 'workout') {
+      const workout = this.todayWorkout();
+      if (workout) {
+        this.startWorkout(workout.id);
+        return;
+      }
+      this.router.navigateByUrl('/my-workout');
+      return;
+    }
+
+    this.showWalk.set(true);
   }
 
   addPost(post: WorkoutPost): void {
