@@ -4,6 +4,8 @@ import { supabase } from '../supabase/supabaseClient';
 import { environment } from '../../../environments/environment';
 
 const DEFAULT_YEARLY_GOAL = 320;
+const AUTH_STORAGE_KEY = 'repify-auth';
+const APP_STORAGE_PREFIX = 'repify_';
 
 export interface UserProfile {
   full_name: string;
@@ -38,6 +40,7 @@ export class AuthService {
   private readonly _initialized = signal(false);
   private readonly _avatarUrl   = signal<string>('');
   private syncingProfile = false;
+  private lastSessionUserId: string | null = null;
 
   readonly session         = this._session.asReadonly();
   readonly user            = computed<User | null>(() => this._session()?.user ?? null);
@@ -67,6 +70,13 @@ export class AuthService {
 
   private init(): void {
     supabase.auth.onAuthStateChange((_event, session) => {
+      const nextUserId = session?.user?.id ?? null;
+      if (this.lastSessionUserId !== nextUserId) {
+        this.clearRepifyStorage({ preserveAuthSession: true });
+        this._avatarUrl.set('');
+      }
+
+      this.lastSessionUserId = nextUserId;
       this._session.set(session);
 
       const meta        = session?.user?.user_metadata ?? {};
@@ -169,6 +179,7 @@ export class AuthService {
   }
 
   async signInWithGoogle(): Promise<void> {
+    this.prepareForAccountSwitch();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -180,6 +191,7 @@ export class AuthService {
   }
 
   async signUp(email: string, password: string): Promise<void> {
+    this.prepareForAccountSwitch();
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) throw this.mapError(error);
 
@@ -192,6 +204,7 @@ export class AuthService {
   }
 
   async signIn(email: string, password: string): Promise<void> {
+    this.prepareForAccountSwitch();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw this.mapError(error);
   }
@@ -199,6 +212,8 @@ export class AuthService {
   async signOut(): Promise<void> {
     const { error } = await supabase.auth.signOut();
     if (error) throw this.mapError(error);
+    this.clearRepifyStorage({ preserveAuthSession: false });
+    this._avatarUrl.set('');
   }
 
   async updateProfile(data: Partial<UserProfile>): Promise<void> {
@@ -266,6 +281,38 @@ export class AuthService {
     if (data.avatar_url) {
       this._resolveAvatarUrl(data.avatar_url, data.avatar_version ?? this.profile().avatar_version);
     }
+  }
+
+  private prepareForAccountSwitch(): void {
+    this.clearRepifyStorage({ preserveAuthSession: true });
+    this._avatarUrl.set('');
+  }
+
+  private clearRepifyStorage(options: { preserveAuthSession: boolean }): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const localKeys: string[] = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (!key) continue;
+      if (!key.startsWith(APP_STORAGE_PREFIX)) continue;
+      if (options.preserveAuthSession && key === AUTH_STORAGE_KEY) continue;
+      localKeys.push(key);
+    }
+
+    localKeys.forEach(key => localStorage.removeItem(key));
+
+    const sessionKeys: string[] = [];
+    for (let index = 0; index < sessionStorage.length; index += 1) {
+      const key = sessionStorage.key(index);
+      if (!key) continue;
+      if (!key.startsWith(APP_STORAGE_PREFIX)) continue;
+      sessionKeys.push(key);
+    }
+
+    sessionKeys.forEach(key => sessionStorage.removeItem(key));
   }
 
   private mapError(error: AuthError): Error {
