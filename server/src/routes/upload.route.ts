@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { randomUUID } from 'crypto';
 import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
-import { upload } from '../middleware/upload.middleware';
+import { uploadSingle } from '../middleware/upload.middleware';
 import { processImage } from '../lib/image-processor';
 import { supabaseAdmin } from '../supabase';
 
@@ -16,7 +16,7 @@ const BUCKET = 'workout-photos';
 router.post(
   '/post-photo',
   requireAuth,
-  upload.single('photo'),
+  uploadSingle('photo'),
   async (req: AuthRequest, res: Response) => {
     if (!req.file) {
       res.status(400).json({ error: 'Nenhuma imagem enviada.' });
