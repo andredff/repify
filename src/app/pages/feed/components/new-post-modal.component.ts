@@ -701,6 +701,9 @@ export class NewPostModalComponent {
       year: 'numeric',
     }).format(new Date());
     const dateLabel = summary.sessionLabel === 'Treino de hoje' ? todayDateLabel : summary.sessionLabel;
+    const challengeSubheadline = summary.xpEarned >= 100
+      ? `+${summary.xpEarned} XP EM ${summary.durationMinutes} MIN. VAMOS VER QUEM SUSTENTA O RITMO.`
+      : `${summary.exercisesDone}/${summary.totalExercises} EXERCICIOS FECHADOS. QUERO VER QUEM ACOMPANHA.`;
     const metrics = [
       { label: 'Tempo', value: `${summary.durationMinutes} min` },
       { label: 'Tipo', value: summary.workoutType },
@@ -902,9 +905,15 @@ export class NewPostModalComponent {
     context.fillStyle = '#00FF88';
     context.fillText('CONCLUIDO', 72, 338);
 
-    context.font = '700 34px "Arial", sans-serif';
-    context.fillStyle = 'rgba(234,242,255,0.82)';
-    context.fillText('RESULTADO ENTREGUE. AGORA QUERO RESPOSTA.', 74, 394);
+    drawWrappedText(challengeSubheadline, 74, 394, 932, {
+      fontFamily: '"Arial", sans-serif',
+      fontWeight: 700,
+      maxFontSize: 34,
+      minFontSize: 20,
+      color: 'rgba(234,242,255,0.82)',
+      maxLines: 2,
+      lineHeight: 38,
+    });
 
     fillRoundedRect(64, 444, 952, 250, 38, 'rgba(8,12,16,0.56)');
     strokeRoundedRect(64, 444, 952, 250, 38, 'rgba(255,255,255,0.08)', 2);
