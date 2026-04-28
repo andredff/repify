@@ -66,7 +66,7 @@ router.get('/public/:id', async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/posts — feed público (paginado), com dados do autor
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/', auth_middleware_1.requireAuth, async (req, res) => {
+router.get('/', auth_middleware_1.optionalAuth, async (req, res) => {
     const limit = Math.min(Number(req.query['limit']) || 20, 50);
     const offset = Math.max(Number(req.query['offset']) || 0, 0);
     const { data: posts, error } = await supabase_1.supabaseAdmin
@@ -79,7 +79,7 @@ router.get('/', auth_middleware_1.requireAuth, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch posts.' });
         return;
     }
-    const enriched = await enrichWithAuthorsAndLikes(posts ?? [], req.userId);
+    const enriched = await enrichWithAuthorsAndLikes(posts ?? [], req.userId ?? null);
     res.json({ posts: enriched, limit, offset });
 });
 // ─────────────────────────────────────────────────────────────────────────────
@@ -353,11 +353,13 @@ async function enrichWithAuthorsAndLikes(posts, currentUserId) {
     }
     // Likes given by the current user across these posts
     const postIds = posts.map(p => p.id);
-    const { data: myLikes } = await supabase_1.supabaseAdmin
-        .from('post_likes')
-        .select('post_id')
-        .eq('user_id', currentUserId)
-        .in('post_id', postIds);
+    const myLikes = currentUserId
+        ? (await supabase_1.supabaseAdmin
+            .from('post_likes')
+            .select('post_id')
+            .eq('user_id', currentUserId)
+            .in('post_id', postIds)).data
+        : [];
     const [{ data: statsRows }, { data: workoutRows }] = await Promise.all([
         supabase_1.supabaseAdmin
             .from('user_stats')

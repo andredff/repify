@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 import { AuthService } from '../../../core/services/auth.service';
+import { PermissionService } from '../../../core/services/permission.service';
 import { PostService } from '../../../core/services/post.service';
 import { CommentsSheetComponent } from './comments-sheet.component';
 import { ShareCardComponent } from './share-card.component';
@@ -134,7 +135,7 @@ const MUSCLE_COLORS: Record<string, string> = {
 
       <!-- Photo -->
       @if (post().photo) {
-        <div class="mx-4 mb-3 rounded-xl overflow-hidden" style="max-height:420px">
+        <div class="mx-4 mb-3 rounded-xl overflow-hidden cursor-pointer" style="max-height:420px" (click)="openDetails()">
           <img [src]="post().photo" alt="foto do treino" class="w-full h-full object-cover" />
         </div>
       }
@@ -162,7 +163,7 @@ const MUSCLE_COLORS: Record<string, string> = {
       <div class="flex items-center justify-between px-4 py-3 border-t border-border">
         <div class="flex items-center gap-4">
           <button
-            (click)="onLike.emit()"
+            (click)="handleLike()"
             class="flex items-center gap-1.5 transition-all active:scale-90"
             [class]="post().liked ? 'text-primary' : 'text-text-2 hover:text-white'"
           >
@@ -174,7 +175,7 @@ const MUSCLE_COLORS: Record<string, string> = {
             <span class="text-[12px] font-body font-medium">{{ post().likes }}</span>
           </button>
 
-          <button (click)="showComments.set(true)"
+          <button (click)="openComments()"
                   class="flex items-center gap-1.5 text-text-2 hover:text-white transition-colors active:scale-90">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -183,12 +184,18 @@ const MUSCLE_COLORS: Record<string, string> = {
           </button>
         </div>
 
-        <button (click)="showShareCard.set(true)" class="text-text-2 hover:text-white transition-colors active:scale-90">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-          </svg>
-        </button>
+        <div class="flex items-center gap-3">
+          <button (click)="openDetails()"
+                  class="text-[12px] font-body font-semibold text-text-2 transition-colors hover:text-white">
+            Detalhes
+          </button>
+          <button (click)="showShareCard.set(true)" class="text-text-2 hover:text-white transition-colors active:scale-90">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+          </button>
+        </div>
       </div>
     </article>
 
@@ -238,6 +245,7 @@ export class WorkoutPostComponent {
 
   private router      = inject(Router);
   private auth        = inject(AuthService);
+  private permission  = inject(PermissionService);
   private postService = inject(PostService);
 
   menuOpen         = signal(false);
@@ -295,10 +303,34 @@ export class WorkoutPostComponent {
   }
 
   goToProfile(): void {
+    if (!this.permission.requireAuthenticated('acessar perfis completos')) {
+      return;
+    }
+
     const username = this.post().user.username;
     const id       = this.post().user.id;
     if (username) this.router.navigateByUrl(`/u/${username}`);
     else if (id)  this.router.navigateByUrl(`/u/${id}`);
+  }
+
+  handleLike(): void {
+    if (!this.permission.requireAuthenticated('curtir e comentar')) {
+      return;
+    }
+
+    this.onLike.emit();
+  }
+
+  openComments(): void {
+    if (!this.permission.requireAuthenticated('curtir e comentar')) {
+      return;
+    }
+
+    this.showComments.set(true);
+  }
+
+  openDetails(): void {
+    this.router.navigateByUrl(`/p/${this.post().id}`);
   }
 
   muscleEmoji(): string {

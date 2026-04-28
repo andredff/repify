@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireAuth = requireAuth;
+exports.optionalAuth = optionalAuth;
 const supabase_1 = require("../supabase");
 async function requireAuth(req, res, next) {
     const header = req.headers.authorization;
@@ -18,5 +19,19 @@ async function requireAuth(req, res, next) {
     }
     req.userId = data.user.id;
     req.userEmail = data.user.email;
+    next();
+}
+async function optionalAuth(req, _res, next) {
+    const header = req.headers.authorization;
+    if (!header?.startsWith('Bearer ')) {
+        next();
+        return;
+    }
+    const token = header.slice(7);
+    const { data, error } = await supabase_1.supabaseAdmin.auth.getUser(token);
+    if (!error && data.user) {
+        req.userId = data.user.id;
+        req.userEmail = data.user.email;
+    }
     next();
 }

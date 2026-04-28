@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './pages/login/login.component';
 import { authGuard } from './core/guards/auth.guard';
+import { previewModeGuard } from './core/guards/preview-mode.guard';
 import { AppShellComponent } from './shared/app-shell.component';
 
 export const routes: Routes = [
@@ -19,13 +20,20 @@ export const routes: Routes = [
   {
     path: '',
     component: AppShellComponent,
-    canActivate: [authGuard],
+    canActivate: [previewModeGuard],
     children: [
       {
         path: 'feed',
         loadComponent: () =>
           import('./pages/feed/feed.component').then(m => m.FeedComponent),
       },
+    ],
+  },
+  {
+    path: '',
+    component: AppShellComponent,
+    canActivate: [authGuard],
+    children: [
       {
         path: 'profile',
         loadComponent: () =>

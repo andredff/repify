@@ -9,6 +9,9 @@ const DEFAULT_WEEKLY_GOAL_DAYS = 4;
 const AUTH_STORAGE_KEY = 'repify-auth';
 const APP_STORAGE_PREFIX = 'repify_';
 const PROFILE_CACHE_KEY = `${APP_STORAGE_PREFIX}profile_cache`;
+const PREVIEW_STORAGE_KEY = `${APP_STORAGE_PREFIX}preview_mode`;
+
+export type AuthState = 'guest' | 'auth' | 'preview';
 
 export interface UserProfile {
   full_name: string;
@@ -52,6 +55,7 @@ export class AuthService {
   private readonly _profileCache = signal<Partial<UserProfile>>({});
   private readonly _profileReady = signal(false);
   private readonly _profileSyncing = signal(false);
+  private readonly _previewMode = signal(this.readPreviewMode());
   private syncingProfile = false;
   private signingOutFromUnauthorized = false;
   private lastSessionUserId: string | null = null;
@@ -59,6 +63,12 @@ export class AuthService {
   readonly session         = this._session.asReadonly();
   readonly user            = computed<User | null>(() => this._session()?.user ?? null);
   readonly isAuthenticated = computed(() => !!this._session());
+  readonly isPreview       = this._previewMode.asReadonly();
+  readonly authState       = computed<AuthState>(() => {
+    if (this.isAuthenticated()) return 'auth';
+    if (this._previewMode()) return 'preview';
+    return 'guest';
+  });
   readonly initialized     = this._initialized.asReadonly();
   readonly avatarUrl       = this._avatarUrl.asReadonly();
   readonly profileReady    = this._profileReady.asReadonly();
@@ -94,12 +104,19 @@ export class AuthService {
     supabase.auth.onAuthStateChange((_event, session) => {
       const nextUserId = session?.user?.id ?? null;
       if (this.lastSessionUserId !== nextUserId) {
-        this.clearRepifyStorage({ preserveAuthSession: true });
+        this.clearRepifyStorage({
+          preserveAuthSession: true,
+          preservePreviewMode: !session && this._previewMode(),
+        });
         this._avatarUrl.set('');
       }
 
       this.lastSessionUserId = nextUserId;
       this._session.set(session);
+
+      if (session) {
+        this.setPreviewMode(false);
+      }
 
       const cachedProfile = nextUserId ? this.readCachedProfile(nextUserId) : {};
       this._profileCache.set(cachedProfile);
@@ -264,8 +281,17 @@ export class AuthService {
   async signOut(): Promise<void> {
     const { error } = await supabase.auth.signOut();
     if (error) throw this.mapError(error);
-    this.clearRepifyStorage({ preserveAuthSession: false });
+    this.setPreviewMode(false);
+    this.clearRepifyStorage({ preserveAuthSession: false, preservePreviewMode: false });
     this._avatarUrl.set('');
+  }
+
+  enterPreviewMode(): void {
+    this.setPreviewMode(true);
+  }
+
+  exitPreviewMode(): void {
+    this.setPreviewMode(false);
   }
 
   private async handleUnauthorizedResponse(): Promise<void> {
@@ -277,7 +303,8 @@ export class AuthService {
 
     try {
       await supabase.auth.signOut();
-      this.clearRepifyStorage({ preserveAuthSession: false });
+      this.setPreviewMode(false);
+      this.clearRepifyStorage({ preserveAuthSession: false, preservePreviewMode: false });
       this._avatarUrl.set('');
       this._profileCache.set({});
       this._profileReady.set(true);
@@ -403,11 +430,35 @@ export class AuthService {
   }
 
   private prepareForAccountSwitch(): void {
-    this.clearRepifyStorage({ preserveAuthSession: true });
+    this.setPreviewMode(false);
+    this.clearRepifyStorage({ preserveAuthSession: true, preservePreviewMode: false });
     this._avatarUrl.set('');
   }
 
-  private clearRepifyStorage(options: { preserveAuthSession: boolean }): void {
+  private readPreviewMode(): boolean {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return window.localStorage.getItem(PREVIEW_STORAGE_KEY) === 'true';
+  }
+
+  private setPreviewMode(enabled: boolean): void {
+    this._previewMode.set(enabled);
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (enabled) {
+      window.localStorage.setItem(PREVIEW_STORAGE_KEY, 'true');
+      return;
+    }
+
+    window.localStorage.removeItem(PREVIEW_STORAGE_KEY);
+  }
+
+  private clearRepifyStorage(options: { preserveAuthSession: boolean; preservePreviewMode: boolean }): void {
     if (typeof window === 'undefined') {
       return;
     }
@@ -418,6 +469,7 @@ export class AuthService {
       if (!key) continue;
       if (!key.startsWith(APP_STORAGE_PREFIX)) continue;
       if (options.preserveAuthSession && key === AUTH_STORAGE_KEY) continue;
+      if (options.preservePreviewMode && key === PREVIEW_STORAGE_KEY) continue;
       localKeys.push(key);
     }
 

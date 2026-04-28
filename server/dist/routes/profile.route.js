@@ -13,6 +13,9 @@ const ProfileSchema = zod_1.z.object({
     height: zod_1.z.number().min(50).max(300).nullable().optional(),
     goal: zod_1.z.string().max(50).optional(),
     yearly_goal: zod_1.z.number().int().min(1).max(999).nullable().optional(),
+    weekly_goal_days: zod_1.z.number().int().min(3).max(5).nullable().optional(),
+    weekly_goal_completed_weeks: zod_1.z.array(zod_1.z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(156).optional(),
+    weekly_goal_best_streak: zod_1.z.number().int().min(0).max(520).nullable().optional(),
 });
 // GET /api/profile/me
 router.get('/me', auth_middleware_1.requireAuth, async (req, res) => {
@@ -43,6 +46,9 @@ router.get('/me', auth_middleware_1.requireAuth, async (req, res) => {
         goal: meta['goal'] ?? '',
         avatar_url: meta['avatar_url'] ?? '',
         yearly_goal: meta['yearly_goal'] ?? null,
+        weekly_goal_days: meta['weekly_goal_days'] ?? null,
+        weekly_goal_completed_weeks: Array.isArray(meta['weekly_goal_completed_weeks']) ? meta['weekly_goal_completed_weeks'] : [],
+        weekly_goal_best_streak: meta['weekly_goal_best_streak'] ?? 0,
         workouts_done: Number(workoutsDone ?? meta['workouts_done'] ?? 0),
     });
 });

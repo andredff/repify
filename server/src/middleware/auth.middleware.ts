@@ -29,3 +29,22 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
   req.userEmail = data.user.email;
   next();
 }
+
+export async function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction): Promise<void> {
+  const header = req.headers.authorization;
+
+  if (!header?.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+
+  const token = header.slice(7);
+  const { data, error } = await supabaseAdmin.auth.getUser(token);
+
+  if (!error && data.user) {
+    req.userId = data.user.id;
+    req.userEmail = data.user.email;
+  }
+
+  next();
+}

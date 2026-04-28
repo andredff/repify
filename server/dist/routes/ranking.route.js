@@ -153,7 +153,7 @@ router.get('/', auth_middleware_1.requireAuth, async (req, res) => {
 });
 // ── POST /api/ranking/xp — record XP event and upsert user_stats ─────────────
 const XpSchema = zod_1.z.object({
-    type: zod_1.z.enum(['workout', 'walk', 'streak_bonus']),
+    type: zod_1.z.enum(['workout', 'walk', 'streak_bonus', 'weekly_goal_bonus']),
     xp: zod_1.z.number().int().min(1).max(500),
     streakDays: zod_1.z.number().int().min(0).optional(),
     distanceKm: zod_1.z.number().min(0).max(500).optional(),

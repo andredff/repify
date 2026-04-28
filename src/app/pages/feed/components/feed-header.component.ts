@@ -39,89 +39,101 @@ import { NotificationService } from '../../../core/services/notification.service
 
         <!-- Right actions -->
         <div class="flex items-center gap-3 shrink-0 ml-auto">
-          <!-- Notif bell -->
-          <button (click)="onOpenNotifications.emit()"
-                  class="relative w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-primary hover:border-primary transition-colors">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-            @if (notifSvc.hasUnread()) {
-              <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full shadow-glow-sm animate-pulse"></span>
-            }
-          </button>
-
-          <div class="relative">
-            <button
-              type="button"
-              (click)="toggleMenu()"
-              class="relative z-50 w-9 h-9 rounded-full border border-primary/40 overflow-hidden flex items-center justify-center text-xs font-display font-bold text-primary bg-gradient-to-br from-primary/30 to-secondary/20 shrink-0 hover:border-primary hover:shadow-glow-sm transition-all active:scale-90"
-              aria-label="Abrir menu do perfil"
-              aria-haspopup="menu"
-              [attr.aria-expanded]="menuOpen()">
-              @if (auth.avatarUrl()) {
-                <img [src]="auth.avatarUrl()" alt="avatar" class="w-full h-full object-cover" />
-              } @else {
-                {{ initials() }}
+          @if (previewMode()) {
+            <button type="button"
+                    (click)="goToLogin()"
+                    class="rounded-full border border-border bg-card-2 px-3 py-2 text-[11px] font-body font-semibold text-white transition-colors hover:border-primary/40 hover:text-primary">
+              Entrar
+            </button>
+            <button type="button"
+                    (click)="goToRegister()"
+                    class="rounded-full bg-primary px-3.5 py-2 text-[11px] font-body font-semibold text-bg shadow-glow transition-all hover:bg-primary/90">
+              Criar conta
+            </button>
+          } @else {
+            <button (click)="onOpenNotifications.emit()"
+                    class="relative w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-primary hover:border-primary transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+              @if (notifSvc.hasUnread()) {
+                <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full shadow-glow-sm animate-pulse"></span>
               }
             </button>
 
-            @if (menuOpen()) {
+            <div class="relative">
               <button
                 type="button"
-                class="fixed inset-0 z-40 cursor-default"
-                aria-label="Fechar menu do perfil"
-                (click)="closeMenu()"></button>
+                (click)="toggleMenu()"
+                class="relative z-50 w-9 h-9 rounded-full border border-primary/40 overflow-hidden flex items-center justify-center text-xs font-display font-bold text-primary bg-gradient-to-br from-primary/30 to-secondary/20 shrink-0 hover:border-primary hover:shadow-glow-sm transition-all active:scale-90"
+                aria-label="Abrir menu do perfil"
+                aria-haspopup="menu"
+                [attr.aria-expanded]="menuOpen()">
+                @if (auth.avatarUrl()) {
+                  <img [src]="auth.avatarUrl()" alt="avatar" class="w-full h-full object-cover" />
+                } @else {
+                  {{ initials() }}
+                }
+              </button>
 
-              <div class="absolute right-0 top-[calc(100%+12px)] z-50 w-[220px] rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl overflow-hidden">
-                <div class="px-4 py-3 border-b border-border bg-gradient-to-r from-primary/10 to-transparent">
-                  <p class="text-[12px] font-body text-text-2">Conectado como</p>
-                  <p class="text-[13px] font-display font-bold text-white truncate">{{ displayName() }}</p>
+              @if (menuOpen()) {
+                <button
+                  type="button"
+                  class="fixed inset-0 z-40 cursor-default"
+                  aria-label="Fechar menu do perfil"
+                  (click)="closeMenu()"></button>
+
+                <div class="absolute right-0 top-[calc(100%+12px)] z-50 w-[220px] rounded-2xl border border-border bg-card/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+                  <div class="px-4 py-3 border-b border-border bg-gradient-to-r from-primary/10 to-transparent">
+                    <p class="text-[12px] font-body text-text-2">Conectado como</p>
+                    <p class="text-[13px] font-display font-bold text-white truncate">{{ displayName() }}</p>
+                  </div>
+
+                  <div class="p-2">
+                    <button type="button"
+                            (click)="navigate('/progress')"
+                            class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-white hover:bg-card-2 transition-colors">
+                      <span class="text-[18px]">📈</span>
+                      <div>
+                        <p class="text-[13px] font-body font-semibold">Meu progresso</p>
+                        <p class="text-[11px] font-body text-text-2">Dashboard com evolução e histórico</p>
+                      </div>
+                    </button>
+
+                    <button type="button"
+                            (click)="navigate('/profile')"
+                            class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-white hover:bg-card-2 transition-colors">
+                      <span class="text-[18px]">👤</span>
+                      <div>
+                        <p class="text-[13px] font-body font-semibold">Meu perfil</p>
+                        <p class="text-[11px] font-body text-text-2">Editar foto, dados e conta</p>
+                      </div>
+                    </button>
+
+                    <button type="button"
+                            (click)="goToPublicProfile()"
+                            class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-white hover:bg-card-2 transition-colors">
+                      <span class="text-[18px]">🌐</span>
+                      <div>
+                        <p class="text-[13px] font-body font-semibold">Perfil publico</p>
+                        <p class="text-[11px] font-body text-text-2">Ver como outros usuarios enxergam</p>
+                      </div>
+                    </button>
+
+                    <button type="button"
+                            (click)="logout()"
+                            class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-danger hover:bg-danger/10 transition-colors">
+                      <span class="text-[18px]">↩</span>
+                      <div>
+                        <p class="text-[13px] font-body font-semibold">Sair</p>
+                        <p class="text-[11px] font-body text-text-2">Encerrar a sessão atual</p>
+                      </div>
+                    </button>
+                  </div>
                 </div>
-
-                <div class="p-2">
-                  <button type="button"
-                          (click)="navigate('/progress')"
-                          class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-white hover:bg-card-2 transition-colors">
-                    <span class="text-[18px]">📈</span>
-                    <div>
-                      <p class="text-[13px] font-body font-semibold">Meu progresso</p>
-                      <p class="text-[11px] font-body text-text-2">Dashboard com evolução e histórico</p>
-                    </div>
-                  </button>
-
-                  <button type="button"
-                          (click)="navigate('/profile')"
-                          class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-white hover:bg-card-2 transition-colors">
-                    <span class="text-[18px]">👤</span>
-                    <div>
-                      <p class="text-[13px] font-body font-semibold">Meu perfil</p>
-                      <p class="text-[11px] font-body text-text-2">Editar foto, dados e conta</p>
-                    </div>
-                  </button>
-
-                  <button type="button"
-                          (click)="goToPublicProfile()"
-                          class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-white hover:bg-card-2 transition-colors">
-                    <span class="text-[18px]">🌐</span>
-                    <div>
-                      <p class="text-[13px] font-body font-semibold">Perfil publico</p>
-                      <p class="text-[11px] font-body text-text-2">Ver como outros usuarios enxergam</p>
-                    </div>
-                  </button>
-
-                  <button type="button"
-                          (click)="logout()"
-                          class="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left text-danger hover:bg-danger/10 transition-colors">
-                    <span class="text-[18px]">↩</span>
-                    <div>
-                      <p class="text-[13px] font-body font-semibold">Sair</p>
-                      <p class="text-[11px] font-body text-text-2">Encerrar a sessão atual</p>
-                    </div>
-                  </button>
-                </div>
-              </div>
-            }
-          </div>
+              }
+            </div>
+          }
         </div>
       </div>
     </header>
@@ -135,6 +147,7 @@ export class FeedHeaderComponent {
   userEmail          = input<string>('');
   title              = input<string>('');
   subtitle           = input<string>('');
+  previewMode        = input(false);
   showBack           = input(false);
   onLogout           = output<void>();
   onBack             = output<void>();
@@ -171,6 +184,14 @@ export class FeedHeaderComponent {
     this.onLogout.emit();
     await this.auth.signOut();
     await this.router.navigateByUrl('/');
+  }
+
+  goToLogin(): void {
+    this.router.navigateByUrl('/');
+  }
+
+  goToRegister(): void {
+    this.router.navigateByUrl('/register');
   }
 
 }

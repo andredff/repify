@@ -48,4 +48,9 @@ export class LoginComponent {
       this.loadingGoogle.set(false);
     }
   }
+
+  continueAsGuest(): void {
+    this.auth.enterPreviewMode();
+    this.router.navigateByUrl('/feed');
+  }
 }

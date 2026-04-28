@@ -22,6 +22,7 @@ import { RankingService } from '../../core/services/ranking.service';
 import { NotificationsPanelComponent } from './components/notifications-panel.component';
 import { HomeRankingCardComponent } from './components/home-ranking-card.component';
 import { WeeklyGoalCardComponent } from './components/weekly-goal-card.component';
+import { PermissionService } from '../../core/services/permission.service';
 
 export type { WorkoutPost };
 
@@ -48,8 +49,44 @@ interface XpCarouselSlide {
   hint: string;
 }
 
+interface PreviewActionCard {
+  kicker: string;
+  title: string;
+  description: string;
+  cta: string;
+  reason: string;
+  accentClass: string;
+}
+
 const HOME_RANK_SNAPSHOT_KEY = 'repify_home_rank_snapshot';
 const FEED_PAGE_SIZE = 20;
+
+const PREVIEW_ACTION_CARDS: PreviewActionCard[] = [
+  {
+    kicker: 'Liberar treino',
+    title: 'Comece um treino hoje e entre no jogo de verdade.',
+    description: 'Monte sua rotina, registre execução e transforme esforço em XP, streak e posição no ranking.',
+    cta: 'Iniciar meu treino',
+    reason: 'montar e iniciar treinos',
+    accentClass: 'from-primary/30 via-primary/10 to-transparent',
+  },
+  {
+    kicker: 'Criar plano',
+    title: 'Desenhe seu programa e pare de só assistir os outros.',
+    description: 'Organize dias, grupos musculares e evolução semanal para o app trabalhar a seu favor.',
+    cta: 'Criar meu treino',
+    reason: 'criar seu treino',
+    accentClass: 'from-[#00C2FF]/25 via-[#00C2FF]/8 to-transparent',
+  },
+  {
+    kicker: 'Desafiar amigos',
+    title: 'Publique, provoque e force resposta da turma.',
+    description: 'No preview você só observa. Com conta, você posta resultado, comenta e puxa rivalidade real.',
+    cta: 'Desafiar meus amigos',
+    reason: 'desafiar seus amigos',
+    accentClass: 'from-[#FF7A00]/25 via-[#FF7A00]/8 to-transparent',
+  },
+];
 
 function isoToday(): string {
   return new Date().toISOString().slice(0, 10);
@@ -79,38 +116,48 @@ function isoToday(): string {
     <div class="bg-bg relative">
 
       <!-- Mobile-only fixed header (hidden on desktop by the component itself) -->
-      <app-feed-header [userEmail]="userEmail()" (onOpenNotifications)="showNotifications.set(true)" />
+      <app-feed-header
+        [userEmail]="userEmail()"
+        [previewMode]="isPreview()"
+        (onOpenNotifications)="openNotificationsPanel()" />
 
       <!-- Desktop page header (hidden on mobile) -->
       <div class="hidden lg:flex items-center justify-between px-8 py-5 border-b border-border sticky top-0 bg-bg/95 backdrop-blur-sm z-40">
         <div>
           <h1 class="text-[22px] font-display font-bold text-white">Feed</h1>
-          <p class="text-[12px] font-body text-text-2 mt-0.5">O que a comunidade está treinando</p>
+          <p class="text-[12px] font-body text-text-2 mt-0.5">{{ isPreview() ? 'Explore os posts públicos em modo leitura' : 'O que a comunidade está treinando' }}</p>
         </div>
-        <div class="flex items-center gap-3">
-          <button (click)="showNotifications.set(true)"
-                  class="relative w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-primary hover:border-primary/50 transition-colors">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-            </svg>
-          </button>
-          <button (click)="showNewPost.set(true)"
-                  class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-bg font-body text-[13px] font-semibold hover:bg-primary/90 active:scale-95 transition-all shadow-glow">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-            Novo post
-          </button>
-        </div>
+        @if (!isPreview()) {
+          <div class="flex items-center gap-3">
+            <button (click)="openNotificationsPanel()"
+                    class="relative w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-primary hover:border-primary/50 transition-colors">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              </svg>
+            </button>
+            <button (click)="openNewPostPanel()"
+                    class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-bg font-body text-[13px] font-semibold hover:bg-primary/90 active:scale-95 transition-all shadow-glow">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Novo post
+            </button>
+          </div>
+        } @else {
+          <div class="flex items-center gap-2">
+            <a href="/" class="rounded-full border border-border bg-card-2 px-4 py-2 text-[12px] font-body font-semibold text-white transition-colors hover:border-primary/40 hover:text-primary">Entrar</a>
+            <a href="/register" class="rounded-full bg-primary px-4 py-2 text-[12px] font-body font-semibold text-bg shadow-glow transition-all hover:bg-primary/90">Criar conta</a>
+          </div>
+        }
       </div>
 
       <!-- ─── MOBILE layout (< lg) ──────────────────────────────── -->
       <div class="lg:hidden fixed inset-0 flex flex-col bg-bg" style="z-index: 10">
 
-        <main #mainScroll class="flex-1 overflow-y-auto pb-24" style="padding-top: calc(64px + env(safe-area-inset-top))">
+        <main #mainScroll class="flex-1 overflow-y-auto" [class.pb-24]="!isPreview()" [class.pb-10]="isPreview()" style="padding-top: calc(64px + env(safe-area-inset-top))">
 
           <!-- Pull to refresh indicator -->
           <div class="overflow-hidden transition-all duration-200 ease-out"
@@ -136,7 +183,11 @@ function isoToday(): string {
 
         </main>
 
-        <app-bottom-nav [active]="'feed'" (onNewPost)="showNewPost.set(true)" />
+        <app-bottom-nav
+          [active]="'feed'"
+          [previewMode]="isPreview()"
+          (onNewPost)="openNewPostPanel()"
+          (onPreviewAction)="openPreviewBlockedAction($event)" />
       </div>
 
       <!-- ─── DESKTOP layout (≥ lg) ──────────────────────────────── -->
@@ -148,6 +199,7 @@ function isoToday(): string {
         </div>
 
         <!-- Right rail -->
+        @if (!isPreview()) {
         <aside class="flex flex-col w-[280px] xl:w-[300px] shrink-0 gap-4 pb-8">
 
           <!-- Rank card -->
@@ -270,6 +322,7 @@ function isoToday(): string {
             </button>
           </div>
         </aside>
+        }
       </div>
 
       <!-- ─── Overlays (all layouts) ─────────────────────────── -->
@@ -310,9 +363,76 @@ function isoToday(): string {
     <!-- ─── Shared feed content template ──────────────────────────── -->
     <ng-template #feedContent>
 
-      <app-stories-bar />
+      @if (!isPreview()) {
+        <app-stories-bar />
+      }
 
-      @if (auth.profile().yearly_goal) {
+      @if (isPreview()) {
+        <div class="px-4 mt-4 animate-slide-up space-y-4">
+          <section class="overflow-hidden rounded-[30px] border border-primary/20 bg-[linear-gradient(135deg,rgba(0,255,136,0.16),rgba(7,11,15,0.98)_45%,rgba(7,11,15,1)_100%)] shadow-[0_18px_60px_rgba(0,255,136,0.10)]">
+            <div class="relative px-5 py-5">
+              <div class="absolute right-[-40px] top-[-50px] h-36 w-36 rounded-full blur-3xl" style="background:radial-gradient(circle,rgba(0,255,136,0.28),rgba(0,255,136,0));"></div>
+              <div class="absolute left-[55%] top-[30%] h-28 w-28 rounded-full blur-3xl" style="background:radial-gradient(circle,rgba(0,194,255,0.18),rgba(0,194,255,0));"></div>
+
+              <div class="relative z-[1]">
+                <div class="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-bg/55 px-3 py-1 text-[10px] font-body font-semibold uppercase tracking-[0.26em] text-primary/85">
+                  <span class="h-2 w-2 rounded-full bg-primary shadow-glow-sm"></span>
+                  Modo preview
+                </div>
+
+                <h2 class="mt-4 max-w-[11ch] font-display text-[34px] font-black uppercase leading-[0.92] tracking-[-0.04em] text-white">
+                  Veja o feed. Entre para dominar.
+                </h2>
+                <p class="mt-3 max-w-[32ch] text-[13px] font-body leading-relaxed text-white/78">
+                  Você já está dentro da vitrine. Agora falta desbloquear treino, ranking, postagens e rivalidade para virar presença de verdade no app.
+                </p>
+
+                <div class="mt-5 flex flex-wrap gap-2">
+                  <button type="button"
+                          (click)="openPreviewBlockedAction('montar e iniciar treinos')"
+                          class="rounded-full bg-primary px-4 py-2.5 text-[12px] font-body font-semibold text-bg shadow-glow transition-all hover:bg-primary/90">
+                    Iniciar um treino
+                  </button>
+                  <button type="button"
+                          (click)="openPreviewBlockedAction('criar seu treino')"
+                          class="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-[12px] font-body font-semibold text-white transition-colors hover:border-primary/35 hover:text-primary">
+                    Criar meu plano
+                  </button>
+                  <button type="button"
+                          (click)="openPreviewBlockedAction('desafiar seus amigos')"
+                          class="rounded-full border border-white/10 bg-white/5 px-4 py-2.5 text-[12px] font-body font-semibold text-white transition-colors hover:border-primary/35 hover:text-primary">
+                    Desafiar amigos
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="grid gap-3">
+            @for (card of previewActionCards; track card.title) {
+              <button type="button"
+                      (click)="openPreviewBlockedAction(card.reason)"
+                      class="group relative overflow-hidden rounded-[26px] border border-primary/10 bg-card-2 px-4 py-4 text-left transition-all hover:border-primary/30 hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r opacity-100" [class]="card.accentClass"></div>
+                <div class="relative z-[1] flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="text-[10px] font-body uppercase tracking-[0.24em] text-primary/78">{{ card.kicker }}</p>
+                    <p class="mt-2 text-[17px] font-display font-bold leading-tight text-white">{{ card.title }}</p>
+                    <p class="mt-2 text-[12px] font-body leading-relaxed text-text-2">{{ card.description }}</p>
+                  </div>
+                  <div class="shrink-0 rounded-full border border-primary/20 bg-bg/60 px-2.5 py-1 text-[10px] font-body font-semibold uppercase tracking-[0.18em] text-primary">Abrir</div>
+                </div>
+                <div class="relative z-[1] mt-4 inline-flex items-center gap-2 text-[12px] font-body font-semibold text-white transition-colors group-hover:text-primary">
+                  {{ card.cta }}
+                  <span aria-hidden="true">→</span>
+                </div>
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      @if (!isPreview() && auth.profile().yearly_goal) {
         <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
           <div class="bg-card-2 border border-border rounded-xl px-4 py-3 space-y-1.5">
             <div class="flex justify-between items-center">
@@ -329,36 +449,41 @@ function isoToday(): string {
         </div>
       }
 
-      <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.06s">
-        <app-weekly-goal-card
-          [goalDays]="weeklyGoal().goalDays"
-          [completedDays]="weeklyGoal().completedDays"
-          [remainingDays]="weeklyGoal().remainingDays"
-          [progressPct]="weeklyGoal().progressPct"
-          [rewardXp]="weeklyGoal().rewardXp"
-          [isCompleted]="weeklyGoal().isCompleted"
-          [isRewardClaimed]="weeklyGoal().isRewardClaimed"
-          [currentStreak]="weeklyGoal().currentStreak"
-          [weekLabel]="weeklyGoal().weekLabel"
-          [statusLabel]="weeklyGoal().statusLabel" />
-      </div>
+      @if (!isPreview()) {
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.06s">
+          <app-weekly-goal-card
+            [goalDays]="weeklyGoal().goalDays"
+            [completedDays]="weeklyGoal().completedDays"
+            [remainingDays]="weeklyGoal().remainingDays"
+            [progressPct]="weeklyGoal().progressPct"
+            [rewardXp]="weeklyGoal().rewardXp"
+            [isCompleted]="weeklyGoal().isCompleted"
+            [isRewardClaimed]="weeklyGoal().isRewardClaimed"
+            [currentStreak]="weeklyGoal().currentStreak"
+            [weekLabel]="weeklyGoal().weekLabel"
+            [statusLabel]="weeklyGoal().statusLabel" />
+        </div>
+      }
 
       <!-- Rank card (mobile only — desktop shows in right rail) -->
-      <div class="px-4 mt-4 animate-slide-up lg:hidden" style="animation-delay:0.03s">
-        <app-home-ranking-card
-          [currentRank]="currentRank()"
-          [previousRank]="previousRankSnapshot()"
-          [recentDelta]="recentRankDelta()"
-          [totalXp]="currentXp()"
-          [streakDays]="currentStreak()"
-          [positionsToClimb]="positionsToClimb()"
-          [xpToClimb]="xpToClimbTarget()"
-          [progressPct]="rankProgressPct()"
-          [xpDelta]="recentXpGain()"
-          (openRanking)="router.navigateByUrl('/ranking')" />
-      </div>
+      @if (!isPreview()) {
+        <div class="px-4 mt-4 animate-slide-up lg:hidden" style="animation-delay:0.03s">
+          <app-home-ranking-card
+            [currentRank]="currentRank()"
+            [previousRank]="previousRankSnapshot()"
+            [recentDelta]="recentRankDelta()"
+            [totalXp]="currentXp()"
+            [streakDays]="currentStreak()"
+            [positionsToClimb]="positionsToClimb()"
+            [xpToClimb]="xpToClimbTarget()"
+            [progressPct]="rankProgressPct()"
+            [xpDelta]="recentXpGain()"
+            (openRanking)="router.navigateByUrl('/ranking')" />
+        </div>
+      }
 
       <!-- XP Carousel -->
+      @if (!isPreview()) {
       <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
         <div class="mb-3 flex items-end justify-between gap-3 px-1">
           <div class="min-w-0">
@@ -404,8 +529,9 @@ function isoToday(): string {
           </div>
         }
       </div>
+      }
 
-      @if (!workoutService.hasProgram()) {
+      @if (!isPreview() && !workoutService.hasProgram()) {
         <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
           <app-setup-workout-card (onSetup)="router.navigateByUrl('/my-workout')" />
         </div>
@@ -464,6 +590,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   auth                = inject(AuthService);
   checkin             = inject(CheckinService);
   router              = inject(Router);
+  permission          = inject(PermissionService);
   private postService = inject(PostService);
   workoutService      = inject(WorkoutService);
   walkSvc             = inject(WalkService);
@@ -474,6 +601,8 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mainScroll') private mainScrollRef!: ElementRef<HTMLElement>;
 
   userEmail      = computed(() => this.auth.user()?.email ?? '');
+  isPreview      = computed(() => this.auth.authState() === 'preview');
+  previewActionCards = PREVIEW_ACTION_CARDS;
   workoutsDone   = computed(() => this.ranking.myRank()?.workoutsDone ?? Number(this.auth.profile().workouts_done ?? 0));
   currentRank    = computed(() => this.ranking.myRank()?.rank ?? 0);
   currentXp      = computed(() => this.ranking.myRank()?.totalXp ?? 0);
@@ -723,13 +852,16 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     void this.loadFeed({ reset: true });
-    void this.ranking.load(true);
-    this.rankingPoll = setInterval(() => void this.ranking.load(true), 60000);
-    this.xpCarouselTimer = setInterval(() => {
-      const count = this.xpCarouselSlides().length;
-      if (count <= 1) return;
-      this.xpCarouselIndex.update(index => (index + 1) % count);
-    }, 4800);
+
+    if (!this.isPreview()) {
+      void this.ranking.load(true);
+      this.rankingPoll = setInterval(() => void this.ranking.load(true), 60000);
+      this.xpCarouselTimer = setInterval(() => {
+        const count = this.xpCarouselSlides().length;
+        if (count <= 1) return;
+        this.xpCarouselIndex.update(index => (index + 1) % count);
+      }, 4800);
+    }
   }
 
   ngAfterViewInit(): void {
@@ -885,6 +1017,10 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   async startWorkout(_id: string): Promise<void> {
+    if (!this.permission.requireAuthenticated('registrar treinos e check-ins')) {
+      return;
+    }
+
     const workout = this.todayWorkout();
     if (!workout) return;
 
@@ -895,6 +1031,10 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   handleDailyChallenge(): void {
+    if (!this.permission.requireAuthenticated('registrar treinos e check-ins')) {
+      return;
+    }
+
     if (this.dailyChallenge().action === 'workout') {
       const workout = this.todayWorkout();
       if (workout) {
@@ -918,8 +1058,32 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showNewPost.set(false);
   }
 
+  openNewPostPanel(): void {
+    if (!this.permission.requireAuthenticated('publicar conteúdo')) {
+      return;
+    }
+
+    this.showNewPost.set(true);
+  }
+
+  openNotificationsPanel(): void {
+    if (!this.permission.requireAuthenticated('interagir com a comunidade')) {
+      return;
+    }
+
+    this.showNotifications.set(true);
+  }
+
+  openPreviewBlockedAction(reason: string): void {
+    this.permission.requireAuthenticated(reason);
+  }
+
 
   async toggleLike(postId: string): Promise<void> {
+    if (!this.permission.requireAuthenticated('curtir e comentar')) {
+      return;
+    }
+
     // Optimistic toggle
     this.posts.update(posts =>
       posts.map(p =>

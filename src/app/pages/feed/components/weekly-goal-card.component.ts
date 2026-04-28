@@ -33,7 +33,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
             <div class="rounded-2xl border px-3 py-2 text-center transition-all"
                  [class]="slot.filled
                    ? 'border-primary/30 bg-primary/12 shadow-[0_0_18px_rgba(0,255,136,0.08)]'
-                   : 'border-white/8 bg-white/[0.03]'">
+                   : 'border-primary/5 bg-primary/[0.03]'">
               <p class="text-[9px] font-body uppercase tracking-[0.16em]" [class]="slot.filled ? 'text-primary/80' : 'text-text-2/70'">Dia {{ slot.index }}</p>
               <p class="mt-1 text-[15px] font-display font-bold" [class]="slot.filled ? 'text-white' : 'text-text-2/75'">{{ slot.filled ? '✓' : '•' }}</p>
             </div>
@@ -50,7 +50,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
           </div>
         </div>
 
-        <div class="rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+        <div class="rounded-2xl border border-primary/5 bg-primary/[0.03] p-4">
           <div class="flex items-start justify-between gap-3">
             <div>
               <p class="text-[13px] font-display font-bold text-white">{{ headline() }}</p>
@@ -63,7 +63,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
           </div>
 
           <div class="mt-3 flex items-center justify-between gap-3 text-[11px] font-body">
-            <span class="rounded-full border border-white/8 bg-white/[0.03] px-3 py-1.5 text-text-2">{{ helperLabel() }}</span>
+            <span class="rounded-full border border-primary/5 bg-white/[0.03] px-3 py-1.5 text-text-2">{{ helperLabel() }}</span>
             <span class="rounded-full border border-primary/15 bg-primary/10 px-3 py-1.5 font-semibold text-primary">
               {{ currentStreak() }} semana{{ currentStreak() === 1 ? '' : 's' }} seguidas
             </span>

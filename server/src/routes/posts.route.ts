@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { z } from 'zod';
-import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
+import { requireAuth, optionalAuth, AuthRequest } from '../middleware/auth.middleware';
 import { supabaseAdmin } from '../supabase';
 
 const router = Router();
@@ -71,7 +71,7 @@ router.get('/public/:id', async (req, res: Response) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/posts — feed público (paginado), com dados do autor
 // ─────────────────────────────────────────────────────────────────────────────
-router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
+router.get('/', optionalAuth, async (req: AuthRequest, res: Response) => {
   const limit  = Math.min(Number(req.query['limit'])  || 20, 50);
   const offset = Math.max(Number(req.query['offset']) || 0,  0);
 
@@ -87,7 +87,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const enriched = await enrichWithAuthorsAndLikes(posts ?? [], req.userId!);
+  const enriched = await enrichWithAuthorsAndLikes(posts ?? [], req.userId ?? null);
   res.json({ posts: enriched, limit, offset });
 });
 
@@ -384,7 +384,7 @@ interface XpEventRow {
   user_id: string;
 }
 
-async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string) {
+async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string | null) {
   if (posts.length === 0) return [];
 
   const userIds = Array.from(new Set(posts.map(p => p.user_id)));
@@ -400,11 +400,13 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
 
   // Likes given by the current user across these posts
   const postIds = posts.map(p => p.id);
-  const { data: myLikes } = await supabaseAdmin
-    .from('post_likes')
-    .select('post_id')
-    .eq('user_id', currentUserId)
-    .in('post_id', postIds);
+  const myLikes = currentUserId
+    ? (await supabaseAdmin
+        .from('post_likes')
+        .select('post_id')
+        .eq('user_id', currentUserId)
+        .in('post_id', postIds)).data
+    : [];
 
   const [{ data: statsRows }, { data: workoutRows }] = await Promise.all([
     supabaseAdmin
