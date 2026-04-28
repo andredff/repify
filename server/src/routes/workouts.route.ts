@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../supabase';
 
 const router = Router();
 const DEFAULT_YEARLY_GOAL = 320;
+const BUSINESS_TIME_ZONE = 'America/Sao_Paulo';
 
 const StoredExerciseSchema = z.object({
   id: z.string().min(1).max(120),
@@ -94,8 +95,22 @@ function sendStageError(res: Response, stage: string, error: { message?: string 
   });
 }
 
+function formatBusinessDate(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const year = parts.find(part => part.type === 'year')?.value ?? '0000';
+  const month = parts.find(part => part.type === 'month')?.value ?? '01';
+  const day = parts.find(part => part.type === 'day')?.value ?? '01';
+  return `${year}-${month}-${day}`;
+}
+
 function todayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatBusinessDate(new Date());
 }
 
 function emptyDaySession(date: string): WorkoutDaySessionRow {

@@ -104,6 +104,7 @@ const LEGACY_WORKOUT_STORAGE_KEYS = [
   'repify_xp',
   'repify_workout_day_session',
 ];
+const BUSINESS_TIME_ZONE = 'America/Sao_Paulo';
 
 export const LEVELS = [
   { name: 'Novato',      minXp: 0,    color: '#8896A8', emoji: '🌱' },
@@ -148,8 +149,22 @@ function weekCount(history: WorkoutSession[]): number {
   return history.filter(s => new Date(`${s.completedDate}T12:00:00`) >= weekStart).length;
 }
 
+function formatBusinessDate(date: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date);
+
+  const year = parts.find(part => part.type === 'year')?.value ?? '0000';
+  const month = parts.find(part => part.type === 'month')?.value ?? '01';
+  const day = parts.find(part => part.type === 'day')?.value ?? '01';
+  return `${year}-${month}-${day}`;
+}
+
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatBusinessDate(new Date());
 }
 
 function isoNow(): string {
@@ -168,7 +183,7 @@ function dateLabel(isoDate: string): string {
   const today = todayStr();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yStr = yesterday.toISOString().slice(0, 10);
+  const yStr = formatBusinessDate(yesterday);
   if (isoDate === today) return 'Hoje';
   if (isoDate === yStr)  return 'Ontem';
   const d = new Date(isoDate + 'T12:00:00');
