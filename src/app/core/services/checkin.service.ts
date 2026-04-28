@@ -1,6 +1,5 @@
 import { Injectable, inject, signal, computed } from '@angular/core';
-import { supabase } from '../supabase/supabaseClient';
-import { environment } from '../../../environments/environment';
+import { AuthService } from './auth.service';
 import { RankingService } from './ranking.service';
 
 export const CHECKIN_XP = 10;
@@ -19,7 +18,7 @@ interface CheckinResponse {
 
 @Injectable({ providedIn: 'root' })
 export class CheckinService {
-  private readonly API = environment.apiBaseUrl;
+  private readonly auth = inject(AuthService);
   private readonly ranking = inject(RankingService);
 
   // Datas com check-in no período carregado (YYYY-MM-DD)
@@ -155,10 +154,7 @@ export class CheckinService {
   // ── HTTP ────────────────────────────────────────────────────────────────────
 
   private async fetch(path: string, init: RequestInit = {}): Promise<Response> {
-    const { data: { session } } = await supabase.auth.getSession();
-    const headers = new Headers(init.headers);
-    if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
-    return fetch(`${this.API}${path}`, { ...init, headers });
+    return this.auth.apiFetch(path, init);
   }
 }
 

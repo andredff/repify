@@ -1,6 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { supabase } from '../supabase/supabaseClient';
-import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 import { WorkoutPost } from '../models/workout-post.model';
 
@@ -37,7 +36,6 @@ interface ApiPost {
 }
 
 const BUCKET   = 'workout-photos';
-const API_BASE = environment.apiBaseUrl;
 
 @Injectable({ providedIn: 'root' })
 export class PostService {
@@ -157,12 +155,7 @@ export class PostService {
   // ─── Internals ─────────────────────────────────────────────────────────────
 
   private async fetch(path: string, init: RequestInit = {}): Promise<Response> {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    const headers = new Headers(init.headers);
-    if (token) headers.set('Authorization', `Bearer ${token}`);
-
-    return fetch(`${API_BASE}${path}`, { ...init, headers });
+    return this.auth.apiFetch(path, init);
   }
 
   private mapApiToPost = (p: ApiPost): WorkoutPost => ({

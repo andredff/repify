@@ -1,6 +1,5 @@
-import { Injectable } from '@angular/core';
-import { supabase } from '../supabase/supabaseClient';
-import { environment } from '../../../environments/environment';
+import { Injectable, inject } from '@angular/core';
+import { AuthService } from './auth.service';
 
 export interface PublicUser {
   id: string;
@@ -20,10 +19,9 @@ export interface PublicUser {
   last_sign_in_at: string | null;
 }
 
-const API_BASE = environment.apiBaseUrl;
-
 @Injectable({ providedIn: 'root' })
 export class UserService {
+  private auth = inject(AuthService);
 
   async listUsers(limit = 30, page = 1): Promise<PublicUser[]> {
     const res = await this.fetch(`/api/users?limit=${limit}&page=${page}`);
@@ -41,10 +39,6 @@ export class UserService {
   }
 
   private async fetch(path: string, init: RequestInit = {}): Promise<Response> {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    const headers = new Headers(init.headers);
-    if (token) headers.set('Authorization', `Bearer ${token}`);
-    return fetch(`${API_BASE}${path}`, { ...init, headers });
+    return this.auth.apiFetch(path, init);
   }
 }

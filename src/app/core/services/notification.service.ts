@@ -1,6 +1,5 @@
 import { Injectable, signal, computed, inject, NgZone, effect } from '@angular/core';
 import { supabase } from '../supabase/supabaseClient';
-import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
 
 export interface AppNotification {
@@ -13,8 +12,6 @@ export interface AppNotification {
   time_ago: string;
   actor: { name: string; username: string | null; avatar: string } | null;
 }
-
-const API_BASE = environment.apiBaseUrl;
 
 @Injectable({ providedIn: 'root' })
 export class NotificationService {
@@ -159,10 +156,6 @@ export class NotificationService {
   }
 
   private async _fetch(path: string, init: RequestInit = {}): Promise<Response> {
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    const headers = new Headers(init.headers as HeadersInit);
-    if (token) headers.set('Authorization', `Bearer ${token}`);
-    return fetch(`${API_BASE}${path}`, { ...init, headers });
+    return this.auth.apiFetch(path, init);
   }
 }

@@ -1,5 +1,6 @@
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, inject, signal, computed } from '@angular/core';
 import { Session, User, AuthError } from '@supabase/supabase-js';
+import { Router } from '@angular/router';
 import { supabase } from '../supabase/supabaseClient';
 import { environment } from '../../../environments/environment';
 
@@ -37,6 +38,7 @@ const AVATAR_BUCKET = 'avatars';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
+  private router = inject(Router);
   private readonly _session     = signal<Session | null>(null);
   private readonly _initialized = signal(false);
   private readonly _avatarUrl   = signal<string>('');
@@ -44,6 +46,7 @@ export class AuthService {
   private readonly _profileReady = signal(false);
   private readonly _profileSyncing = signal(false);
   private syncingProfile = false;
+  private signingOutFromUnauthorized = false;
   private lastSessionUserId: string | null = null;
 
   readonly session         = this._session.asReadonly();
@@ -146,11 +149,17 @@ export class AuthService {
     return Number.isFinite(parsed) ? parsed : fallback;
   }
 
-  private async authorizedFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  async apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
     const { data: { session } } = await supabase.auth.getSession();
     const headers = new Headers(init.headers);
     if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
-    return fetch(`${environment.apiBaseUrl}${path}`, { ...init, headers });
+
+    const response = await fetch(`${environment.apiBaseUrl}${path}`, { ...init, headers });
+    if (response.status === 401) {
+      await this.handleUnauthorizedResponse();
+    }
+
+    return response;
   }
 
   // version = unix timestamp stored in user_metadata — persists across sessions
@@ -232,6 +241,26 @@ export class AuthService {
     this._avatarUrl.set('');
   }
 
+  private async handleUnauthorizedResponse(): Promise<void> {
+    if (this.signingOutFromUnauthorized || !this.isAuthenticated()) {
+      return;
+    }
+
+    this.signingOutFromUnauthorized = true;
+
+    try {
+      await supabase.auth.signOut();
+      this.clearRepifyStorage({ preserveAuthSession: false });
+      this._avatarUrl.set('');
+      this._profileCache.set({});
+      this._profileReady.set(true);
+      this._profileSyncing.set(false);
+      await this.router.navigateByUrl('/');
+    } finally {
+      this.signingOutFromUnauthorized = false;
+    }
+  }
+
   async updateProfile(data: Partial<UserProfile>): Promise<void> {
     const { data: updated, error } = await supabase.auth.updateUser({
       data: { ...this.profile(), ...data },
@@ -249,7 +278,7 @@ export class AuthService {
     this._profileReady.set(Object.keys(this._profileCache()).length > 0);
 
     try {
-      const res = await this.authorizedFetch('/api/profile/me');
+      const res = await this.apiFetch('/api/profile/me');
       if (!res.ok) return;
 
       const profile = await res.json() as BackendProfileResponse;

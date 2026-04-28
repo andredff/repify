@@ -2,7 +2,6 @@ import { Injectable, inject, signal, computed, effect } from '@angular/core';
 import { AuthService } from './auth.service';
 import { CurrentUserRankingMetrics, RankingService } from './ranking.service';
 import { environment } from '../../../environments/environment';
-import { supabase } from '../supabase/supabaseClient';
 
 export interface StoredExercise {
   id: string;
@@ -852,10 +851,7 @@ export class WorkoutService {
   }
 
   private async _fetch(path: string, init: RequestInit = {}): Promise<Response> {
-    const { data: { session } } = await supabase.auth.getSession();
-    const headers = new Headers(init.headers);
-    if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`);
-    return fetch(`${this.API}${path}`, { ...init, headers });
+    return this.auth.apiFetch(path, init);
   }
 }
 
