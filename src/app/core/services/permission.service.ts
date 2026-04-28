@@ -27,7 +27,7 @@ export class PermissionService {
 
   async goToLogin(): Promise<void> {
     this.closePrompt();
-    await this.router.navigateByUrl('/');
+    await this.router.navigateByUrl('/login');
   }
 
   async goToRegister(): Promise<void> {

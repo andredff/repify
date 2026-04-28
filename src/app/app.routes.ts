@@ -5,7 +5,8 @@ import { previewModeGuard } from './core/guards/preview-mode.guard';
 import { AppShellComponent } from './shared/app-shell.component';
 
 export const routes: Routes = [
-  { path: '', component: LoginComponent },
+  { path: '', redirectTo: '/feed', pathMatch: 'full' },
+  { path: 'login', component: LoginComponent },
   {
     path: 'register',
     loadComponent: () =>
@@ -71,5 +72,5 @@ export const routes: Routes = [
       },
     ],
   },
-  { path: '**', redirectTo: '' },
+  { path: '**', redirectTo: '/feed' },
 ];

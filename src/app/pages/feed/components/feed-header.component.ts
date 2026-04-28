@@ -183,11 +183,11 @@ export class FeedHeaderComponent {
     this.closeMenu();
     this.onLogout.emit();
     await this.auth.signOut();
-    await this.router.navigateByUrl('/');
+    await this.router.navigateByUrl('/feed');
   }
 
   goToLogin(): void {
-    this.router.navigateByUrl('/');
+    this.router.navigateByUrl('/login');
   }
 
   goToRegister(): void {

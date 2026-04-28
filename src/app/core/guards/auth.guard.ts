@@ -19,5 +19,5 @@ export const authGuard: CanActivateFn = async () => {
 
   if (auth.isAuthenticated()) return true;
 
-  return router.createUrlTree(['/']);
+  return router.createUrlTree(['/feed']);
 };

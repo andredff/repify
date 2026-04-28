@@ -426,11 +426,78 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
       ctx.drawImage(logo, W - M - logoW, cy - logoH / 2, logoW, logoH);
     } catch {
       ctx.fillStyle = '#00FF88';
-      ctx.font = `bold ${logoH * 0.7}px system-ui, sans-serif`;
+      ctx.font = `bold ${Math.round(logoH * 0.7)}px system-ui, sans-serif`;
       ctx.textAlign = 'right';
       ctx.fillText('REPIFY', W - M, cy + logoH * 0.25);
       ctx.textAlign = 'left';
     }
+  }
+
+  private async drawBrandingFooter(ctx: CanvasRenderingContext2D, W: number, H: number, M: number): Promise<void> {
+    const pillH  = Math.round(H * 0.052);
+    const pillR  = pillH / 2;
+    const pillW  = Math.round(W * 0.38);
+    const pillX  = W / 2 - pillW / 2;
+    const pillY  = H - M - pillH;
+
+    // pill background
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,255,136,0.10)';
+    this.roundRect(ctx, pillX, pillY, pillW, pillH, pillR);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,255,136,0.30)';
+    ctx.lineWidth = 2;
+    this.roundRect(ctx, pillX, pillY, pillW, pillH, pillR);
+    ctx.stroke();
+
+    const iconSize = Math.round(pillH * 0.52);
+    const iconX    = pillX + pillH * 0.55;
+    const iconY    = pillY + pillH / 2;
+
+    // try to draw the app icon inside the pill
+    let iconLoaded = false;
+    try {
+      const icon = await this.loadImage('/icon.png');
+      ctx.save();
+      ctx.beginPath();
+      const ir = iconSize / 2;
+      ctx.arc(iconX, iconY, ir, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(icon, iconX - ir, iconY - ir, iconSize, iconSize);
+      ctx.restore();
+      iconLoaded = true;
+    } catch { /* fallback below */ }
+
+    if (!iconLoaded) {
+      // draw a green "R" as fallback
+      ctx.fillStyle = '#00FF88';
+      ctx.font = `bold ${Math.round(iconSize * 0.9)}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('R', iconX, iconY);
+      ctx.textBaseline = 'alphabetic';
+    }
+
+    // "REPIFY" label
+    const fontSize = Math.round(pillH * 0.34);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font      = `700 ${fontSize}px system-ui, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('REPIFY', iconX + iconSize / 2 + Math.round(pillH * 0.22), iconY);
+
+    // separator + url
+    const labelW   = ctx.measureText('REPIFY').width;
+    const sepX     = iconX + iconSize / 2 + Math.round(pillH * 0.22) + labelW + Math.round(pillH * 0.18);
+    ctx.fillStyle  = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(sepX, pillY + pillH * 0.25, 2, pillH * 0.5);
+
+    ctx.fillStyle    = 'rgba(255,255,255,0.55)';
+    ctx.font         = `${Math.round(fontSize * 0.82)}px system-ui, sans-serif`;
+    ctx.fillText('repify.com.br', sepX + Math.round(pillH * 0.2), iconY);
+
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
   }
 
   private async drawAvatar(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): Promise<void> {
@@ -536,6 +603,8 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
       this.wrapText(ctx, caption, M, contentY, W - M * 2, hasPhoto ? 58 : 70, 3);
     }
 
+    await this.drawBrandingFooter(ctx, W, H, M);
+
     if (this.showGoal() && this.post().user.yearlyGoal) {
       this.drawGoalBadge(ctx, M, H - M - 20, this.post().user.workoutsDone ?? 0, this.post().user.yearlyGoal!, 30);
     }
@@ -573,6 +642,8 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
       ctx.textAlign = 'left';
       this.wrapText(ctx, caption, M, contentY, photoW, 44, 2);
     }
+
+    await this.drawBrandingFooter(ctx, W, H, M);
 
     if (this.showGoal() && this.post().user.yearlyGoal) {
       this.drawGoalBadge(ctx, M, H - M - 20, this.post().user.workoutsDone ?? 0, this.post().user.yearlyGoal!, 34);

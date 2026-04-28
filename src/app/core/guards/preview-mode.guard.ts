@@ -21,5 +21,6 @@ export const previewModeGuard: CanActivateFn = async () => {
     return true;
   }
 
-  return router.createUrlTree(['/']);
+  auth.enterPreviewMode();
+  return true;
 };
