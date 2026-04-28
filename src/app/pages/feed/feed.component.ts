@@ -569,47 +569,12 @@ function isoToday(): string {
       </div>
       }
 
-      @if (!isPreview() && !showNewUserOnboarding()) {
-        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.06s">
-          @if (weeklyGoal().goalDays > 0) {
-          <app-weekly-goal-card
-            [goalDays]="weeklyGoal().goalDays"
-            [completedDays]="weeklyGoal().completedDays"
-            [remainingDays]="weeklyGoal().remainingDays"
-            [progressPct]="weeklyGoal().progressPct"
-            [rewardXp]="weeklyGoal().rewardXp"
-            [isCompleted]="weeklyGoal().isCompleted"
-            [isRewardClaimed]="weeklyGoal().isRewardClaimed"
-            [currentStreak]="weeklyGoal().currentStreak"
-            [weekLabel]="weeklyGoal().weekLabel"
-            [statusLabel]="weeklyGoal().statusLabel" />
-          }
-        </div>
-      }
-
-      <!-- Rank card (mobile only — desktop shows in right rail) -->
-      @if (!isPreview() && !showNewUserOnboarding()) {
-        <div class="px-4 mt-4 animate-slide-up lg:hidden" style="animation-delay:0.03s">
-          <app-home-ranking-card
-            [currentRank]="currentRank()"
-            [previousRank]="previousRankSnapshot()"
-            [recentDelta]="recentRankDelta()"
-            [totalXp]="currentXp()"
-            [streakDays]="currentStreak()"
-            [positionsToClimb]="positionsToClimb()"
-            [xpToClimb]="xpToClimbTarget()"
-            [progressPct]="rankProgressPct()"
-            [xpDelta]="recentXpGain()"
-            (openRanking)="router.navigateByUrl('/ranking')" />
-        </div>
-      }
-
       <!-- XP Carousel -->
       @if (!isPreview() && !showNewUserOnboarding()) {
       <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
         <div class="mb-3 flex items-end justify-between gap-3 px-1">
           <div class="min-w-0">
-            <p class="text-[10px] font-body uppercase tracking-[0.22em] text-primary/75">Rotas de XP</p>
+            <p class="text-[10px] font-body uppercase tracking-[0.22em] text-primary/75">Missão de hoje</p>
             <p class="mt-1 text-[14px] font-display font-bold tracking-tight text-white">{{ currentXpCarouselSlide().label }}</p>
             <p class="mt-1 text-[11px] font-body text-text-2">{{ currentXpCarouselSlide().hint }}</p>
           </div>
@@ -653,6 +618,41 @@ function isoToday(): string {
       </div>
       }
 
+      <!-- Rank card (mobile only — desktop shows in right rail) -->
+      @if (!isPreview() && !showNewUserOnboarding()) {
+        <div class="px-4 mt-4 animate-slide-up lg:hidden" style="animation-delay:0.03s">
+          <app-home-ranking-card
+            [currentRank]="currentRank()"
+            [previousRank]="previousRankSnapshot()"
+            [recentDelta]="recentRankDelta()"
+            [totalXp]="currentXp()"
+            [streakDays]="currentStreak()"
+            [positionsToClimb]="positionsToClimb()"
+            [xpToClimb]="xpToClimbTarget()"
+            [progressPct]="rankProgressPct()"
+            [xpDelta]="recentXpGain()"
+            (openRanking)="router.navigateByUrl('/ranking')" />
+        </div>
+      }
+
+      @if (!isPreview() && !showNewUserOnboarding()) {
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.06s">
+          @if (weeklyGoal().goalDays > 0) {
+          <app-weekly-goal-card
+            [goalDays]="weeklyGoal().goalDays"
+            [completedDays]="weeklyGoal().completedDays"
+            [remainingDays]="weeklyGoal().remainingDays"
+            [progressPct]="weeklyGoal().progressPct"
+            [rewardXp]="weeklyGoal().rewardXp"
+            [isCompleted]="weeklyGoal().isCompleted"
+            [isRewardClaimed]="weeklyGoal().isRewardClaimed"
+            [currentStreak]="weeklyGoal().currentStreak"
+            [weekLabel]="weeklyGoal().weekLabel"
+            [statusLabel]="weeklyGoal().statusLabel" />
+          }
+        </div>
+      }
+
       @if (!isPreview() && !showNewUserOnboarding() && !workoutService.hasProgram()) {
         <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
           <app-setup-workout-card (onSetup)="router.navigateByUrl('/my-workout')" />
@@ -663,16 +663,26 @@ function isoToday(): string {
       <div class="px-4 mt-5 space-y-4">
 
         @if (loading() && posts().length === 0) {
-          <div class="bg-card-2 border border-border rounded-2xl p-4 animate-pulse space-y-3">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-card"></div>
-              <div class="flex-1 space-y-1.5">
-                <div class="h-3 w-24 bg-card rounded-lg"></div>
-                <div class="h-2.5 w-16 bg-card rounded-lg"></div>
+          @for (i of [1,2]; track i) {
+            <div class="bg-card-2 border border-border rounded-2xl overflow-hidden animate-pulse">
+              <div class="flex items-center gap-3 p-4 pb-3">
+                <div class="w-10 h-10 rounded-full bg-card shrink-0"></div>
+                <div class="flex-1 space-y-2">
+                  <div class="h-3 w-28 bg-card rounded-full"></div>
+                  <div class="h-2.5 w-16 bg-card rounded-full"></div>
+                </div>
+              </div>
+              <div class="h-56 bg-card mx-4 rounded-2xl mb-3"></div>
+              <div class="px-4 pb-4 space-y-2">
+                <div class="h-3 w-full bg-card rounded-full"></div>
+                <div class="h-3 w-3/4 bg-card rounded-full"></div>
+              </div>
+              <div class="flex gap-4 px-4 py-3 border-t border-border">
+                <div class="h-4 w-12 bg-card rounded-full"></div>
+                <div class="h-4 w-12 bg-card rounded-full"></div>
               </div>
             </div>
-            <div class="aspect-video bg-card rounded-xl"></div>
-          </div>
+          }
         }
 
         @for (post of posts(); track post.id; let i = $index) {
@@ -682,10 +692,21 @@ function isoToday(): string {
         }
 
         @if (!loading() && posts().length === 0) {
-          <div class="bg-card-2 border border-border rounded-2xl p-8 text-center">
-            <p class="text-[32px] mb-2">📭</p>
-            <p class="text-[14px] font-body font-semibold text-white mb-1">Nenhum post ainda</p>
-            <p class="text-[12px] font-body text-text-2">Seja o primeiro a publicar!</p>
+          <div class="bg-card-2 border border-border rounded-2xl p-8 text-center space-y-3">
+            <p class="text-[40px] leading-none">🏋️</p>
+            <p class="text-[16px] font-display font-bold text-white">Ninguém treinou ainda.</p>
+            <p class="text-[13px] font-body text-text-2 leading-relaxed max-w-[26ch] mx-auto">
+              Seja o primeiro a publicar e inspire a comunidade.
+            </p>
+            @if (!isPreview()) {
+              <button (click)="openNewPostPanel()"
+                      class="mt-1 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-bg text-[13px] font-body font-semibold shadow-glow transition-all hover:bg-primary/90 active:scale-95">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Publicar agora
+              </button>
+            }
           </div>
         }
 

@@ -135,11 +135,11 @@ const MUSCLE_COLORS: Record<string, string> = {
 
       <!-- Photo -->
       @if (post().photo) {
-        <div class="mx-4 mb-3 rounded-xl overflow-hidden cursor-pointer bg-bg/70" (click)="openDetails()">
+        <div class="mx-4 mb-3 rounded-2xl overflow-hidden cursor-pointer bg-card" (click)="openDetails()">
           <img
             [src]="post().photoMedium || post().photo"
             alt="foto do treino"
-            class="block w-full h-auto object-contain"
+            class="w-full h-auto block"
             loading="lazy"
             decoding="async"
           />
@@ -151,7 +151,7 @@ const MUSCLE_COLORS: Record<string, string> = {
         <p class="px-4 pb-3 text-[13px] font-body text-white leading-relaxed whitespace-pre-wrap">{{ post().caption }}</p>
       }
 
-      <!-- Workout tag (compact, optional) -->
+      <!-- Workout tag -->
       @if (post().workout) {
         <div class="mx-4 mb-3 flex items-center gap-2.5 rounded-xl px-3 py-2.5 bg-gradient-to-r border border-border"
              [class]="muscleGradient()">
@@ -159,26 +159,33 @@ const MUSCLE_COLORS: Record<string, string> = {
             {{ muscleEmoji() }}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-[10px] font-body text-text-2 uppercase tracking-widest leading-none">Treino concluído</p>
-            <p class="text-[14px] font-display font-bold text-white leading-tight mt-0.5 truncate">{{ post().workout!.name }}</p>
+            <p class="text-[14px] font-display font-bold text-white leading-tight truncate">{{ post().workout!.name }}</p>
+            <p class="text-[10px] font-body text-text-2 uppercase tracking-widest leading-none mt-0.5">{{ post().workout!.muscleGroup }}</p>
+          </div>
+          <div class="shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 border border-primary/30">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
           </div>
         </div>
       }
 
       <!-- Actions footer -->
       <div class="flex items-center justify-between px-4 py-3 border-t border-border">
-        <div class="flex items-center gap-4">
+        <div class="flex items-center gap-5">
           <button
             (click)="handleLike()"
             class="flex items-center gap-1.5 transition-all active:scale-90"
-            [class]="post().liked ? 'text-primary' : 'text-text-2 hover:text-white'"
+            [class]="localLiked() ? 'text-primary' : 'text-text-2 hover:text-white'"
           >
             <svg width="18" height="18" viewBox="0 0 24 24"
-                 [attr.fill]="post().liked ? 'currentColor' : 'none'"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                 [attr.fill]="localLiked() ? 'currentColor' : 'none'"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                 class="transition-transform"
+                 [class.scale-125]="localLiked()">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
             </svg>
-            <span class="text-[12px] font-body font-medium">{{ post().likes }}</span>
+            <span class="text-[12px] font-body font-medium tabular-nums">{{ localLikesCount() }}</span>
           </button>
 
           <button (click)="openComments()"
@@ -186,22 +193,16 @@ const MUSCLE_COLORS: Record<string, string> = {
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            <span class="text-[12px] font-body font-medium">{{ localComments() }}</span>
+            <span class="text-[12px] font-body font-medium tabular-nums">{{ localComments() }}</span>
           </button>
         </div>
 
-        <div class="flex items-center gap-3">
-          <button (click)="openDetails()"
-                  class="text-[12px] font-body font-semibold text-text-2 transition-colors hover:text-white">
-            Detalhes
-          </button>
-          <button (click)="showShareCard.set(true)" class="text-text-2 hover:text-white transition-colors active:scale-90">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-            </svg>
-          </button>
-        </div>
+        <button (click)="showShareCard.set(true)" class="text-text-2 hover:text-white transition-colors active:scale-90 p-1">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+          </svg>
+        </button>
       </div>
     </article>
 
@@ -259,19 +260,21 @@ export class WorkoutPostComponent {
   showComments     = signal(false);
   showShareCard    = signal(false);
   localComments    = signal(0);
+  localLiked       = signal(false);
+  localLikesCount  = signal(0);
   editing          = signal(false);
   editSaving       = signal(false);
   editDraft        = '';
 
   constructor() {
-    // Sync from server only once on init, and only when the post id changes
-    // (not on every signal update like likes — that would reset comment count mid-session)
     let lastPostId = '';
     effect(() => {
       const p = this.post();
       if (p.id !== lastPostId) {
         lastPostId = p.id;
         this.localComments.set(p.comments);
+        this.localLiked.set(p.liked);
+        this.localLikesCount.set(p.likes);
       }
     });
   }
@@ -320,10 +323,10 @@ export class WorkoutPostComponent {
   }
 
   handleLike(): void {
-    if (!this.permission.requireAuthenticated('curtir e comentar')) {
-      return;
-    }
-
+    if (!this.permission.requireAuthenticated('curtir e comentar')) return;
+    const nowLiked = !this.localLiked();
+    this.localLiked.set(nowLiked);
+    this.localLikesCount.update(v => nowLiked ? v + 1 : v - 1);
     this.onLike.emit();
   }
 
