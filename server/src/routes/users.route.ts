@@ -19,6 +19,7 @@ interface PublicUser {
   total_walk_km: number;
   streak_days: number;
   created_at: string;
+  last_sign_in_at: string | null;
 }
 
 interface UserStatsRow {
@@ -146,6 +147,7 @@ function toPublicUser(u: any, stats?: UserStatsRow, workoutsDone = 0): PublicUse
     total_walk_km:Number(stats?.total_walk_km ?? 0),
     streak_days:  Number(stats?.streak_days ?? 0),
     created_at:   u.created_at,
+    last_sign_in_at: u.last_sign_in_at ?? null,
   };
 }
 

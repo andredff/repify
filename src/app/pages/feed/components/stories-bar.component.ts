@@ -90,7 +90,7 @@ export class StoriesBarComponent implements OnInit {
     this.loading.set(true);
     try {
       const data = await this.userService.listUsers(20);
-      this.users.set(this.sortByRecentJoin(data).slice(0, 20));
+      this.users.set(this.sortByRecentLogin(data).slice(0, 20));
     } catch {
       this.users.set([]);
     } finally {
@@ -98,11 +98,11 @@ export class StoriesBarComponent implements OnInit {
     }
   }
 
-  private sortByRecentJoin(users: PublicUser[]): PublicUser[] {
-    return [...users].sort((left, right) => {
-      const leftTime = Date.parse(left.created_at || '');
-      const rightTime = Date.parse(right.created_at || '');
-      return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0);
+  private sortByRecentLogin(users: PublicUser[]): PublicUser[] {
+    return [...users].sort((a, b) => {
+      const tA = Date.parse(a.last_sign_in_at || a.created_at || '');
+      const tB = Date.parse(b.last_sign_in_at || b.created_at || '');
+      return (Number.isFinite(tB) ? tB : 0) - (Number.isFinite(tA) ? tA : 0);
     });
   }
 

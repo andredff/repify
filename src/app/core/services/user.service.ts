@@ -17,6 +17,7 @@ export interface PublicUser {
   total_walk_km: number;
   streak_days: number;
   created_at: string;
+  last_sign_in_at: string | null;
 }
 
 const API_BASE = environment.apiBaseUrl;
