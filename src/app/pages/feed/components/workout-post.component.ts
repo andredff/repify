@@ -135,8 +135,8 @@ const MUSCLE_COLORS: Record<string, string> = {
 
       <!-- Photo -->
       @if (post().photo) {
-        <div class="mx-4 mb-3 rounded-xl overflow-hidden cursor-pointer" style="max-height:420px" (click)="openDetails()">
-          <img [src]="post().photo" alt="foto do treino" class="w-full h-full object-cover" />
+        <div class="mx-4 mb-3 rounded-xl overflow-hidden cursor-pointer bg-bg/70" (click)="openDetails()">
+          <img [src]="post().photo" alt="foto do treino" class="block w-full h-auto object-contain" />
         </div>
       }
 
