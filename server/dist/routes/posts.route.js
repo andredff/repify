@@ -12,6 +12,58 @@ const PostSchema = zod_1.z.object({
     workout_muscle: zod_1.z.string().max(30).optional(),
 }).refine(d => d.caption?.trim() || d.photo_url || d.workout_name, { message: 'O post precisa ter ao menos foto, descrição ou treino.' });
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/posts/public/:id — dados de um post sem autenticação (link público)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/public/:id', async (req, res) => {
+    const id = req.params['id'];
+    if (!id) {
+        res.status(400).json({ error: 'Missing id.' });
+        return;
+    }
+    const { data: post, error } = await supabase_1.supabaseAdmin
+        .from('posts')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+    if (error || !post) {
+        res.status(404).json({ error: 'Post not found.' });
+        return;
+    }
+    const { data: { user } } = await supabase_1.supabaseAdmin.auth.admin.getUserById(post.user_id);
+    const meta = user?.user_metadata ?? {};
+    const [{ data: statsRow }, { data: workoutRows }, { data: streakRow }] = await Promise.all([
+        supabase_1.supabaseAdmin.from('user_stats').select('total_xp').eq('user_id', post.user_id).maybeSingle(),
+        supabase_1.supabaseAdmin.from('xp_events').select('user_id').eq('type', 'workout').eq('user_id', post.user_id),
+        supabase_1.supabaseAdmin.from('user_stats').select('streak_days').eq('user_id', post.user_id).maybeSingle(),
+    ]);
+    const totalXp = Number(statsRow?.total_xp ?? 0);
+    const workoutsDone = (workoutRows ?? []).length;
+    const streakDays = Number(streakRow?.streak_days ?? 0);
+    res.json({
+        post: {
+            id: post.id,
+            caption: post.caption,
+            photo_url: post.photo_url,
+            workout: post.workout_name ? { name: post.workout_name, muscleGroup: post.workout_muscle ?? '' } : null,
+            likes: post.likes,
+            comments: post.comments,
+            created_at: post.created_at,
+            time_ago: timeAgo(post.created_at),
+            user: {
+                id: post.user_id,
+                name: meta['full_name'] || user?.email?.split('@')[0] || 'Usuário',
+                username: meta['username'] || null,
+                avatar: resolveAvatarUrl(meta['avatar_url']),
+                level: levelFromXp(totalXp),
+                yearly_goal: meta['yearly_goal'] != null ? Number(meta['yearly_goal']) : null,
+                workouts_done: workoutsDone,
+                streak_days: streakDays,
+                total_xp: totalXp,
+            },
+        },
+    });
+});
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/posts — feed público (paginado), com dados do autor
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/', auth_middleware_1.requireAuth, async (req, res) => {
@@ -328,7 +380,7 @@ async function enrichWithAuthorsAndLikes(posts, currentUserId) {
     const likedSet = new Set((myLikes ?? []).map(l => l.post_id));
     return posts.map(p => {
         const u = userMap.get(p.user_id);
-        const meta = u?.user_metadata ?? u?.raw_user_meta_data ?? {};
+        const meta = u?.user_metadata ?? {};
         const totalXp = Number(statsMap.get(p.user_id)?.total_xp ?? 0);
         return {
             id: p.id,

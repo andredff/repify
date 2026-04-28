@@ -7,6 +7,14 @@ export const CHECKIN_XP = 10;
 
 interface CheckinResponse {
   created?: boolean;
+  streakDays?: number;
+  xpAwarded?: number;
+  metrics?: {
+    totalXp: number;
+    weeklyXp: number;
+    totalKm: number;
+    streakDays: number;
+  };
 }
 
 @Injectable({ providedIn: 'root' })
@@ -60,20 +68,49 @@ export class CheckinService {
 
     const today = toLocalDate(new Date());
     this.dates.update(d => [...d, today].sort());
-    const nextStreak = this.streak() + 1;
+    const nextStreak = payload.streakDays ?? (this.streak() + 1);
     this.streak.set(nextStreak);
 
-    await this.ranking.recordXp('streak_bonus', CHECKIN_XP, { streakDays: nextStreak });
-    return { created: true, xpAwarded: CHECKIN_XP };
+    if (payload.metrics) {
+      const currentRank = this.ranking.myRank();
+      this.ranking.syncCurrentUserMetrics({
+        totalXp: payload.metrics.totalXp,
+        weeklyXp: payload.metrics.weeklyXp,
+        workoutsDone: currentRank?.workoutsDone ?? 0,
+        totalKm: payload.metrics.totalKm,
+        streakDays: payload.metrics.streakDays,
+      });
+    } else {
+      await this.ranking.recordXp('streak_bonus', CHECKIN_XP, { streakDays: nextStreak });
+    }
+
+    return { created: true, xpAwarded: payload.xpAwarded ?? CHECKIN_XP };
   }
 
   async undoCheckIn(): Promise<void> {
     if (!this.todayChecked()) return;
     const res = await this.fetch('/api/checkin/today', { method: 'DELETE' });
     if (!res.ok && res.status !== 204) throw new Error('Falha ao desfazer check-in.');
+
+    let payload: CheckinResponse | null = null;
+    if (res.status !== 204) {
+      payload = await res.json() as CheckinResponse;
+    }
+
     const today = toLocalDate(new Date());
     this.dates.update(d => d.filter(x => x !== today));
-    this.streak.update(s => Math.max(0, s - 1));
+    this.streak.set(payload?.metrics?.streakDays ?? Math.max(0, this.streak() - 1));
+
+    if (payload?.metrics) {
+      const currentRank = this.ranking.myRank();
+      this.ranking.syncCurrentUserMetrics({
+        totalXp: payload.metrics.totalXp,
+        weeklyXp: payload.metrics.weeklyXp,
+        workoutsDone: currentRank?.workoutsDone ?? 0,
+        totalKm: payload.metrics.totalKm,
+        streakDays: payload.metrics.streakDays,
+      });
+    }
   }
 
   // ── Stats ───────────────────────────────────────────────────────────────────

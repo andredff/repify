@@ -130,7 +130,7 @@ async function enrichUsers(users: any[]): Promise<PublicUser[]> {
 }
 
 function toPublicUser(u: any, stats?: UserStatsRow, workoutsDone = 0): PublicUser {
-  const meta = u.user_metadata ?? u.raw_user_meta_data ?? {};
+  const meta = u.user_metadata ?? {};
   const totalXp = Number(stats?.total_xp ?? 0);
   return {
     id:           u.id,

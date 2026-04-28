@@ -84,7 +84,7 @@ async function enrichUsers(users) {
     return users.map(user => toPublicUser(user, statsMap.get(user.id), workoutMap.get(user.id) ?? 0));
 }
 function toPublicUser(u, stats, workoutsDone = 0) {
-    const meta = u.user_metadata ?? u.raw_user_meta_data ?? {};
+    const meta = u.user_metadata ?? {};
     const totalXp = Number(stats?.total_xp ?? 0);
     return {
         id: u.id,
@@ -101,6 +101,7 @@ function toPublicUser(u, stats, workoutsDone = 0) {
         total_walk_km: Number(stats?.total_walk_km ?? 0),
         streak_days: Number(stats?.streak_days ?? 0),
         created_at: u.created_at,
+        last_sign_in_at: u.last_sign_in_at ?? null,
     };
 }
 function levelFromXp(totalXp) {

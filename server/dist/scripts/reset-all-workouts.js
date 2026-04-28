@@ -39,7 +39,7 @@ async function listAllUsers() {
             throw error;
         const batch = data.users.map(user => ({
             id: user.id,
-            user_metadata: (user.user_metadata ?? user.raw_user_meta_data ?? {}),
+            user_metadata: (user.user_metadata ?? {}),
         }));
         users.push(...batch);
         if (batch.length < perPage) {

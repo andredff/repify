@@ -31,7 +31,7 @@ router.get('/public/:id', async (req, res: Response) => {
   if (error || !post) { res.status(404).json({ error: 'Post not found.' }); return; }
 
   const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(post.user_id);
-  const meta = user?.user_metadata ?? user?.raw_user_meta_data ?? {};
+  const meta = user?.user_metadata ?? {};
 
   const [{ data: statsRow }, { data: workoutRows }, { data: streakRow }] = await Promise.all([
     supabaseAdmin.from('user_stats').select('total_xp').eq('user_id', post.user_id).maybeSingle(),
@@ -432,7 +432,7 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
 
   return posts.map(p => {
     const u    = userMap.get(p.user_id);
-    const meta = u?.user_metadata ?? u?.raw_user_meta_data ?? {};
+    const meta = u?.user_metadata ?? {};
     const totalXp = Number(statsMap.get(p.user_id)?.total_xp ?? 0);
     return {
       id:          p.id,
