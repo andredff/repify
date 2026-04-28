@@ -7,15 +7,17 @@ import { NewPostModalComponent } from '../feed/components/new-post-modal.compone
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
 import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
 
-type Step = 'plan' | 'goal' | 'level' | 'days' | 'result';
+type Step = 'plan' | 'goal' | 'level' | 'days' | 'duration' | 'result';
 type Goal = 'hipertrofia' | 'emagrecimento' | 'forca' | 'condicionamento';
 type Level = 'iniciante' | 'intermediario' | 'avancado';
 type Days = 3 | 4 | 5;
+type SessionDuration = 20 | 40 | 60;
 
 interface WizardState {
-  goal:  Goal  | null;
-  level: Level | null;
-  days:  Days  | null;
+  goal:            Goal            | null;
+  level:           Level           | null;
+  days:            Days            | null;
+  sessionDuration: SessionDuration | null;
 }
 
 interface Ex {
@@ -78,6 +80,80 @@ const INICIANTE_E: Ex[] = [
   ex('3','Remada curvada',     3,'10 reps'),
   ex('4','Tríceps corda',      3,'12 reps'),
   ex('5','Abdominal',          3,'20 reps'),
+];
+
+// ── TREINO EM CASA — Bodyweight ───────────────────────────────────────────────
+const HOME_A: Ex[] = [
+  ex('1','Agachamento',           3,'15 reps'),
+  ex('2','Flexão de braço',       3,'12 reps'),
+  ex('3','Afundo',                3,'10 reps cada'),
+  ex('4','Tríceps no chão',       3,'12 reps'),
+  ex('5','Abdominal crunch',      3,'20 reps'),
+];
+const HOME_B: Ex[] = [
+  ex('1','Agachamento sumô',      3,'15 reps'),
+  ex('2','Flexão diamante',       3,'10 reps'),
+  ex('3','Glúteo 4 apoios',       3,'15 reps cada'),
+  ex('4','Flexão fechada',        3,'10 reps'),
+  ex('5','Prancha',               3,'45 seg'),
+];
+const HOME_C: Ex[] = [
+  ex('1','Agachamento com pulso', 3,'12 reps'),
+  ex('2','Burpee',                3,'10 reps'),
+  ex('3','Flexão Pike',           3,'10 reps'),
+  ex('4','Mountain climber',      3,'30 seg'),
+  ex('5','Abdominal bicicleta',   3,'20 reps'),
+];
+const HOME_D: Ex[] = [
+  ex('1','Agachamento isométrico',3,'40 seg'),
+  ex('2','Flexão explosiva',      3,'10 reps'),
+  ex('3','Passada lateral',       3,'12 reps cada'),
+  ex('4','Tríceps no banco',      3,'12 reps'),
+  ex('5','Elevação de quadril',   3,'20 reps'),
+];
+const HOME_E: Ex[] = [
+  ex('1','Jump squat',            3,'15 reps'),
+  ex('2','Flexão arqueiro',       3,'6 reps cada'),
+  ex('3','Afundo com salto',      3,'10 reps cada'),
+  ex('4','Prancha lateral',       3,'30 seg cada'),
+  ex('5','Abdominal V',           3,'15 reps'),
+];
+
+// ── CALISTENIA ────────────────────────────────────────────────────────────────
+const CALI_A: Ex[] = [
+  ex('1','Barra fixa pronada',    3,'até falha'),
+  ex('2','Flexão de braço',       3,'15 reps'),
+  ex('3','Dip em banco',          3,'12 reps'),
+  ex('4','Agachamento',           3,'20 reps'),
+  ex('5','Prancha',               3,'1 min'),
+];
+const CALI_B: Ex[] = [
+  ex('1','Barra supinada',        3,'até falha'),
+  ex('2','Flexão diamante',       3,'12 reps'),
+  ex('3','Agachamento pistol',    3,'4 reps cada'),
+  ex('4','L-sit (cadeira)',        3,'10 seg'),
+  ex('5','Abdominal',             3,'20 reps'),
+];
+const CALI_C: Ex[] = [
+  ex('1','Barra australiana',     3,'12 reps'),
+  ex('2','Flexão Pike',           3,'10 reps'),
+  ex('3','Afundo',                3,'12 reps cada'),
+  ex('4','Dip paralelo',          3,'até falha'),
+  ex('5','Prancha lateral',       3,'30 seg cada'),
+];
+const CALI_D: Ex[] = [
+  ex('1','Barra fixa negativa',   3,'5 reps'),
+  ex('2','Barra fixa pronada',    3,'até falha'),
+  ex('3','Flexão arqueiro',       3,'5 reps cada'),
+  ex('4','Agachamento c/ salto',  3,'15 reps'),
+  ex('5','Knee raise na barra',   3,'12 reps'),
+];
+const CALI_E: Ex[] = [
+  ex('1','Front lever hold',      3,'5 seg'),
+  ex('2','Barra supinada',        3,'até falha'),
+  ex('3','Dip ponderado',         3,'8 reps'),
+  ex('4','Pistol squat',          3,'5 reps cada'),
+  ex('5','Prancha',               3,'90 seg'),
 ];
 
 // ── HIPERTROFIA — Push / Pull / Legs ─────────────────────────────────────────
@@ -335,6 +411,54 @@ const PLANS: Record<Goal, Record<Level, PlanDay[]>> = {
   },
 };
 
+const HOME_PLANS: Record<Level, PlanDay[]> = {
+  iniciante: [
+    { name:'Casa A', muscleGroup:'full', exercises: HOME_A, duration:25 },
+    { name:'Casa B', muscleGroup:'full', exercises: HOME_B, duration:25 },
+    { name:'Casa C', muscleGroup:'full', exercises: HOME_C, duration:30 },
+    { name:'Casa D', muscleGroup:'full', exercises: HOME_D, duration:30 },
+    { name:'Casa E', muscleGroup:'full', exercises: HOME_E, duration:30 },
+  ],
+  intermediario: [
+    { name:'Casa A', muscleGroup:'full', exercises: HOME_A, duration:35 },
+    { name:'Casa B', muscleGroup:'full', exercises: HOME_B, duration:35 },
+    { name:'Casa C', muscleGroup:'full', exercises: HOME_C, duration:35 },
+    { name:'Casa D', muscleGroup:'full', exercises: HOME_D, duration:35 },
+    { name:'Casa E', muscleGroup:'full', exercises: HOME_E, duration:35 },
+  ],
+  avancado: [
+    { name:'Casa A', muscleGroup:'full', exercises: HOME_A, duration:45 },
+    { name:'Casa B', muscleGroup:'full', exercises: HOME_B, duration:45 },
+    { name:'Casa C', muscleGroup:'full', exercises: HOME_C, duration:45 },
+    { name:'Casa D', muscleGroup:'full', exercises: HOME_D, duration:45 },
+    { name:'Casa E', muscleGroup:'full', exercises: HOME_E, duration:45 },
+  ],
+};
+
+const CALI_PLANS: Record<Level, PlanDay[]> = {
+  iniciante: [
+    { name:'Cali A', muscleGroup:'full', exercises: CALI_A, duration:35 },
+    { name:'Cali B', muscleGroup:'full', exercises: CALI_B, duration:35 },
+    { name:'Cali C', muscleGroup:'full', exercises: CALI_C, duration:35 },
+    { name:'Cali D', muscleGroup:'full', exercises: CALI_D, duration:35 },
+    { name:'Cali E', muscleGroup:'full', exercises: CALI_E, duration:35 },
+  ],
+  intermediario: [
+    { name:'Cali A', muscleGroup:'full', exercises: CALI_A, duration:45 },
+    { name:'Cali B', muscleGroup:'full', exercises: CALI_B, duration:45 },
+    { name:'Cali C', muscleGroup:'full', exercises: CALI_C, duration:45 },
+    { name:'Cali D', muscleGroup:'full', exercises: CALI_D, duration:45 },
+    { name:'Cali E', muscleGroup:'full', exercises: CALI_E, duration:45 },
+  ],
+  avancado: [
+    { name:'Cali A', muscleGroup:'full', exercises: CALI_A, duration:55 },
+    { name:'Cali B', muscleGroup:'full', exercises: CALI_B, duration:55 },
+    { name:'Cali C', muscleGroup:'full', exercises: CALI_C, duration:55 },
+    { name:'Cali D', muscleGroup:'full', exercises: CALI_D, duration:55 },
+    { name:'Cali E', muscleGroup:'full', exercises: CALI_E, duration:55 },
+  ],
+};
+
 // dayLabel → JS day index (0=Dom)
 const DAY_SCHEDULE: Record<number, Array<{ label: string; index: number }>> = {
   3: [{ label:'Segunda', index:1 }, { label:'Quarta', index:3 }, { label:'Sexta',  index:5 }],
@@ -343,24 +467,38 @@ const DAY_SCHEDULE: Record<number, Array<{ label: string; index: number }>> = {
 };
 
 function buildWorkouts(state: WizardState): GeneratedWorkout[] {
-  const planDays = PLANS[state.goal!][state.level!].slice(0, state.days!);
+  const rawDays = PLANS[state.goal!][state.level!].slice(0, state.days!);
+
   const levelLabel: 'Iniciante' | 'Intermediário' | 'Avançado' =
     state.level === 'avancado' ? 'Avançado'
     : state.level === 'intermediario' ? 'Intermediário'
     : 'Iniciante';
   const schedule = DAY_SCHEDULE[state.days!];
 
-  return planDays.map((day, i) => ({
-    id:                `${state.goal}-${state.level}-day${i + 1}`,
-    name:              day.name,
-    muscleGroup:       day.muscleGroup,
-    exercises:         day.exercises.map((e, j) => ({ ...e, id: String(j + 1) })),
-    estimatedDuration: day.duration,
-    totalExercises:    day.exercises.length,
-    difficulty:        levelLabel,
-    dayLabel:          schedule[i]?.label ?? `Dia ${i + 1}`,
-    dayIndex:          schedule[i]?.index ?? i,
-  }));
+  return rawDays.map((day, i) => {
+    let exercises = day.exercises;
+    let duration  = day.duration;
+
+    if (state.sessionDuration === 20) {
+      exercises = exercises.slice(0, 3).map(e => ({ ...e, sets: Math.max(2, e.sets - 1) }));
+      duration  = 20;
+    } else if (state.sessionDuration === 60) {
+      exercises = exercises.map(e => ({ ...e, sets: Math.min(5, e.sets + 1) }));
+      duration  = day.duration + 15;
+    }
+
+    return {
+      id:                `${state.goal}-${state.level}-day${i + 1}`,
+      name:              day.name,
+      muscleGroup:       day.muscleGroup,
+      exercises:         exercises.map((e, j) => ({ ...e, id: String(j + 1) })),
+      estimatedDuration: duration,
+      totalExercises:    exercises.length,
+      difficulty:        levelLabel,
+      dayLabel:          schedule[i]?.label ?? `Dia ${i + 1}`,
+      dayIndex:          schedule[i]?.index ?? i,
+    };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -384,6 +522,19 @@ const DAYS_OPTIONS: { value: Days; label: string; desc: string }[] = [
   { value:3, label:'3 dias', desc:'Segunda, Quarta, Sexta' },
   { value:4, label:'4 dias', desc:'Seg, Ter, Qui, Sex' },
   { value:5, label:'5 dias', desc:'Segunda a Sexta' },
+];
+
+const DURATION_OPTIONS: { value: SessionDuration; label: string; desc: string }[] = [
+  { value:20, label:'20 min', desc:'Curto e intenso — foco máximo, 3 exercícios' },
+  { value:40, label:'40 min', desc:'Equilíbrio ideal — volume e qualidade' },
+  { value:60, label:'60+ min', desc:'Volume alto — mais séries, mais resultado' },
+];
+
+const WEEK_PROGRESSION = [
+  { week:1, tag:'Adaptação',    desc:'Foco em técnica, 70% do esforço',         bar:25 },
+  { week:2, tag:'Volume',       desc:'Séries completas, ritmo constante',       bar:50 },
+  { week:3, tag:'Intensidade',  desc:'Aumente a carga ou reduza o descanso',    bar:75 },
+  { week:4, tag:'Consolidação', desc:'Máxima intensidade do ciclo',             bar:100 },
 ];
 
 const MUSCLE_COLORS: Record<string, string> = {
@@ -420,7 +571,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
         <section class="pt-0 pb-5">
           <p class="text-[22px] font-display font-bold text-white">Meu Treino</p>
           <p class="text-[12px] font-body text-text-2 mt-1">
-            {{ step() !== 'result' && step() !== 'plan' ? 'Passo ' + (stepIndex() + 1) + ' de 3' : 'Monte, ajuste e acompanhe seu programa' }}
+            {{ step() !== 'result' && step() !== 'plan' ? 'Passo ' + (stepIndex() + 1) + ' de 4' : 'Monte, ajuste e acompanhe seu programa' }}
           </p>
         </section>
 
@@ -674,18 +825,84 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
           </div>
         }
 
-        <!-- ── RESULT ── -->
-        @if (step() === 'result') {
+        <!-- ── DURATION ── -->
+        @if (step() === 'duration') {
           <div class="animate-slide-up">
             <header class="flex items-center gap-3 mb-6">
               <button (click)="back()" class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white transition-colors shrink-0">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
               </button>
-              <h2 class="text-[20px] font-display font-bold text-white">Plano gerado</h2>
+              <h2 class="text-[20px] font-display font-bold text-white">Quanto tempo você tem?</h2>
             </header>
-            <p class="text-[13px] font-body text-text-2 mb-6">
-              {{ generated().length }} treinos · {{ wizard().days }}x/semana · {{ goalLabel() }} · {{ levelLabel() }}
-            </p>
+            <p class="text-[13px] font-body text-text-2 mb-7">Isso define o volume e número de exercícios por sessão.</p>
+            <div class="space-y-3">
+              @for (opt of durationOptions; track opt.value) {
+                <button (click)="set('sessionDuration', opt.value)"
+                        class="w-full flex items-center justify-between gap-4 p-4 rounded-2xl border transition-all text-left active:scale-[0.97]"
+                        [class]="wizard().sessionDuration === opt.value
+                          ? 'bg-primary/10 border-primary shadow-glow-sm'
+                          : 'bg-card-2 border-border hover:border-border-2'">
+                  <div class="flex-1">
+                    <p class="text-[20px] font-display font-bold text-white">{{ opt.label }}</p>
+                    <p class="text-[12px] font-body text-text-2 mt-0.5">{{ opt.desc }}</p>
+                  </div>
+                  <div class="w-10 h-10 rounded-full border flex items-center justify-center shrink-0 transition-colors"
+                       [class]="wizard().sessionDuration === opt.value ? 'bg-primary border-primary' : 'bg-card border-border'">
+                    @if (wizard().sessionDuration === opt.value) {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#080C10" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    } @else {
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                      </svg>
+                    }
+                  </div>
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- ── RESULT ── -->
+        @if (step() === 'result') {
+          <div class="animate-slide-up">
+            <div class="mb-7">
+              <h2 class="text-[28px] font-display font-bold text-white leading-tight">Seu plano<br>está pronto.</h2>
+              <p class="text-[14px] font-body text-text-2 mt-2">Agora é simples: apareça todos os dias.</p>
+            </div>
+
+            <!-- 4-week progression -->
+            <div class="mb-6 rounded-2xl border border-border overflow-hidden">
+              <div class="px-4 py-3 bg-card-2 border-b border-border flex items-center gap-2">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                <p class="text-[11px] font-body font-semibold text-text-2 uppercase tracking-widest">Progressão de 4 semanas</p>
+              </div>
+              @for (week of weekProgression; track week.week) {
+                <div class="px-4 py-3 border-b border-border last:border-0 flex items-center gap-3 bg-card">
+                  <div class="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                    <span class="text-[11px] font-mono font-bold text-primary">{{ week.week }}</span>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-[13px] font-body font-semibold text-white">{{ week.tag }}</p>
+                    <p class="text-[11px] font-body text-text-2 truncate">{{ week.desc }}</p>
+                  </div>
+                  <div class="w-14 h-1.5 bg-border rounded-full overflow-hidden shrink-0">
+                    <div class="h-full bg-primary rounded-full" [style.width.%]="week.bar"></div>
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Summary tags -->
+            <div class="flex flex-wrap gap-2 mb-6">
+              <span class="px-3 py-1 rounded-full bg-card border border-border text-[11px] font-body text-text-2">{{ goalLabel() }}</span>
+              <span class="px-3 py-1 rounded-full bg-card border border-border text-[11px] font-body text-text-2">{{ levelLabel() }}</span>
+              <span class="px-3 py-1 rounded-full bg-card border border-border text-[11px] font-body text-text-2">{{ wizard().days }}x/semana</span>
+              <span class="px-3 py-1 rounded-full bg-card border border-border text-[11px] font-body text-text-2">{{ wizard().sessionDuration }} min</span>
+            </div>
+
+            <h3 class="text-[11px] font-body font-semibold text-text-2 uppercase tracking-widest mb-3">Treinos da semana</h3>
             <div class="space-y-4">
               @for (w of generated(); track w.id; let i = $index) {
                 <div class="rounded-2xl border overflow-hidden relative bg-gradient-to-br"
@@ -762,7 +979,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                   [class]="canAdvance()
                     ? 'bg-primary text-bg shadow-glow hover:shadow-glow-lg active:scale-[0.98]'
                     : 'bg-card-2 text-text-2 border border-border cursor-not-allowed'">
-            {{ step() === 'days' ? 'Gerar plano' : 'Continuar' }}
+            {{ step() === 'duration' ? 'Gerar plano' : 'Continuar' }}
           </button>
         </div>
       }
@@ -828,14 +1045,16 @@ export class MyWorkoutComponent implements OnInit {
   private location = inject(Location);
   workoutService   = inject(WorkoutService);
 
-  readonly stepKeys: Step[] = ['goal', 'level', 'days'];
+  readonly stepKeys: Step[] = ['goal', 'level', 'days', 'duration'];
   showNotifications = signal(false);
-  readonly goalOptions  = GOAL_OPTIONS;
-  readonly levelOptions = LEVEL_OPTIONS;
-  readonly daysOptions  = DAYS_OPTIONS;
+  readonly goalOptions     = GOAL_OPTIONS;
+  readonly levelOptions    = LEVEL_OPTIONS;
+  readonly daysOptions     = DAYS_OPTIONS;
+  readonly durationOptions = DURATION_OPTIONS;
+  readonly weekProgression = WEEK_PROGRESSION;
 
   step           = signal<Step>('goal');
-  wizard         = signal<WizardState>({ goal: null, level: null, days: null });
+  wizard         = signal<WizardState>({ goal: null, level: null, days: null, sessionDuration: null });
   generated      = signal<GeneratedWorkout[]>([]);
   previewWorkout = signal<StoredPlan | GeneratedWorkout | null>(null);
   showNewPost = signal(false);
@@ -858,9 +1077,10 @@ export class MyWorkoutComponent implements OnInit {
   canAdvance = computed(() => {
     const w = this.wizard();
     switch (this.step()) {
-      case 'goal':  return !!w.goal;
-      case 'level': return !!w.level;
-      case 'days':  return !!w.days;
+      case 'goal':     return !!w.goal;
+      case 'level':    return !!w.level;
+      case 'days':     return !!w.days;
+      case 'duration': return !!w.sessionDuration;
       default: return false;
     }
   });
@@ -910,18 +1130,19 @@ export class MyWorkoutComponent implements OnInit {
   }
 
   async next(): Promise<void> {
-    const order: Step[] = ['goal', 'level', 'days'];
+    const order: Step[] = ['goal', 'level', 'days', 'duration'];
     const idx = order.indexOf(this.step() as any);
     if (idx < order.length - 1) {
       this.step.set(order[idx + 1]);
     } else {
       const workouts = buildWorkouts(this.wizard());
       const program: ActiveProgram = {
-        goal:      this.wizard().goal!,
-        level:     this.wizard().level!,
-        days:      this.wizard().days!,
-        plans:     workouts,
-        createdAt: new Date().toISOString(),
+        goal:            this.wizard().goal!,
+        level:           this.wizard().level!,
+        days:            this.wizard().days!,
+        plans:           workouts,
+        createdAt:       new Date().toISOString(),
+        sessionDuration: this.wizard().sessionDuration!,
       };
       await this.workoutService.saveProgram(program);
       this.generated.set(workouts);
@@ -931,12 +1152,11 @@ export class MyWorkoutComponent implements OnInit {
 
   back(): void {
     if (this.step() === 'plan') { this.location.back(); return; }
-    const order: Step[] = ['goal', 'level', 'days'];
+    const order: Step[] = ['goal', 'level', 'days', 'duration'];
     const idx = order.indexOf(this.step() as any);
     if (idx > 0) {
       this.step.set(order[idx - 1]);
     } else {
-      // se tem plano, volta para view do plano; senão sai
       this.workoutService.hasProgram() ? this.step.set('plan') : this.location.back();
     }
   }
@@ -958,7 +1178,7 @@ export class MyWorkoutComponent implements OnInit {
   async confirmReset(): Promise<void> {
     if (confirm('Apagar plano atual e criar um novo?')) {
       await this.workoutService.clearProgram();
-      this.wizard.set({ goal: null, level: null, days: null });
+      this.wizard.set({ goal: null, level: null, days: null, sessionDuration: null });
       this.generated.set([]);
       this.step.set('goal');
     }
@@ -966,7 +1186,7 @@ export class MyWorkoutComponent implements OnInit {
 
   async reset(): Promise<void> {
     await this.workoutService.clearProgram();
-    this.wizard.set({ goal: null, level: null, days: null });
+    this.wizard.set({ goal: null, level: null, days: null, sessionDuration: null });
     this.generated.set([]);
     this.step.set('goal');
   }

@@ -13,7 +13,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
         <p class="shrink-0 text-[10px] font-mono text-primary sm:text-[11px]">{{ clampedProgress() }}%</p>
       </div>
 
-      <div class="relative h-2.5 overflow-hidden rounded-full border border-white/8 bg-white/[0.05]">
+      <div class="relative h-2.5 overflow-hidden rounded-full border border-primary/5 bg-white/[0.05]">
         <div class="absolute inset-y-0 left-0 rounded-full bg-[linear-gradient(90deg,rgba(0,255,136,0.26),rgba(0,255,136,0.92))] shadow-[0_0_18px_rgba(0,255,136,0.2)] transition-all duration-700"
              [style.width.%]="clampedProgress()"></div>
         <div class="absolute inset-y-[2px] w-6 rounded-full bg-white/25 blur-md transition-all duration-700"

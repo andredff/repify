@@ -7,7 +7,7 @@ import { RadarMetricComponent } from './radar-metric.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RankingProgressBarComponent, RadarMetricComponent],
   template: `
-    <section class="relative overflow-hidden rounded-[28px] border border-white/8 bg-card-2 p-4 shadow-[0_14px_44px_rgba(0,0,0,0.24)] sm:p-5">
+    <section class="relative overflow-hidden rounded-[28px] border border-primary/5 bg-card-2 p-4 shadow-[0_14px_44px_rgba(0,0,0,0.24)] sm:p-5">
       <div class="pointer-events-none absolute right-[-40px] top-[-24px] h-28 w-28 rounded-full bg-primary/8 blur-3xl"></div>
 
       <div class="relative z-[1] space-y-4">

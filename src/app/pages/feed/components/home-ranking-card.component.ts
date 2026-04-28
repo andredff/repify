@@ -13,7 +13,7 @@ import { RankingProgressBarComponent } from './ranking-progress-bar.component';
             <div class="min-w-0 space-y-2">
               <p class="text-[10px] font-body uppercase tracking-[0.26em] text-primary/70">Radar diário</p>
               <div class="flex items-end gap-2.5 sm:gap-3">
-                <div class="rank-orb flex h-[68px] w-[68px] items-center justify-center rounded-[22px] border border-primary/14 bg-primary/[0.06] shadow-[0_0_24px_rgba(0,255,136,0.08)] sm:h-[76px] sm:w-[76px] sm:rounded-[24px]">
+                <div class="rank-orb flex h-[68px] w-[68px] items-center justify-center rounded-[22px] border border-primary/5 bg-primary/[0.06] shadow-[0_0_24px_rgba(0,255,136,0.08)] sm:h-[76px] sm:w-[76px] sm:rounded-[24px]">
                   <span class="text-[24px] font-display font-bold tracking-tight text-primary sm:text-[28px]">#{{ displayedRank() }}</span>
                 </div>
                 <div class="min-w-0 pb-0.5 mb-4">

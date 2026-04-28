@@ -30,6 +30,8 @@ export interface ActiveProgram {
   days: number;
   plans: StoredPlan[];
   createdAt: string;
+  styles?: string[];
+  sessionDuration?: number;
 }
 
 export interface WorkoutSession {
