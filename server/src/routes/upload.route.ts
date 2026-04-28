@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
 import { upload } from '../middleware/upload.middleware';
 import { processImage } from '../lib/image-processor';
@@ -24,7 +24,7 @@ router.post(
     }
 
     const userId = req.userId!;
-    const id     = uuidv4();
+    const id     = randomUUID();
     const base   = `${userId}/${id}`;
 
     let sizes;
