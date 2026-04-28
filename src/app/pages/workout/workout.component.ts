@@ -258,11 +258,14 @@ export class WorkoutComponent implements OnInit {
       title: session.planName,
       muscleGroup: session.muscleGroup,
       difficulty: session.difficulty,
+      workoutType: 'Musculação',
       durationMinutes: session.estimatedDuration,
       exercisesDone: session.exercisesDone,
       totalExercises: session.totalExercises,
+      calories: null,
       xpEarned: session.xpEarned,
       completedAtLabel: this.formatCompletedAt(session.completedAt),
+      sessionLabel: session.dateLabel === 'Hoje' ? 'Treino de hoje' : session.dateLabel,
     };
   });
   workoutPostCaption = computed(() => {

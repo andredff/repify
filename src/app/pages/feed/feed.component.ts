@@ -64,7 +64,7 @@ interface PreviewActionCard {
 }
 
 interface OnboardingActionCard {
-  id: 'program' | 'weekly-goal' | 'first-workout' | 'first-post';
+  id: 'profile' | 'program' | 'weekly-goal' | 'first-workout' | 'first-post';
   kicker: string;
   title: string;
   description: string;
@@ -510,7 +510,7 @@ function isoToday(): string {
                 <div class="relative z-[1] flex items-start justify-between gap-3">
                   <div class="min-w-0">
                     <div class="flex items-center gap-2 flex-wrap">
-                      <p class="text-[10px] font-body uppercase tracking-[0.24em] text-primary/78">{{ card.kicker }}</p>
+                      <p class="text-[10px] font-body uppercase tracking-[0.24em] text-primary/78">Etapa {{ $index + 1 }}</p>
                       <span class="rounded-full border border-primary/15 bg-bg/60 px-2 py-1 text-[9px] font-body font-semibold uppercase tracking-[0.16em] text-primary">{{ card.reward }}</span>
                     </div>
                     <p class="mt-2 text-[17px] font-display font-bold leading-tight text-white">{{ card.title }}</p>
@@ -733,39 +733,52 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const cards: OnboardingActionCard[] = [];
+    const profileActions = this.profileCompletionActions();
     const hasProgram = this.workoutService.hasProgram();
     const weeklyGoal = this.weeklyGoal();
     const workoutsDone = this.workoutsDone();
     const myPostsCount = this.myPostsCount();
 
+    if (profileActions.length > 0) {
+      cards.push({
+        id: 'profile',
+        kicker: 'Etapa 1',
+        title: 'Complete seu perfil antes de começar a aparecer de verdade no app.',
+        description: 'Defina o básico do perfil para liberar publicação, identidade e progressão social dentro do feed.',
+        reward: 'Perfil liberado',
+        cta: 'Completar perfil',
+        accentClass: 'from-primary/25 via-primary/10 to-transparent',
+      });
+    }
+
     if (!hasProgram) {
       cards.push({
         id: 'program',
-        kicker: 'Etapa 1',
+        kicker: 'Etapa 2',
         title: 'Crie seu treino base para o app saber por onde começar.',
         description: 'Monte seus dias, grupos musculares e sessões. Sem programa, não existe rotina para converter em consistência.',
         reward: 'Base do jogo',
         cta: 'Criar treino',
-        accentClass: 'from-primary/25 via-primary/10 to-transparent',
+        accentClass: 'from-[#00C2FF]/24 via-[#00C2FF]/8 to-transparent',
       });
     }
 
     if (weeklyGoal.goalDays <= 0) {
       cards.push({
         id: 'weekly-goal',
-        kicker: 'Etapa 2',
+        kicker: 'Etapa 3',
         title: 'Defina sua meta da semana e transforme constância em XP extra.',
         description: 'Escolha quantos dias vai treinar para o app começar a cobrar execução e liberar recompensa semanal.',
         reward: '+150 a +250 XP',
         cta: 'Criar plano da semana',
-        accentClass: 'from-[#00C2FF]/24 via-[#00C2FF]/8 to-transparent',
+        accentClass: 'from-[#7C5CFF]/24 via-[#7C5CFF]/8 to-transparent',
       });
     }
 
     if (hasProgram && workoutsDone === 0) {
       cards.push({
         id: 'first-workout',
-        kicker: 'Etapa 3',
+        kicker: 'Etapa 4',
         title: 'Mate o primeiro treino e abra sua trilha real de XP.',
         description: 'Seu primeiro treino concluído ativa histórico, streak e libera a sensação de progresso real dentro do feed.',
         reward: '+70 XP estimados',
@@ -777,7 +790,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     if (workoutsDone > 0 && myPostsCount === 0) {
       cards.push({
         id: 'first-post',
-        kicker: 'Etapa 4',
+        kicker: 'Etapa 5',
         title: 'Publique seu resultado e puxe seu primeiro desafio no feed.',
         description: 'Seu treino já rendeu XP. Agora transforme isso em presença, prova social e pressão sobre os amigos.',
         reward: 'Feed liberado',
@@ -1038,11 +1051,14 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
       title: session.planName,
       muscleGroup: session.muscleGroup,
       difficulty: session.difficulty,
+      workoutType: 'Musculação',
       durationMinutes: session.estimatedDuration,
       exercisesDone: session.exercisesDone,
       totalExercises: session.totalExercises,
+      calories: null,
       xpEarned: session.xpEarned,
       completedAtLabel: this.formatCompletedAt(session.completedAt),
+      sessionLabel: session.dateLabel === 'Hoje' ? 'Treino de hoje' : session.dateLabel,
     };
   });
   newPostTitle = computed(() => this.prefillOnboardingPost() && this.latestCompletedSession() ? 'Postar treino concluído' : 'Novo post');
@@ -1413,13 +1429,13 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   runOnboardingAction(actionId: OnboardingActionCard['id']): void {
-    if (actionId === 'program') {
-      void this.router.navigateByUrl('/my-workout');
+    if (actionId === 'profile' || actionId === 'weekly-goal') {
+      void this.router.navigateByUrl('/profile');
       return;
     }
 
-    if (actionId === 'weekly-goal') {
-      void this.router.navigateByUrl('/profile');
+    if (actionId === 'program') {
+      void this.router.navigateByUrl('/my-workout');
       return;
     }
 
