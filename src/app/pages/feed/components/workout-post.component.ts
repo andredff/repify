@@ -56,12 +56,6 @@ const MUSCLE_COLORS: Record<string, string> = {
                     [class]="levelClass()">
                 {{ post().user.level }}
               </span>
-              @if (post().user.yearlyGoal) {
-                <span class="text-text-2 text-[10px] select-none">|</span>
-                <span class="text-[10px] font-mono text-primary font-semibold">
-                  {{ post().user.workoutsDone ?? 0 }}/{{ post().user.yearlyGoal }}
-                </span>
-              }
             </div>
             <div class="flex items-center gap-1.5 mt-0.5">
               <div class="neon-dot" style="width:5px;height:5px;opacity:0.7"></div>
@@ -135,7 +129,7 @@ const MUSCLE_COLORS: Record<string, string> = {
 
       <!-- Photo -->
       @if (post().photo) {
-        <div class="mx-4 mb-3 rounded-2xl overflow-hidden cursor-pointer bg-card" (click)="openDetails()">
+        <div class="mx-4 mb-3 rounded-2xl overflow-hidden bg-card">
           <img
             [src]="post().photoMedium || post().photo"
             alt="foto do treino"
@@ -336,10 +330,6 @@ export class WorkoutPostComponent {
     }
 
     this.showComments.set(true);
-  }
-
-  openDetails(): void {
-    this.router.navigateByUrl(`/p/${this.post().id}`);
   }
 
   muscleEmoji(): string {
