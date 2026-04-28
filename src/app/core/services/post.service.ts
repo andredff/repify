@@ -48,6 +48,15 @@ export class PostService {
     this.pendingPost.set(post);
   }
 
+  canCreatePost(): boolean {
+    const profile = this.auth.profile();
+    return !!profile.full_name.trim() && !!profile.username.trim();
+  }
+
+  createPostRequirementMessage(): string {
+    return 'Preencha nome e nome de usuário no perfil antes de publicar.';
+  }
+
   // ─── Public API ────────────────────────────────────────────────────────────
 
   async listFeed(limit = 20, offset = 0): Promise<FeedPage> {
@@ -71,6 +80,7 @@ export class PostService {
   async createPost(data: NewPostData): Promise<WorkoutPost> {
     const user = this.auth.user();
     if (!user) throw new Error('Usuário não autenticado.');
+    if (!this.canCreatePost()) throw new Error(this.createPostRequirementMessage());
 
     let photoUrl: string | undefined;
 

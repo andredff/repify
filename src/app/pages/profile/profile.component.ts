@@ -299,7 +299,7 @@ const MAX_SIZE_MB   = 5;
 
               <div class="space-y-2">
                 <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Dias por semana</label>
-                <div class="grid grid-cols-3 gap-2">
+                <div class="grid grid-cols-4 gap-2">
                   @for (days of weeklyGoalOptions; track days) {
                     <button type="button"
                             (click)="profileForm.get('weekly_goal_days')?.setValue(days)"
@@ -307,8 +307,13 @@ const MAX_SIZE_MB   = 5;
                             [class]="profileForm.get('weekly_goal_days')?.value === days
                               ? 'border-primary/45 bg-primary/10 text-white shadow-glow-sm'
                               : 'border-border bg-card text-text-2 hover:border-primary/25 hover:text-white'">
-                      <p class="text-[20px] font-display font-bold leading-none">{{ days }}</p>
-                      <p class="mt-1 text-[10px] font-body uppercase tracking-[0.14em]">dias</p>
+                      @if (days === 0) {
+                        <p class="text-[14px] font-display font-bold leading-none">Nenhuma</p>
+                        <p class="mt-1 text-[10px] font-body uppercase tracking-[0.14em]">sem meta</p>
+                      } @else {
+                        <p class="text-[20px] font-display font-bold leading-none">{{ days }}</p>
+                        <p class="mt-1 text-[10px] font-body uppercase tracking-[0.14em]">dias</p>
+                      }
                     </button>
                   }
                 </div>
@@ -318,7 +323,11 @@ const MAX_SIZE_MB   = 5;
                 <div class="flex items-center justify-between gap-3">
                   <div>
                     <p class="text-[12px] font-body font-semibold text-white">Progresso da semana</p>
-                    <p class="text-[11px] font-body text-text-2">{{ weeklyTrainingDays() }}/{{ profileForm.get('weekly_goal_days')?.value }} dias concluídos</p>
+                    @if ((profileForm.get('weekly_goal_days')?.value ?? 0) > 0) {
+                      <p class="text-[11px] font-body text-text-2">{{ weeklyTrainingDays() }}/{{ profileForm.get('weekly_goal_days')?.value }} dias concluídos</p>
+                    } @else {
+                      <p class="text-[11px] font-body text-text-2">Meta semanal desativada. Você pode definir quando quiser.</p>
+                    }
                   </div>
                   <div class="rounded-xl border border-primary/15 bg-primary/10 px-3 py-2 text-right">
                     <p class="text-[9px] uppercase tracking-[0.14em] text-primary/80 font-body">Bônus</p>
@@ -623,7 +632,7 @@ export class ProfileComponent implements OnInit {
     { value: 'performance',   emoji: '🏃', label: 'Performance' },
   ];
 
-  weeklyGoalOptions = [3, 4, 5];
+  weeklyGoalOptions = [0, 3, 4, 5];
 
   avatarInitial = computed(() => {
     const name  = this.auth.profile().full_name;
@@ -683,7 +692,7 @@ export class ProfileComponent implements OnInit {
       weight:       [p.weight,       [Validators.min(20), Validators.max(400)]],
       height:       [p.height,       [Validators.min(50), Validators.max(300)]],
       yearly_goal:  [p.yearly_goal,  [Validators.min(1), Validators.max(999)]],
-      weekly_goal_days: [p.weekly_goal_days, [Validators.min(3), Validators.max(5)]],
+      weekly_goal_days: [p.weekly_goal_days, [Validators.min(0), Validators.max(5)]],
     });
     this.emailForm = this.fb.group({
       newEmail: ['', [Validators.required, Validators.email]],

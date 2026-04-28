@@ -19,8 +19,8 @@ import { RouterLink } from '@angular/router';
 
         <!-- Feed -->
         <button type="button"
-           (click)="handlePreviewAction('explorar o feed')"
-           [routerLink]="previewMode() ? null : '/feed'"
+            (click)="handleFeedClick()"
+            [routerLink]="previewMode() || active() === 'feed' ? null : '/feed'"
            class="flex flex-col items-center gap-1 w-14 py-1 rounded-xl transition-all relative"
            [class]="active() === 'feed' ? 'text-primary' : 'text-text-2 hover:text-white'">
           @if (active() === 'feed') {
@@ -114,6 +114,18 @@ export class BottomNavComponent {
   previewMode = input(false);
   onNewPost = output<void>();
   onPreviewAction = output<string>();
+  onFeedTap = output<void>();
+
+  handleFeedClick(): void {
+    if (this.active() === 'feed') {
+      this.onFeedTap.emit();
+      return;
+    }
+
+    if (this.previewMode()) {
+      this.onPreviewAction.emit('explorar o feed');
+    }
+  }
 
   handlePreviewAction(reason: string): void {
     if (!this.previewMode()) {

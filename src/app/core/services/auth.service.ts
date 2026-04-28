@@ -5,7 +5,6 @@ import { supabase } from '../supabase/supabaseClient';
 import { environment } from '../../../environments/environment';
 
 const DEFAULT_YEARLY_GOAL = 320;
-const DEFAULT_WEEKLY_GOAL_DAYS = 4;
 const AUTH_STORAGE_KEY = 'repify-auth';
 const APP_STORAGE_PREFIX = 'repify_';
 const PROFILE_CACHE_KEY = `${APP_STORAGE_PREFIX}profile_cache`;
@@ -89,7 +88,7 @@ export class AuthService {
       avatar_url:     meta['avatar_url']     ?? '',
       avatar_version: meta['avatar_version'] ?? null,
       yearly_goal:    this.readNumericMeta(meta['yearly_goal'], DEFAULT_YEARLY_GOAL),
-      weekly_goal_days: this.readNumericMeta(meta['weekly_goal_days'], DEFAULT_WEEKLY_GOAL_DAYS),
+      weekly_goal_days: this.readOptionalNumericMeta(meta['weekly_goal_days'], null),
       weekly_goal_completed_weeks: this.readStringArrayMeta(meta['weekly_goal_completed_weeks']),
       weekly_goal_best_streak: this.readOptionalNumericMeta(meta['weekly_goal_best_streak'], 0),
       workouts_done:  this.readNumericMeta(meta['workouts_done'], 0),
@@ -152,10 +151,6 @@ export class AuthService {
 
     if (meta['yearly_goal'] == null) {
       missing.yearly_goal = DEFAULT_YEARLY_GOAL;
-    }
-
-    if (meta['weekly_goal_days'] == null) {
-      missing.weekly_goal_days = DEFAULT_WEEKLY_GOAL_DAYS;
     }
 
     if (!Array.isArray(meta['weekly_goal_completed_weeks'])) {

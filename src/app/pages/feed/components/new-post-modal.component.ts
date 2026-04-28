@@ -358,7 +358,9 @@ export interface WorkoutPostPrefillSummary {
           }
 
           <!-- Error -->
-          @if (error()) {
+          @if (publishProfileError()) {
+            <p class="text-danger text-[12px] font-body text-center">{{ publishProfileError() }}</p>
+          } @else if (error()) {
             <p class="text-danger text-[12px] font-body text-center">{{ error() }}</p>
           }
       </div>
@@ -475,8 +477,10 @@ export class NewPostModalComponent {
     return options;
   });
 
+  publishProfileError = computed(() => this.postService.canCreatePost() ? '' : this.postService.createPostRequirementMessage());
+
   canPublish(): boolean {
-    return !!this.photoFile() || !!this.caption.trim() || !!this.selectedWorkout();
+    return this.postService.canCreatePost() && (!!this.photoFile() || !!this.caption.trim() || !!this.selectedWorkout());
   }
 
   muscleEmoji(mg: string): string {

@@ -9,10 +9,10 @@ import { CheckInCardComponent } from './components/check-in-card.component';
 import { WorkoutPostComponent } from './components/workout-post.component';
 import { BottomNavComponent } from './components/bottom-nav.component';
 import { StoriesBarComponent } from './components/stories-bar.component';
-import { NewPostModalComponent } from './components/new-post-modal.component';
+import { NewPostModalComponent, WorkoutPostPrefillSummary } from './components/new-post-modal.component';
 import { DailyWorkoutCardComponent } from './components/daily-workout-card.component';
 import { SetupWorkoutCardComponent } from './components/setup-workout-card.component';
-import { StoredPlan, WorkoutService } from '../../core/services/workout.service';
+import { StoredPlan, WorkoutService, WorkoutSession } from '../../core/services/workout.service';
 import { WorkoutPost } from '../../core/models/workout-post.model';
 import { DecimalPipe } from '@angular/common';
 import { WalkModalComponent } from './components/walk-modal.component';
@@ -49,12 +49,27 @@ interface XpCarouselSlide {
   hint: string;
 }
 
+interface ProfileCompletionAction {
+  id: 'avatar' | 'full_name' | 'username' | 'bio';
+  label: string;
+}
+
 interface PreviewActionCard {
   kicker: string;
   title: string;
   description: string;
   cta: string;
   reason: string;
+  accentClass: string;
+}
+
+interface OnboardingActionCard {
+  id: 'program' | 'weekly-goal' | 'first-workout' | 'first-post';
+  kicker: string;
+  title: string;
+  description: string;
+  reward: string;
+  cta: string;
   accentClass: string;
 }
 
@@ -187,6 +202,7 @@ function isoToday(): string {
           [active]="'feed'"
           [previewMode]="isPreview()"
           (onNewPost)="openNewPostPanel()"
+          (onFeedTap)="scrollToTop()"
           (onPreviewAction)="openPreviewBlockedAction($event)" />
       </div>
 
@@ -199,7 +215,7 @@ function isoToday(): string {
         </div>
 
         <!-- Right rail -->
-        @if (!isPreview()) {
+        @if (!showInitialViewLoading() && !isPreview() && !showNewUserOnboarding()) {
         <aside class="flex flex-col w-[280px] xl:w-[300px] shrink-0 gap-4 pb-8">
 
           <!-- Rank card -->
@@ -215,6 +231,7 @@ function isoToday(): string {
             [xpDelta]="recentXpGain()"
             (openRanking)="router.navigateByUrl('/ranking')" />
 
+          @if (weeklyGoal().goalDays > 0) {
           <app-weekly-goal-card
             [goalDays]="weeklyGoal().goalDays"
             [completedDays]="weeklyGoal().completedDays"
@@ -226,6 +243,7 @@ function isoToday(): string {
             [currentStreak]="weeklyGoal().currentStreak"
             [weekLabel]="weeklyGoal().weekLabel"
             [statusLabel]="weeklyGoal().statusLabel" />
+          }
 
           <!-- Daily XP summary -->
           <div class="bg-card border border-border rounded-2xl p-4 space-y-3">
@@ -259,8 +277,8 @@ function isoToday(): string {
             </div>
           </div>
 
-          <!-- Streak & meta anual -->
-          @if (currentStreak() > 0 || auth.profile().yearly_goal) {
+          <!-- Streak -->
+          @if (currentStreak() > 0) {
             <div class="bg-card border border-border rounded-2xl p-4 space-y-3">
               @if (currentStreak() > 0) {
                 <div class="flex items-center gap-3">
@@ -270,20 +288,6 @@ function isoToday(): string {
                   <div>
                     <p class="text-[16px] font-display font-bold text-white">{{ currentStreak() }} dias</p>
                     <p class="text-[11px] font-body text-text-2">sequência ativa</p>
-                  </div>
-                </div>
-              }
-              @if (auth.profile().yearly_goal) {
-                <div class="space-y-1.5">
-                  <div class="flex justify-between items-center">
-                    <span class="text-[11px] font-body text-text-2">Meta anual</span>
-                    <span class="text-[11px] font-mono font-semibold text-primary">
-                      {{ workoutsDone() }}/{{ auth.profile().yearly_goal }}
-                    </span>
-                  </div>
-                  <div class="h-1.5 bg-border rounded-full overflow-hidden">
-                    <div class="h-full bg-primary rounded-full transition-all duration-500"
-                         [style.width]="yearlyGoalPct() + '%'"></div>
                   </div>
                 </div>
               }
@@ -328,7 +332,13 @@ function isoToday(): string {
       <!-- ─── Overlays (all layouts) ─────────────────────────── -->
 
       @if (showNewPost()) {
-        <app-new-post-modal (onClose)="showNewPost.set(false)" (onPublish)="addPost($event)" />
+        <app-new-post-modal
+          [title]="newPostTitle()"
+          [prefillCaption]="newPostCaption()"
+          [prefillWorkout]="newPostWorkout()"
+          [prefillSummary]="newPostSummary()"
+          (onClose)="closeNewPostPanel()"
+          (onPublish)="addPost($event)" />
       }
 
       <!-- Floating walk bar -->
@@ -362,6 +372,45 @@ function isoToday(): string {
 
     <!-- ─── Shared feed content template ──────────────────────────── -->
     <ng-template #feedContent>
+
+      @if (showInitialViewLoading()) {
+        <div class="px-4 mt-4 space-y-4 animate-fade-in">
+          <section class="overflow-hidden rounded-[30px] border border-border bg-card-2 p-5">
+            <div class="flex items-center gap-3">
+              <div class="h-11 w-11 rounded-2xl bg-card animate-pulse"></div>
+              <div class="flex-1 space-y-2">
+                <div class="h-3 w-28 rounded-full bg-card animate-pulse"></div>
+                <div class="h-2.5 w-48 rounded-full bg-card animate-pulse"></div>
+              </div>
+            </div>
+            <div class="mt-5 space-y-3">
+              <div class="h-5 w-40 rounded-full bg-card animate-pulse"></div>
+              <div class="h-3 w-full rounded-full bg-card animate-pulse"></div>
+              <div class="h-3 w-5/6 rounded-full bg-card animate-pulse"></div>
+            </div>
+            <div class="mt-5 grid gap-3">
+              <div class="h-16 rounded-[22px] bg-card animate-pulse"></div>
+              <div class="h-16 rounded-[22px] bg-card animate-pulse"></div>
+            </div>
+          </section>
+
+          <section class="rounded-[28px] border border-border bg-card-2 p-4 space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <div class="space-y-2">
+                <div class="h-3 w-24 rounded-full bg-card animate-pulse"></div>
+                <div class="h-2.5 w-40 rounded-full bg-card animate-pulse"></div>
+              </div>
+              <div class="h-7 w-20 rounded-full bg-card animate-pulse"></div>
+            </div>
+            <div class="h-[196px] rounded-[24px] bg-card animate-pulse"></div>
+          </section>
+
+          <section class="space-y-3">
+            <div class="h-24 rounded-[24px] bg-card-2 border border-border animate-pulse"></div>
+            <div class="h-24 rounded-[24px] bg-card-2 border border-border animate-pulse"></div>
+          </section>
+        </div>
+      } @else {
 
       @if (!isPreview()) {
         <app-stories-bar />
@@ -432,25 +481,97 @@ function isoToday(): string {
         </div>
       }
 
-      @if (!isPreview() && auth.profile().yearly_goal) {
-        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
-          <div class="bg-card-2 border border-border rounded-xl px-4 py-3 space-y-1.5">
-            <div class="flex justify-between items-center">
-              <span class="text-[11px] font-body text-text-2">Meta anual de treinos</span>
-              <span class="text-[11px] font-mono font-semibold text-primary">
-                {{ workoutsDone() }}/{{ auth.profile().yearly_goal }}
-              </span>
+      @if (showNewUserOnboarding()) {
+        <div class="px-4 mt-4 animate-slide-up space-y-4">
+          <section class="overflow-hidden rounded-[30px] border border-primary/15 bg-[linear-gradient(135deg,rgba(0,255,136,0.10),rgba(0,194,255,0.05)_35%,rgba(7,11,15,1)_100%)] shadow-[0_16px_56px_rgba(0,255,136,0.08)]">
+            <div class="relative px-5 py-5">
+              <div class="absolute right-[-20px] top-[-40px] h-32 w-32 rounded-full blur-3xl" style="background:radial-gradient(circle,rgba(0,255,136,0.24),rgba(0,255,136,0));"></div>
+              <div class="relative z-[1]">
+                <div class="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-bg/60 px-3 py-1 text-[10px] font-body font-semibold uppercase tracking-[0.24em] text-primary/85">
+                  <span class="h-2 w-2 rounded-full bg-primary shadow-glow-sm"></span>
+                  Missão inicial
+                </div>
+                <h2 class="mt-4 max-w-[13ch] font-display text-[30px] font-black uppercase leading-[0.94] tracking-[-0.04em] text-white">
+                  Monte sua base e comece a ganhar XP.
+                </h2>
+                <p class="mt-3 max-w-[34ch] text-[13px] font-body leading-relaxed text-white/76">
+                  Seu onboarding agora é ação, não tutorial. Feche estas etapas para destravar ritmo, streak e progressão dentro do app.
+                </p>
+              </div>
             </div>
-            <div class="h-1.5 bg-border rounded-full overflow-hidden">
-              <div class="h-full bg-primary rounded-full transition-all duration-500"
-                   [style.width]="yearlyGoalPct() + '%'"></div>
-            </div>
+          </section>
+
+          <div class="grid gap-3">
+            @for (card of onboardingActionCards(); track card.id) {
+              <button type="button"
+                      (click)="runOnboardingAction(card.id)"
+                      class="group relative overflow-hidden rounded-[26px] border border-white/8 bg-card-2 px-4 py-4 text-left transition-all hover:border-primary/30 hover:-translate-y-0.5">
+                <div class="absolute inset-0 bg-gradient-to-r opacity-100" [class]="card.accentClass"></div>
+                <div class="relative z-[1] flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <p class="text-[10px] font-body uppercase tracking-[0.24em] text-primary/78">{{ card.kicker }}</p>
+                      <span class="rounded-full border border-primary/15 bg-bg/60 px-2 py-1 text-[9px] font-body font-semibold uppercase tracking-[0.16em] text-primary">{{ card.reward }}</span>
+                    </div>
+                    <p class="mt-2 text-[17px] font-display font-bold leading-tight text-white">{{ card.title }}</p>
+                    <p class="mt-2 text-[12px] font-body leading-relaxed text-text-2">{{ card.description }}</p>
+                  </div>
+                  <div class="shrink-0 rounded-full border border-primary/20 bg-bg/60 px-2.5 py-1 text-[10px] font-body font-semibold uppercase tracking-[0.18em] text-primary">Abrir</div>
+                </div>
+                <div class="relative z-[1] mt-4 inline-flex items-center gap-2 text-[12px] font-body font-semibold text-white transition-colors group-hover:text-primary">
+                  {{ card.cta }}
+                  <span aria-hidden="true">→</span>
+                </div>
+              </button>
+            }
           </div>
         </div>
       }
 
-      @if (!isPreview()) {
+      @if (!isPreview() && !showNewUserOnboarding() && profileCompletionActions().length > 0) {
+      <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.015s">
+        <button
+          type="button"
+          (click)="router.navigateByUrl('/profile')"
+          class="group relative flex w-full overflow-hidden rounded-[30px] border border-primary/15 bg-[linear-gradient(145deg,rgba(0,255,136,0.14),rgba(0,194,255,0.08)_42%,rgba(14,19,26,1)_100%)] p-5 text-left shadow-[0_20px_60px_rgba(0,255,136,0.08)] transition-all hover:-translate-y-0.5 hover:border-primary/30">
+          <div class="absolute right-[-28px] top-[-36px] h-28 w-28 rounded-full blur-3xl" style="background:radial-gradient(circle,rgba(0,255,136,0.24),rgba(0,255,136,0));"></div>
+          <div class="relative z-[1] flex w-full items-start gap-4">
+            <div class="relative mt-1 flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] border border-primary/25 bg-bg/70">
+              <div class="absolute inset-2 rounded-[16px] border border-dashed border-primary/30"></div>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-primary">
+                <path d="M20 21a8 8 0 1 0-16 0"/>
+                <circle cx="12" cy="7" r="4"/>
+              </svg>
+            </div>
+
+            <div class="min-w-0 flex-1">
+              <p class="text-[10px] font-body uppercase tracking-[0.24em] text-primary/78">Completar perfil</p>
+              <p class="mt-1 text-[18px] font-display font-bold leading-tight text-white">Complete o básico do seu perfil.</p>
+
+              <div class="mt-4 grid gap-2">
+                @for (action of profileCompletionActions(); track action.id) {
+                  <div class="flex items-center gap-3 rounded-2xl border border-primary/10 bg-bg/55 px-3 py-3">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-[11px] font-body font-bold text-primary">
+                      {{ $index + 1 }}
+                    </div>
+                    <p class="min-w-0 text-[12px] font-body font-semibold text-white">{{ action.label }}</p>
+                  </div>
+                }
+              </div>
+
+              <div class="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-bg/65 px-3 py-1.5 text-[11px] font-body font-semibold text-primary transition-colors group-hover:border-primary/40 group-hover:text-white">
+                Ir para meu perfil
+                <span aria-hidden="true">→</span>
+              </div>
+            </div>
+          </div>
+        </button>
+      </div>
+      }
+
+      @if (!isPreview() && !showNewUserOnboarding()) {
         <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.06s">
+          @if (weeklyGoal().goalDays > 0) {
           <app-weekly-goal-card
             [goalDays]="weeklyGoal().goalDays"
             [completedDays]="weeklyGoal().completedDays"
@@ -462,11 +583,12 @@ function isoToday(): string {
             [currentStreak]="weeklyGoal().currentStreak"
             [weekLabel]="weeklyGoal().weekLabel"
             [statusLabel]="weeklyGoal().statusLabel" />
+          }
         </div>
       }
 
       <!-- Rank card (mobile only — desktop shows in right rail) -->
-      @if (!isPreview()) {
+      @if (!isPreview() && !showNewUserOnboarding()) {
         <div class="px-4 mt-4 animate-slide-up lg:hidden" style="animation-delay:0.03s">
           <app-home-ranking-card
             [currentRank]="currentRank()"
@@ -483,7 +605,7 @@ function isoToday(): string {
       }
 
       <!-- XP Carousel -->
-      @if (!isPreview()) {
+      @if (!isPreview() && !showNewUserOnboarding()) {
       <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
         <div class="mb-3 flex items-end justify-between gap-3 px-1">
           <div class="min-w-0">
@@ -531,7 +653,7 @@ function isoToday(): string {
       </div>
       }
 
-      @if (!isPreview() && !workoutService.hasProgram()) {
+      @if (!isPreview() && !showNewUserOnboarding() && !workoutService.hasProgram()) {
         <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
           <app-setup-workout-card (onSetup)="router.navigateByUrl('/my-workout')" />
         </div>
@@ -583,6 +705,7 @@ function isoToday(): string {
       </div>
 
       <div class="h-8"></div>
+      }
     </ng-template>
   `,
 })
@@ -604,9 +727,105 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   isPreview      = computed(() => this.auth.authState() === 'preview');
   previewActionCards = PREVIEW_ACTION_CARDS;
   workoutsDone   = computed(() => this.ranking.myRank()?.workoutsDone ?? Number(this.auth.profile().workouts_done ?? 0));
+  onboardingActionCards = computed<OnboardingActionCard[]>(() => {
+    if (this.isPreview()) {
+      return [];
+    }
+
+    const cards: OnboardingActionCard[] = [];
+    const hasProgram = this.workoutService.hasProgram();
+    const weeklyGoal = this.weeklyGoal();
+    const workoutsDone = this.workoutsDone();
+    const myPostsCount = this.myPostsCount();
+
+    if (!hasProgram) {
+      cards.push({
+        id: 'program',
+        kicker: 'Etapa 1',
+        title: 'Crie seu treino base para o app saber por onde começar.',
+        description: 'Monte seus dias, grupos musculares e sessões. Sem programa, não existe rotina para converter em consistência.',
+        reward: 'Base do jogo',
+        cta: 'Criar treino',
+        accentClass: 'from-primary/25 via-primary/10 to-transparent',
+      });
+    }
+
+    if (weeklyGoal.goalDays <= 0) {
+      cards.push({
+        id: 'weekly-goal',
+        kicker: 'Etapa 2',
+        title: 'Defina sua meta da semana e transforme constância em XP extra.',
+        description: 'Escolha quantos dias vai treinar para o app começar a cobrar execução e liberar recompensa semanal.',
+        reward: '+150 a +250 XP',
+        cta: 'Criar plano da semana',
+        accentClass: 'from-[#00C2FF]/24 via-[#00C2FF]/8 to-transparent',
+      });
+    }
+
+    if (hasProgram && workoutsDone === 0) {
+      cards.push({
+        id: 'first-workout',
+        kicker: 'Etapa 3',
+        title: 'Mate o primeiro treino e abra sua trilha real de XP.',
+        description: 'Seu primeiro treino concluído ativa histórico, streak e libera a sensação de progresso real dentro do feed.',
+        reward: '+70 XP estimados',
+        cta: 'Começar primeiro treino',
+        accentClass: 'from-[#FF7A00]/24 via-[#FF7A00]/8 to-transparent',
+      });
+    }
+
+    if (workoutsDone > 0 && myPostsCount === 0) {
+      cards.push({
+        id: 'first-post',
+        kicker: 'Etapa 4',
+        title: 'Publique seu resultado e puxe seu primeiro desafio no feed.',
+        description: 'Seu treino já rendeu XP. Agora transforme isso em presença, prova social e pressão sobre os amigos.',
+        reward: 'Feed liberado',
+        cta: 'Postar e desafiar',
+        accentClass: 'from-[#FF4D6D]/24 via-[#FF4D6D]/8 to-transparent',
+      });
+    }
+
+    return cards;
+  });
+  showNewUserOnboarding = computed(() => this.onboardingActionCards().length > 0);
   currentRank    = computed(() => this.ranking.myRank()?.rank ?? 0);
   currentXp      = computed(() => this.ranking.myRank()?.totalXp ?? 0);
   currentStreak  = computed(() => this.ranking.myRank()?.streakDays ?? 0);
+  profileCompletionActions = computed<ProfileCompletionAction[]>(() => {
+    const profile = this.auth.profile();
+    const actions: ProfileCompletionAction[] = [];
+
+    if (!this.auth.avatarUrl()) {
+      actions.push({
+        id: 'avatar',
+        label: 'Adicionar foto do perfil',
+      });
+    }
+
+    if (!profile.full_name.trim()) {
+      actions.push({
+        id: 'full_name',
+        label: 'Preencher seu nome',
+      });
+    }
+
+    if (!profile.username.trim()) {
+      actions.push({
+        id: 'username',
+        label: 'Criar seu @username',
+      });
+    }
+
+    if (!profile.bio.trim()) {
+      actions.push({
+        id: 'bio',
+        label: 'Escrever uma bio rápida',
+      });
+    }
+
+    return actions;
+  });
   weeklyGoal     = computed(() => this.workoutService.weeklyGoalState());
   dailyXp        = computed(() => {
     const today = isoToday();
@@ -715,16 +934,14 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   });
   xpCarouselSlides = computed<XpCarouselSlide[]>(() => {
-    const slides: XpCarouselSlide[] = [
-      {
-        id: 'checkin',
-        label: this.checkin.todayChecked() ? 'Check-in do dia fechado' : 'Check-in com XP imediato',
-        reward: `+${CHECKIN_XP} XP`,
-        hint: this.checkin.todayChecked()
-          ? 'O ganho do check-in já contou hoje e o radar mostra esse avanço no XP total.'
-          : 'Marque presença para ganhar XP instantâneo e reforçar sua sequência diária.',
-      },
-    ];
+    const slides: XpCarouselSlide[] = [{
+      id: 'checkin',
+      label: this.checkin.todayChecked() ? 'Check-in do dia fechado' : 'Check-in com XP imediato',
+      reward: `+${CHECKIN_XP} XP`,
+      hint: this.checkin.todayChecked()
+        ? 'O ganho do check-in já contou hoje e o radar mostra esse avanço no XP total.'
+        : 'Marque presença para ganhar XP instantâneo e reforçar sua sequência diária.',
+    }];
 
     if (this.todayWorkout()) {
       slides.push({
@@ -759,13 +976,94 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     return slides[this.xpCarouselIndexClamped()] ?? null;
   });
   showNewPost       = signal(false);
+  prefillOnboardingPost = signal(false);
   showWalk          = signal(false);
   showNotifications = signal(false);
+  myPostsCount      = signal(0);
+  myPostsCountResolved = signal(false);
+  initialFeedResolved = signal(false);
   previousRankSnapshot = signal<number | null>(null);
   recentRankDelta = signal(0);
   recentXpGain = signal(0);
   todayWorkout = computed(() => this.workoutService.todayWorkout());
   todayWorkoutAccess = computed(() => this.workoutService.getWorkoutAccessState(this.todayWorkout()));
+  showInitialViewLoading = computed(() => {
+    if (!this.auth.initialized()) {
+      return true;
+    }
+
+    if (!this.initialFeedResolved()) {
+      return true;
+    }
+
+    if (this.isPreview()) {
+      return false;
+    }
+
+    if (!this.auth.profileReady()) {
+      return true;
+    }
+
+    if (!this.workoutService.hydrated()) {
+      return true;
+    }
+
+    if (!this.myPostsCountResolved()) {
+      return true;
+    }
+
+    return this.ranking.loading() && !this.ranking.myRank();
+  });
+  latestCompletedSession = computed<WorkoutSession | null>(() => {
+    const history = this.workoutService.history();
+    if (!history.length) return null;
+
+    return [...history].sort((left, right) => right.completedAt.localeCompare(left.completedAt))[0] ?? null;
+  });
+  newPostWorkout = computed(() => {
+    if (!this.prefillOnboardingPost()) return null;
+
+    const session = this.latestCompletedSession();
+    if (!session) return null;
+
+    return { name: session.planName, muscleGroup: session.muscleGroup };
+  });
+  newPostSummary = computed<WorkoutPostPrefillSummary | null>(() => {
+    if (!this.prefillOnboardingPost()) return null;
+
+    const session = this.latestCompletedSession();
+    if (!session) return null;
+
+    return {
+      title: session.planName,
+      muscleGroup: session.muscleGroup,
+      difficulty: session.difficulty,
+      durationMinutes: session.estimatedDuration,
+      exercisesDone: session.exercisesDone,
+      totalExercises: session.totalExercises,
+      xpEarned: session.xpEarned,
+      completedAtLabel: this.formatCompletedAt(session.completedAt),
+    };
+  });
+  newPostTitle = computed(() => this.prefillOnboardingPost() && this.latestCompletedSession() ? 'Postar treino concluído' : 'Novo post');
+  newPostCaption = computed(() => {
+    if (!this.prefillOnboardingPost()) return '';
+
+    const session = this.latestCompletedSession();
+    if (!session) return '';
+
+    const streak = this.workoutService.streak();
+    return [
+      'Treino finalizado no Repify.',
+      `${session.planName} • ${session.muscleGroup}`,
+      `Exercícios concluídos: ${session.exercisesDone}/${session.totalExercises}`,
+      `Duração estimada: ${session.estimatedDuration} min`,
+      `XP ganho: +${session.xpEarned}`,
+      `Nível do treino: ${session.difficulty}`,
+      streak > 0 ? `Streak atual: ${streak} dia${streak === 1 ? '' : 's'}` : '',
+      'Topa encarar esse desafio comigo?',
+    ].filter(Boolean).join('\n');
+  });
 
   posts      = signal<WorkoutPost[]>([]);
   loading    = signal(false);
@@ -793,6 +1091,9 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
       const pending = this.postService.pendingPost();
       if (!pending) return;
       this.posts.update(all => [pending, ...all]);
+      if (pending.user.id && pending.user.id === this.auth.user()?.id) {
+        this.myPostsCount.update(count => count + 1);
+      }
       this.postService.pendingPost.set(null);
     });
 
@@ -851,16 +1152,22 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.initialFeedResolved.set(false);
     void this.loadFeed({ reset: true });
 
     if (!this.isPreview()) {
+      this.myPostsCountResolved.set(false);
+      void this.workoutService.ensureHydrated();
+      void this.loadMyPostsCount();
       void this.ranking.load(true);
       this.rankingPoll = setInterval(() => void this.ranking.load(true), 60000);
       this.xpCarouselTimer = setInterval(() => {
         const count = this.xpCarouselSlides().length;
         if (count <= 1) return;
         this.xpCarouselIndex.update(index => (index + 1) % count);
-      }, 4800);
+      }, 7200);
+    } else {
+      this.myPostsCountResolved.set(true);
     }
   }
 
@@ -891,6 +1198,17 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
 
   setXpCarouselIndex(index: number): void {
     this.xpCarouselIndex.set(index);
+  }
+
+  scrollToTop(): void {
+    if (window.innerWidth >= 1024) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    const el = this.mainScrollRef?.nativeElement;
+    if (!el) return;
+    el.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   private onTouchStart = (e: TouchEvent): void => {
@@ -987,6 +1305,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     } finally {
       if (reset) {
         this.loading.set(false);
+        this.initialFeedResolved.set(true);
       } else {
         this.loadingMore.set(false);
       }
@@ -1055,14 +1374,29 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
 
   addPost(post: WorkoutPost): void {
     this.posts.update(current => [post, ...current]);
+    if (post.user.id && post.user.id === this.auth.user()?.id) {
+      this.myPostsCount.update(count => count + 1);
+    }
+    this.prefillOnboardingPost.set(false);
     this.showNewPost.set(false);
   }
 
-  openNewPostPanel(): void {
+  closeNewPostPanel(): void {
+    this.prefillOnboardingPost.set(false);
+    this.showNewPost.set(false);
+  }
+
+  openNewPostPanel(prefillFromLatestWorkout = false): void {
     if (!this.permission.requireAuthenticated('publicar conteúdo')) {
       return;
     }
 
+    if (!this.postService.canCreatePost()) {
+      void this.router.navigateByUrl('/profile');
+      return;
+    }
+
+    this.prefillOnboardingPost.set(prefillFromLatestWorkout && !!this.latestCompletedSession());
     this.showNewPost.set(true);
   }
 
@@ -1076,6 +1410,56 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
 
   openPreviewBlockedAction(reason: string): void {
     this.permission.requireAuthenticated(reason);
+  }
+
+  runOnboardingAction(actionId: OnboardingActionCard['id']): void {
+    if (actionId === 'program') {
+      void this.router.navigateByUrl('/my-workout');
+      return;
+    }
+
+    if (actionId === 'weekly-goal') {
+      void this.router.navigateByUrl('/profile');
+      return;
+    }
+
+    if (actionId === 'first-post') {
+      this.openNewPostPanel(true);
+      return;
+    }
+
+    const workout = this.todayWorkout();
+    if (workout) {
+      void this.startWorkout(workout.id);
+      return;
+    }
+
+    void this.router.navigateByUrl('/my-workout');
+  }
+
+  private async loadMyPostsCount(): Promise<void> {
+    const userId = this.auth.user()?.id;
+    if (!userId) {
+      this.myPostsCount.set(0);
+      this.myPostsCountResolved.set(true);
+      return;
+    }
+
+    try {
+      const posts = await this.postService.listByUser(userId);
+      this.myPostsCount.set(posts.length);
+    } catch {
+      this.myPostsCount.set(0);
+    } finally {
+      this.myPostsCountResolved.set(true);
+    }
+  }
+
+  private formatCompletedAt(value: string): string {
+    return new Intl.DateTimeFormat('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(value));
   }
 
 
