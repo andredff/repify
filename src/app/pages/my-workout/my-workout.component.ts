@@ -1,9 +1,11 @@
 import { Component, signal, inject, computed, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { Location } from '@angular/common';
-import { WorkoutAccessState, WorkoutService, ActiveProgram, StoredPlan, DAY_INDEX_MAP } from '../../core/services/workout.service';
+import { WorkoutAccessState, WorkoutService, ActiveProgram, StoredPlan, DAY_INDEX_MAP, WorkoutSession } from '../../core/services/workout.service';
+import { PostService } from '../../core/services/post.service';
+import { WorkoutPost } from '../../core/models/workout-post.model';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
-import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
+import { NewPostModalComponent, WorkoutPostPrefillSummary } from '../feed/components/new-post-modal.component';
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
 import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
 
@@ -557,14 +559,22 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
   imports: [BottomNavComponent, NewPostModalComponent, FeedHeaderComponent, NotificationsPanelComponent],
   template: `
     @if (showNewPost()) {
-      <app-new-post-modal (onClose)="showNewPost.set(false)" />
+      <app-new-post-modal
+        [title]="newPostTitle()"
+        [prefillCaption]="newPostCaption()"
+        [prefillWorkout]="newPostWorkout()"
+        [prefillSummary]="newPostSummary()"
+        (onClose)="showNewPost.set(false)"
+        (onPublish)="onWorkoutPostPublished($event)" />
     }
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto lg:max-w-3xl">
 
-      <app-feed-header
-        [showBack]="true"
-        (onBack)="back()"
-        (onOpenNotifications)="showNotifications.set(true)" />
+      @if (!showNewPost()) {
+        <app-feed-header
+          [showBack]="true"
+          (onBack)="back()"
+          (onOpenNotifications)="showNotifications.set(true)" />
+      }
 
       <main class="flex-1 px-4 pb-28 lg:pb-12 overflow-y-auto lg:pt-8" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
@@ -629,8 +639,15 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                       </button>
                     </div>
                   } @else {
-                    <div class="w-full py-3 rounded-xl bg-primary/10 border border-primary/30 text-center text-primary font-body font-semibold text-[14px]">
-                      Treino concluído ✓
+                    <div class="space-y-2">
+                      <div class="w-full py-3 rounded-xl bg-primary/10 border border-primary/30 text-center text-primary font-body font-semibold text-[14px]">
+                        Treino concluído ✓
+                      </div>
+                      <button type="button"
+                              (click)="openCompletedWorkoutPostComposer()"
+                              class="w-full py-3 rounded-xl bg-primary text-bg font-display font-bold text-[14px] shadow-glow transition-all hover:shadow-glow-lg active:scale-[0.98]">
+                        Criar postagem do treino
+                      </button>
                     </div>
                   }
                 </div>
@@ -1043,6 +1060,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
 export class MyWorkoutComponent implements OnInit {
   private router   = inject(Router);
   private location = inject(Location);
+  private postService = inject(PostService);
   workoutService   = inject(WorkoutService);
 
   readonly stepKeys: Step[] = ['goal', 'level', 'days', 'duration'];
@@ -1063,6 +1081,58 @@ export class MyWorkoutComponent implements OnInit {
 
   todayWorkout = computed(() => this.workoutService.todayWorkout());
   todayWorkoutAccess = computed(() => this.workoutService.getWorkoutAccessState(this.todayWorkout()));
+  completedTodaySession = computed<WorkoutSession | null>(() => {
+    const todayWorkout = this.todayWorkout();
+    if (!todayWorkout || this.todayWorkoutAccess().state !== 'completed') return null;
+
+    const history = this.workoutService.history();
+    return history.find(session => session.planId === todayWorkout.id)
+      ?? history.find(session => session.planName === todayWorkout.name)
+      ?? null;
+  });
+  newPostWorkout = computed(() => {
+    const session = this.completedTodaySession();
+    const todayWorkout = this.todayWorkout();
+    if (session) {
+      return { name: session.planName, muscleGroup: session.muscleGroup };
+    }
+    if (todayWorkout) {
+      return { name: todayWorkout.name, muscleGroup: todayWorkout.muscleGroup };
+    }
+    return null;
+  });
+  newPostSummary = computed<WorkoutPostPrefillSummary | null>(() => {
+    const session = this.completedTodaySession();
+    if (!session) return null;
+
+    return {
+      title: session.planName,
+      muscleGroup: session.muscleGroup,
+      difficulty: session.difficulty,
+      durationMinutes: session.estimatedDuration,
+      exercisesDone: session.exercisesDone,
+      totalExercises: session.totalExercises,
+      xpEarned: session.xpEarned,
+      completedAtLabel: this.formatCompletedAt(session.completedAt),
+    };
+  });
+  newPostTitle = computed(() => this.completedTodaySession() ? 'Postar treino do dia' : 'Novo post');
+  newPostCaption = computed(() => {
+    const session = this.completedTodaySession();
+    if (!session) return '';
+
+    const streak = this.workoutService.streak();
+    return [
+      'Treino finalizado no Repify.',
+      `${session.planName} • ${session.muscleGroup}`,
+      `Exercícios concluídos: ${session.exercisesDone}/${session.totalExercises}`,
+      `Duração estimada: ${session.estimatedDuration} min`,
+      `XP ganho: +${session.xpEarned}`,
+      `Nível do treino: ${session.difficulty}`,
+      streak > 0 ? `Streak atual: ${streak} dia${streak === 1 ? '' : 's'}` : '',
+      'Topa encarar esse desafio comigo?',
+    ].filter(Boolean).join('\n');
+  });
 
   nextWorkoutLabel = computed(() => {
     const prog = this.workoutService.program();
@@ -1195,8 +1265,27 @@ export class MyWorkoutComponent implements OnInit {
     return this.workoutService.getWorkoutAccessState(plan);
   }
 
+  openCompletedWorkoutPostComposer(): void {
+    if (this.todayWorkoutAccess().state !== 'completed') return;
+    this.showNewPost.set(true);
+  }
+
+  onWorkoutPostPublished(post: WorkoutPost): void {
+    post.streak = this.workoutService.streak();
+    this.postService.setPendingPost(post);
+    this.showNewPost.set(false);
+    void this.router.navigateByUrl('/feed');
+  }
+
   resolveStoredPlan(workout: StoredPlan | GeneratedWorkout | null): StoredPlan | null {
     if (!workout) return null;
     return this.workoutService.getPlan(workout.id) ?? null;
+  }
+
+  private formatCompletedAt(value: string): string {
+    return new Intl.DateTimeFormat('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(value));
   }
 }

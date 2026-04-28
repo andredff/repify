@@ -33,7 +33,18 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
           }
         </div>
 
-        <div class="grid gap-3 sm:grid-cols-2">
+        <div class="space-y-3">
+          <button type="button"
+                  (click)="createPost.emit()"
+                  class="w-full rounded-2xl border border-primary/30 bg-primary px-4 py-3.5 text-[14px] font-display font-black text-bg transition-all hover:shadow-glow active:scale-[0.98]">
+            Adicionar foto e postar desafio
+          </button>
+
+          <p class="text-center text-[11px] font-body text-text-2">
+            Monte a postagem com os dados reais do treino e leve o desafio pro feed.
+          </p>
+
+          <div class="grid gap-3 sm:grid-cols-2">
           <button type="button"
                   (click)="viewProgress.emit()"
                   class="rounded-2xl border border-primary/25 bg-primary/12 px-4 py-3 text-[14px] font-display font-bold text-primary transition-all hover:bg-primary/18 active:scale-[0.98]">
@@ -44,6 +55,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
                   class="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-[14px] font-display font-bold text-white transition-all hover:border-white/20 hover:bg-white/[0.06] active:scale-[0.98]">
             Voltar ao feed
           </button>
+          </div>
         </div>
       </div>
     </section>
@@ -53,6 +65,7 @@ export class WorkoutCompletionStateComponent {
   quote = input.required<string>();
   completedAt = input<string | null>(null);
 
+  readonly createPost = output<void>();
   readonly viewProgress = output<void>();
   readonly backToFeed = output<void>();
 

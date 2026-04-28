@@ -1,10 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit } from '@angular/core';
 import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-import { WorkoutCompletionSummary, WorkoutService, StoredPlan, StoredExercise } from '../../core/services/workout.service';
+import { WorkoutCompletionSummary, WorkoutService, StoredPlan, StoredExercise, WorkoutSession } from '../../core/services/workout.service';
+import { PostService } from '../../core/services/post.service';
+import { WorkoutPost } from '../../core/models/workout-post.model';
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
 import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
 import { WorkoutCompletionStateComponent } from './components/workout-completion-state.component';
+import { NewPostModalComponent, WorkoutPostPrefillSummary } from '../feed/components/new-post-modal.component';
 
 // Planos estáticos com todos os campos necessários para o histórico
 const STATIC_PLANS: Record<string, StoredPlan> = {
@@ -51,14 +54,16 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
   selector: 'app-workout',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FeedHeaderComponent, NotificationsPanelComponent, WorkoutCompletionStateComponent],
+  imports: [FeedHeaderComponent, NotificationsPanelComponent, WorkoutCompletionStateComponent, NewPostModalComponent],
   template: `
     <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto lg:max-w-3xl">
 
-      <app-feed-header
-        [showBack]="true"
-        (onBack)="location.back()"
-        (onOpenNotifications)="showNotifications.set(true)" />
+      @if (!showWorkoutPostComposer()) {
+        <app-feed-header
+          [showBack]="true"
+          (onBack)="location.back()"
+          (onOpenNotifications)="showNotifications.set(true)" />
+      }
 
       <!-- Content -->
       <main class="flex-1 px-4 pb-32 lg:pb-12 overflow-y-auto lg:pt-8" style="padding-top: calc(76px + env(safe-area-inset-top))">
@@ -68,6 +73,7 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
             <app-workout-completion-state
               [quote]="completionSummary()!.motivationalQuote"
               [completedAt]="completionSummary()!.completedAt"
+              (createPost)="openWorkoutPostComposer()"
               (viewProgress)="goToProgress()"
               (backToFeed)="goToFeed()" />
           </section>
@@ -193,6 +199,16 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
     @if (showNotifications()) {
       <app-notifications-panel (onClose)="showNotifications.set(false)" />
     }
+
+    @if (showWorkoutPostComposer()) {
+      <app-new-post-modal
+        [title]="'Postar treino do dia'"
+        [prefillCaption]="workoutPostCaption()"
+        [prefillWorkout]="workoutPostWorkout()"
+        [prefillSummary]="workoutPostSummary()"
+        (onClose)="showWorkoutPostComposer.set(false)"
+        (onPublish)="onWorkoutPostPublished($event)" />
+    }
   `,
 })
 export class WorkoutComponent implements OnInit {
@@ -200,7 +216,9 @@ export class WorkoutComponent implements OnInit {
   private route        = inject(ActivatedRoute);
   private router       = inject(Router);
   private workoutService = inject(WorkoutService);
+  private postService  = inject(PostService);
   showNotifications = signal(false);
+  showWorkoutPostComposer = signal(false);
   finishing = signal(false);
   errorMessage = signal('');
   viewMode = signal<'active' | 'completed' | 'locked'>('active');
@@ -211,6 +229,58 @@ export class WorkoutComponent implements OnInit {
   plan      = signal<StoredPlan | null>(null);
 
   doneCount   = computed(() => this.exercises().filter(e => e.done).length);
+  completedSession = computed<WorkoutSession | null>(() => {
+    const plan = this.plan();
+    const summary = this.completionSummary();
+    if (!plan || !summary) return null;
+
+    const history = this.workoutService.history();
+    return history.find(session => session.planId === plan.id && session.completedAt === summary.completedAt)
+      ?? history.find(session => session.planId === plan.id)
+      ?? null;
+  });
+  workoutPostWorkout = computed(() => {
+    const session = this.completedSession();
+    const plan = this.plan();
+    if (session) {
+      return { name: session.planName, muscleGroup: session.muscleGroup };
+    }
+    if (plan) {
+      return { name: plan.name, muscleGroup: plan.muscleGroup };
+    }
+    return null;
+  });
+  workoutPostSummary = computed<WorkoutPostPrefillSummary | null>(() => {
+    const session = this.completedSession();
+    if (!session) return null;
+
+    return {
+      title: session.planName,
+      muscleGroup: session.muscleGroup,
+      difficulty: session.difficulty,
+      durationMinutes: session.estimatedDuration,
+      exercisesDone: session.exercisesDone,
+      totalExercises: session.totalExercises,
+      xpEarned: session.xpEarned,
+      completedAtLabel: this.formatCompletedAt(session.completedAt),
+    };
+  });
+  workoutPostCaption = computed(() => {
+    const session = this.completedSession();
+    if (!session) return '';
+
+    const streak = this.workoutService.streak();
+    return [
+      'Treino finalizado no Repify.',
+      `${session.planName} • ${session.muscleGroup}`,
+      `Exercícios concluídos: ${session.exercisesDone}/${session.totalExercises}`,
+      `Duração estimada: ${session.estimatedDuration} min`,
+      `XP ganho: +${session.xpEarned}`,
+      `Nível do treino: ${session.difficulty}`,
+      streak > 0 ? `Streak atual: ${streak} dia${streak === 1 ? '' : 's'}` : '',
+      'Topa encarar esse desafio comigo?',
+    ].filter(Boolean).join('\n');
+  });
   progressPct = computed(() => {
     const total = this.exercises().length;
     return total === 0 ? 0 : Math.round((this.doneCount() / total) * 100);
@@ -292,7 +362,25 @@ export class WorkoutComponent implements OnInit {
     this.router.navigateByUrl('/feed');
   }
 
+  openWorkoutPostComposer(): void {
+    this.showWorkoutPostComposer.set(true);
+  }
+
+  onWorkoutPostPublished(post: WorkoutPost): void {
+    post.streak = this.workoutService.streak();
+    this.postService.setPendingPost(post);
+    this.showWorkoutPostComposer.set(false);
+    void this.router.navigateByUrl('/feed');
+  }
+
   goToProgram(): void {
     this.router.navigateByUrl('/my-workout');
+  }
+
+  private formatCompletedAt(value: string): string {
+    return new Intl.DateTimeFormat('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(value));
   }
 }

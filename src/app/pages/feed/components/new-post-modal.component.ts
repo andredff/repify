@@ -1,4 +1,4 @@
-import { Component, inject, signal, output, computed } from '@angular/core';
+import { Component, inject, signal, output, computed, input, effect } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PostService } from '../../../core/services/post.service';
 import { WorkoutService } from '../../../core/services/workout.service';
@@ -15,6 +15,55 @@ const MUSCLE_EMOJI: Record<string, string> = {
 interface WorkoutOption {
   name: string;
   muscleGroup: string;
+}
+
+interface CaptionOption {
+  id: string;
+  label: string;
+  value: string;
+}
+
+const CAPTION_HOOKS = [
+  'Treino batido. Quero ver quem responde.',
+  'Missão cumprida no Repify. Agora eu quero réplica.',
+  'Fechei o treino e deixei o desafio no ar.',
+  'Resultado entregue. Sua vez de tentar encostar.',
+  'Acabei o treino do dia. Quem vier, vem forte.',
+  'Treino concluído e régua levantada.',
+  'Hoje eu fiz minha parte. Quero ver a sua.',
+  'O treino caiu. O desafio ficou.',
+  'Marquei presença e deixei trabalho pra concorrência.',
+  'Treino do dia resolvido. Bora ver quem sustenta o ritmo.',
+];
+
+const CAPTION_METRICS = [
+  (summary: WorkoutPostPrefillSummary) => `Foram ${summary.exercisesDone}/${summary.totalExercises} exercícios fechados em ${summary.durationMinutes} min.`,
+  (summary: WorkoutPostPrefillSummary) => `Saí com +${summary.xpEarned} XP depois de ${summary.durationMinutes} min de execução real.`,
+  (summary: WorkoutPostPrefillSummary) => `Completei ${summary.exercisesDone}/${summary.totalExercises} exercícios e o treino já ficou no histórico.`,
+  (summary: WorkoutPostPrefillSummary) => `Treino encerrado às ${summary.completedAtLabel} com +${summary.xpEarned} XP no bolso.`,
+  (summary: WorkoutPostPrefillSummary) => `Passei por ${summary.title} e fechei ${summary.exercisesDone}/${summary.totalExercises} exercícios sem cortar caminho.`,
+];
+
+const CAPTION_CLOSERS = [
+  'Se você acha que bate, prova no app.',
+  'Topa entrar nesse desafio comigo?',
+  'Quero ver alguém passar disso hoje.',
+  'Se vier, vem com treino completo.',
+  'Agora é sua chance de responder no Repify.',
+  'Vamos ver quem consegue devolver esse placar.',
+  'Se for desafiar, fecha o treino inteiro.',
+  'Duvido encostar nesse ritmo ainda hoje.',
+];
+
+export interface WorkoutPostPrefillSummary {
+  title: string;
+  muscleGroup: string;
+  difficulty: string;
+  durationMinutes: number;
+  exercisesDone: number;
+  totalExercises: number;
+  xpEarned: number;
+  completedAtLabel: string;
 }
 
 @Component({
@@ -35,7 +84,7 @@ interface WorkoutOption {
 
     <!-- Format picker sheet -->
     @if (showFormatPicker()) {
-      <div class="fixed inset-0 z-[55] flex items-end max-w-[430px] mx-auto"
+      <div class="fixed inset-0 z-[55] flex items-end max-w-[460px] mx-auto"
            style="background:rgba(8,12,16,0.7)" (click)="showFormatPicker.set(false)">
         <div class="w-full bg-card border-t border-border rounded-t-2xl p-5 space-y-3 animate-slide-up"
              (click)="$event.stopPropagation()">
@@ -84,7 +133,7 @@ interface WorkoutOption {
       </div>
     }
 
-    <div class="fixed inset-0 z-50 flex flex-col max-w-[430px] mx-auto bg-card animate-slide-up">
+    <div class="fixed inset-0 z-50 flex flex-col max-w-[460px] mx-auto bg-card animate-slide-up">
 
       <!-- Header -->
       <div class="flex items-center justify-between px-5 border-b border-border shrink-0"
@@ -92,7 +141,7 @@ interface WorkoutOption {
         <button (click)="onClose.emit()" class="text-text-2 hover:text-white transition-colors text-[13px] font-body">
           Cancelar
         </button>
-        <p class="text-[14px] font-body font-semibold text-white">Novo post</p>
+        <p class="text-[14px] font-body font-semibold text-white">{{ title() }}</p>
         <button
           (click)="publish()"
           [disabled]="!canPublish() || publishing()"
@@ -147,11 +196,77 @@ interface WorkoutOption {
             </button>
           }
 
+          @if (prefillSummary()) {
+            <div class="rounded-2xl border border-primary/20 bg-primary/10 p-4 shadow-glow-sm">
+              <div class="flex items-start justify-between gap-3">
+                <div>
+                  <p class="text-[11px] font-body font-medium uppercase tracking-[0.22em] text-primary/80">Treino concluído</p>
+                  <p class="mt-1 text-[18px] font-display font-bold text-white">{{ prefillSummary()!.title }}</p>
+                  <p class="mt-1 text-[12px] font-body capitalize text-text-2">
+                    {{ prefillSummary()!.muscleGroup }} · {{ prefillSummary()!.difficulty }} · {{ prefillSummary()!.completedAtLabel }}
+                  </p>
+                </div>
+                <div class="rounded-full border border-primary/20 bg-bg/40 px-3 py-1 text-[11px] font-mono font-semibold text-primary">
+                  +{{ prefillSummary()!.xpEarned }} XP
+                </div>
+              </div>
+
+              <div class="mt-4 grid grid-cols-3 gap-2">
+                <div class="rounded-xl border border-white/8 bg-bg/30 px-3 py-2">
+                  <p class="text-[10px] font-body uppercase tracking-[0.16em] text-text-2">Execução</p>
+                  <p class="mt-1 text-[15px] font-display font-bold text-white">
+                    {{ prefillSummary()!.exercisesDone }}/{{ prefillSummary()!.totalExercises }}
+                  </p>
+                </div>
+                <div class="rounded-xl border border-white/8 bg-bg/30 px-3 py-2">
+                  <p class="text-[10px] font-body uppercase tracking-[0.16em] text-text-2">Duração</p>
+                  <p class="mt-1 text-[15px] font-display font-bold text-white">{{ prefillSummary()!.durationMinutes }} min</p>
+                </div>
+                <div class="rounded-xl border border-white/8 bg-bg/30 px-3 py-2">
+                  <p class="text-[10px] font-body uppercase tracking-[0.16em] text-text-2">Desafio</p>
+                  <p class="mt-1 text-[15px] font-display font-bold text-white">Real</p>
+                </div>
+              </div>
+            </div>
+          }
+
+          @if (captionOptions().length > 0) {
+            <div class="space-y-2">
+              <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Legendas de provocação</label>
+              <div class="rounded-xl border border-border bg-card-2 p-3.5 space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-[13px] font-body font-semibold text-white">{{ generatedCaptionLabel() || 'Gerar legenda de desafio' }}</p>
+                    <p class="text-[11px] font-body text-text-2">40 variações para provocar, desafiar e desafiar a turma.</p>
+                  </div>
+                  <button type="button"
+                          (click)="generateCaption()"
+                          class="shrink-0 rounded-xl border border-primary/30 bg-primary/12 px-3 py-2 text-[12px] font-body font-semibold text-primary transition-all hover:bg-primary/18 active:scale-[0.98]">
+                    Gerar legenda
+                  </button>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <button type="button"
+                          (click)="setManualCaptionMode()"
+                          class="rounded-full border px-3 py-1.5 text-[11px] font-body transition-colors"
+                          [class]="selectedCaptionOption() === 'manual' ? 'border-primary/40 bg-primary/12 text-primary' : 'border-border text-text-2 hover:text-white'">
+                    Escrever manualmente
+                  </button>
+                  <!-- <span class="rounded-full border border-border bg-bg/30 px-3 py-1.5 text-[11px] font-mono text-text-2">
+                    {{ captionOptions().length }} estilos
+                  </span> -->
+                </div>
+              </div>
+              <p class="text-[11px] font-body text-text-2">Gere quantas vezes quiser e, se preferir, edite tudo manualmente no campo abaixo.</p>
+            </div>
+          }
+
           <!-- Caption -->
           <div class="space-y-1.5">
             <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Descrição</label>
             <textarea
-              [(ngModel)]="caption"
+              [ngModel]="caption"
+              (ngModelChange)="onCaptionChange($event)"
               placeholder="Conte como foi o treino..."
               rows="3"
               maxlength="300"
@@ -162,11 +277,26 @@ interface WorkoutOption {
 
           <!-- Workout selector (optional) -->
           <div class="space-y-2">
-            <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">
-              Marcar treino do dia <span class="text-text-2/60 normal-case">(opcional)</span>
-            </label>
+            <!-- <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">
+              Marcar treino do dia <span class="text-text-2/60 normal-case">{{ prefillSummary() ? '(automático)' : '(opcional)' }}</span>
+            </label> -->
 
-            @if (workoutOptions().length > 0) {
+            @if (prefillSummary() && selectedWorkout()) {
+              <!-- <div class="flex items-center gap-3 rounded-xl border border-primary/30 bg-primary/10 px-4 py-3 shadow-glow-sm">
+                <div class="w-10 h-10 rounded-xl bg-bg/50 flex items-center justify-center text-[18px] shrink-0">
+                  {{ muscleEmoji(selectedWorkout()!.muscleGroup) }}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-[13px] font-body font-semibold text-white truncate">{{ selectedWorkout()!.name }}</p>
+                  <p class="text-[11px] font-body text-text-2 capitalize">{{ selectedWorkout()!.muscleGroup }}</p>
+                </div>
+                <div class="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#080C10" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+              </div> -->
+            } @else if (workoutOptions().length > 0) {
               <div class="space-y-2">
                 @for (opt of workoutOptions(); track opt.name) {
                   <button
@@ -254,6 +384,11 @@ export class NewPostModalComponent {
   auth                   = inject(AuthService);
   ranking                = inject(RankingService);
 
+  title = input('Novo post');
+  prefillCaption = input('');
+  prefillWorkout = input<WorkoutOption | null>(null);
+  prefillSummary = input<WorkoutPostPrefillSummary | null>(null);
+
   onClose   = output<void>();
   onPublish = output<WorkoutPost>();
 
@@ -266,9 +401,29 @@ export class NewPostModalComponent {
   selectedWorkout  = signal<WorkoutOption | null>(null);
   showGoal         = signal(true);
   workoutsDone     = computed(() => this.ranking.myRank()?.workoutsDone ?? Number(this.auth.profile().workouts_done ?? 0));
+  selectedCaptionOption = signal('manual');
+  generatedCaptionLabel = signal('');
 
   publishing = signal(false);
   error      = signal('');
+  private captionTouched = false;
+  private workoutTouched = false;
+
+  constructor() {
+    effect(() => {
+      const initialCaption = this.prefillCaption();
+      const initialWorkout = this.prefillWorkout();
+      const options = this.captionOptions();
+
+      if (!this.captionTouched && !this.caption && initialCaption) {
+        this.caption = initialCaption;
+      }
+
+      if (!this.workoutTouched && !this.selectedWorkout() && initialWorkout) {
+        this.selectedWorkout.set(initialWorkout);
+      }
+    });
+  }
 
   workoutOptions = computed<WorkoutOption[]>(() => {
     const today = this.workoutService.todayWorkout();
@@ -291,6 +446,35 @@ export class NewPostModalComponent {
     return opts;
   });
 
+  captionOptions = computed<CaptionOption[]>(() => {
+    const summary = this.prefillSummary();
+    const workout = this.prefillWorkout();
+    if (!summary || !workout) return [];
+
+    const options: CaptionOption[] = [];
+    let variant = 1;
+
+    for (const hook of CAPTION_HOOKS) {
+      for (const metric of CAPTION_METRICS) {
+        const closer = CAPTION_CLOSERS[(variant - 1) % CAPTION_CLOSERS.length];
+        options.push({
+          id: `provocation-${variant}`,
+          label: `Provocação ${String(variant).padStart(2, '0')}`,
+          value: [
+            hook,
+            `${summary.title} • ${workout.muscleGroup}.`,
+            metric(summary),
+            closer,
+          ].join('\n'),
+        });
+        variant++;
+        if (options.length === 40) return options;
+      }
+    }
+
+    return options;
+  });
+
   canPublish(): boolean {
     return !!this.photoFile() || !!this.caption.trim() || !!this.selectedWorkout();
   }
@@ -304,7 +488,41 @@ export class NewPostModalComponent {
   }
 
   toggleWorkout(opt: WorkoutOption): void {
+    this.workoutTouched = true;
     this.selectedWorkout.set(this.isSelected(opt) ? null : opt);
+  }
+
+  onCaptionChange(value: string): void {
+    this.captionTouched = true;
+    this.selectedCaptionOption.set('manual');
+    this.generatedCaptionLabel.set('');
+    this.caption = value;
+  }
+
+  setManualCaptionMode(): void {
+    this.captionTouched = true;
+    this.selectedCaptionOption.set('manual');
+    this.generatedCaptionLabel.set('');
+    this.caption = '';
+  }
+
+  generateCaption(): void {
+    const options = this.captionOptions();
+    if (options.length === 0) return;
+
+    const current = this.selectedCaptionOption();
+    let next = options[Math.floor(Math.random() * options.length)];
+
+    if (options.length > 1) {
+      while (next.id === current) {
+        next = options[Math.floor(Math.random() * options.length)];
+      }
+    }
+
+    this.captionTouched = true;
+    this.selectedCaptionOption.set(next.id);
+    this.generatedCaptionLabel.set(next.label);
+    this.caption = next.value;
   }
 
   onPhotoSelected(event: Event): void {
@@ -363,6 +581,8 @@ export class NewPostModalComponent {
         post.user.yearlyGoal   = profile.yearly_goal;
         post.user.workoutsDone = this.workoutsDone();
       }
+
+      post.streak = this.ranking.myRank()?.streakDays ?? this.workoutService.streak();
 
       this.onPublish.emit(post);
     } catch (err: any) {

@@ -201,7 +201,7 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
           </svg>
-          Copiar link público
+          Chamar pro desafio
         </button>
         <button id="sc-share" style="width:100%;padding:14px 0;border-radius:14px;
                 background:#00FF88;color:#080C10;font-size:14px;font-weight:700;
@@ -218,7 +218,7 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
     `);
     const linkBtn  = footer.querySelector('#sc-link')  as HTMLButtonElement;
     const shareBtn = footer.querySelector('#sc-share') as HTMLButtonElement;
-    linkBtn.addEventListener('click',  () => this.copyLink(linkBtn));
+    linkBtn.addEventListener('click',  () => this.shareChallengeLink(linkBtn));
     linkBtn.addEventListener('mouseenter', () => { linkBtn.style.opacity = '.8'; });
     linkBtn.addEventListener('mouseleave', () => { linkBtn.style.opacity = '1'; });
     shareBtn.addEventListener('click', () => this.share(shareBtn));
@@ -295,43 +295,45 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private buildPublicPostUrl(): string {
     const post = this.post();
-    const params = new URLSearchParams({
-      n: post.user.name,
-      u: post.user.username ?? '',
-      a: post.user.avatar ?? '',
-      l: post.user.level ?? '',
-      yg: String(post.user.yearlyGoal ?? ''),
-      wd: String(post.user.workoutsDone ?? ''),
-      sd: String(post.streak ?? 0),
-      wn: post.workout?.name ?? '',
-      wm: post.workout?.muscleGroup ?? '',
-      c: post.caption ?? '',
-      p: post.photo ?? '',
-      lk: String(post.likes ?? 0),
-      cm: String(post.comments ?? 0),
-      ta: post.timeAgo ?? '',
-    });
-
-    return `${environment.appUrl}/p/${post.id}?${params.toString()}`;
+    return `${environment.appUrl}/p/${post.id}`;
   }
 
-  async copyLink(btn: HTMLButtonElement): Promise<void> {
-    const url = this.buildPublicPostUrl();
+  async shareChallengeLink(btn: HTMLButtonElement): Promise<void> {
+    if (this.copying()) return;
+    this.copying.set(true);
+    btn.style.opacity = '.7';
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Criando convite...`;
+
     try {
-      await navigator.clipboard.writeText(url);
-      btn.textContent = '✓ Link copiado!';
+      const shortlink = await this.postService.getShortlink(this.post().id);
+      const url = shortlink || this.buildPublicPostUrl();
+      const shareText = `Te desafio a bater meu resultado no Repify. Topa? ${url}`;
+
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Repify',
+          text: 'Te desafio a bater meu resultado no Repify. Topa?',
+          url,
+        });
+        btn.textContent = '✓ Desafio pronto pra enviar!';
+      } else {
+        await navigator.clipboard.writeText(shareText);
+        btn.textContent = '✓ Convite copiado!';
+      }
+
       btn.style.color = '#00FF88';
       btn.style.borderColor = 'rgba(0,255,136,0.4)';
       setTimeout(() => {
-        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Copiar link público`;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Chamar pro desafio`;
         btn.style.color = '#fff';
         btn.style.borderColor = 'rgba(255,255,255,0.1)';
+        btn.style.opacity = '1';
       }, 2000);
     } catch {
-      // fallback: open share sheet if clipboard unavailable
-      if (navigator.share) {
-        navigator.share({ url, title: `Treino de ${this.post().user.name} no Repify` }).catch(() => {});
-      }
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Chamar pro desafio`;
+      btn.style.opacity = '1';
+    } finally {
+      this.copying.set(false);
     }
   }
 
