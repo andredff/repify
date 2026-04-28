@@ -264,6 +264,11 @@ function dayIndexFromDate(date: string): number {
   return new Date(`${date}T12:00:00`).getDay();
 }
 
+function dayIndexFromIso(value: string): number {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? todayDayIndex() : date.getDay();
+}
+
 function dateLabel(isoDate: string): string {
   const today = todayStr();
   const yesterday = new Date();
@@ -289,6 +294,38 @@ function weekdayAvailabilityLabel(dayIndex: number, fromDayIndex: number): strin
 
   const labels = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'];
   return `🔒 Disponível ${labels[dayIndex] ?? 'amanhã'}`;
+}
+
+function buildProgramDayIndexes(days: number, startDayIndex: number): number[] {
+  const patterns: Record<number, number[]> = {
+    3: [0, 2, 4],
+    4: [0, 1, 3, 4],
+    5: [0, 1, 2, 3, 4],
+  };
+
+  const offsets = patterns[days] ?? Array.from({ length: days }, (_, index) => index);
+  return offsets.map(offset => (startDayIndex + offset) % 7);
+}
+
+function weekdayLabel(dayIndex: number): string {
+  const labels = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  return labels[dayIndex] ?? `Dia ${dayIndex}`;
+}
+
+function normalizeProgram(program: ActiveProgram | null): ActiveProgram | null {
+  if (!program) return null;
+  if (!Array.isArray(program.plans) || !program.plans.length) return program;
+
+  const dayIndexes = buildProgramDayIndexes(program.days, dayIndexFromIso(program.createdAt));
+
+  return {
+    ...program,
+    plans: program.plans.map((plan, index) => ({
+      ...plan,
+      dayIndex: dayIndexes[index] ?? plan.dayIndex,
+      dayLabel: weekdayLabel(dayIndexes[index] ?? plan.dayIndex),
+    })),
+  };
 }
 
 function createEmptyDaySession(date: string): WorkoutDaySession {
@@ -421,10 +458,11 @@ export class WorkoutService {
 
   readonly todayFinished = computed<boolean>(() => {
     const today = this._todayKey();
-    if (this.daySession().completedAt) {
+    const session = this.currentProgramDaySession();
+    if (session.completedAt) {
       return true;
     }
-    return this._history().some(session => session.completedDate === today);
+    return this._history().some(historySession => this.isCurrentProgramCompletion(historySession, today));
   });
 
   readonly workoutInProgress = computed<boolean>(() => !!this.daySession().activePlanId && !this.todayFinished());
@@ -572,7 +610,9 @@ export class WorkoutService {
     }
 
     const previousProgram = this._program();
+    const previousDaySession = this.daySession();
     this._program.set(program);
+    this._saveDaySession(createEmptyDaySession(this._todayKey()));
 
     try {
       const res = await this._fetch('/api/workouts/program', {
@@ -588,6 +628,7 @@ export class WorkoutService {
       }
     } catch (error) {
       this._program.set(previousProgram);
+      this._saveDaySession(previousDaySession);
       throw error;
     }
   }
@@ -632,11 +673,22 @@ export class WorkoutService {
     }
 
     const todayWorkout = this.todayWorkout();
-    const session = this.daySession();
+    const session = this.currentProgramDaySession();
     const sameDay = plan.dayIndex === dayIndexFromDate(this._todayKey());
     const isTodayPlan = sameDay && todayWorkout?.id === plan.id;
     const completedToday = this.todayFinished();
     const isCompletedPlan = completedToday && ((session.completedPlanId === plan.id) || this.isFinishedToday(plan.id));
+
+    if (session.activePlanId === plan.id) {
+      return {
+        state: 'in_progress',
+        canStart: true,
+        canResume: true,
+        isLocked: false,
+        completedAt: session.completedAt,
+        label: completedToday ? 'Continuar sem XP' : 'Continuar treino',
+      };
+    }
 
     if (isCompletedPlan) {
       return {
@@ -649,7 +701,7 @@ export class WorkoutService {
       };
     }
 
-    if (completedToday || !isTodayPlan) {
+    if (!isTodayPlan) {
       return {
         state: 'locked',
         canStart: false,
@@ -657,17 +709,6 @@ export class WorkoutService {
         isLocked: true,
         completedAt: null,
         label: weekdayAvailabilityLabel(plan.dayIndex, todayIndex),
-      };
-    }
-
-    if (session.activePlanId === plan.id) {
-      return {
-        state: 'in_progress',
-        canStart: true,
-        canResume: true,
-        isLocked: false,
-        completedAt: null,
-        label: 'Continuar treino',
       };
     }
 
@@ -688,7 +729,7 @@ export class WorkoutService {
       canResume: false,
       isLocked: false,
       completedAt: null,
-      label: 'Iniciar treino',
+      label: completedToday ? 'Treinar sem XP' : 'Iniciar treino',
     };
   }
 
@@ -701,11 +742,11 @@ export class WorkoutService {
     const state = this.getWorkoutAccessState(plan);
 
     if (state.state === 'pending') {
-      const previousDaySession = this.daySession();
+      const previousDaySession = this.currentProgramDaySession();
       this._saveDaySession({
-        ...this.daySession(),
+        ...previousDaySession,
         activePlanId: plan.id,
-        startedAt: this.daySession().startedAt ?? isoNow(),
+        startedAt: previousDaySession.startedAt ?? isoNow(),
       });
 
       try {
@@ -758,7 +799,8 @@ export class WorkoutService {
     const date = this._todayKey();
     const completedAt = isoNow();
     const allDone = exercisesDone === plan.totalExercises;
-    const xp = xpForSession(plan, allDone);
+    const alreadyRewardedToday = this._history().some(session => session.completedDate === date && session.xpEarned > 0);
+    const xp = alreadyRewardedToday ? 0 : xpForSession(plan, allDone);
     const motivationalQuote = this.randomMotivationalQuote();
     const previousHistory = this._history();
     const previousTotalXp = this._totalXp();
@@ -795,11 +837,15 @@ export class WorkoutService {
     });
 
     // XP
-    this._totalXp.update(x => {
-      return x + xp;
-    });
+    if (xp > 0) {
+      this._totalXp.update(x => {
+        return x + xp;
+      });
+    }
 
-    const optimisticWorkoutsDone = (previousProfile.workouts_done ?? 0) + 1;
+    const optimisticWorkoutsDone = alreadyRewardedToday
+      ? (previousProfile.workouts_done ?? 0)
+      : (previousProfile.workouts_done ?? 0) + 1;
     const optimisticYearlyGoal = previousProfile.yearly_goal ?? 320;
     const optimisticStreakDays = this.streak();
     const optimisticMetrics: CurrentUserRankingMetrics = {
@@ -883,10 +929,63 @@ export class WorkoutService {
 
   isFinishedToday(planId: string): boolean {
     const today = this._todayKey();
-    if (this.daySession().completedPlanId === planId && this.daySession().date === today) {
+    const daySession = this.currentProgramDaySession();
+    if (daySession.completedPlanId === planId && daySession.date === today) {
       return true;
     }
-    return this._history().some(session => session.planId === planId && session.completedDate === today);
+    return this._history().some(session => this.isCurrentProgramCompletion(session, today, planId));
+  }
+
+  private currentProgramDaySession(): WorkoutDaySession {
+    const session = this.daySession();
+    const currentProgram = this._program();
+
+    if (!currentProgram) {
+      return createEmptyDaySession(this._todayKey());
+    }
+
+    const currentPlanIds = new Set(currentProgram.plans.map(plan => plan.id));
+    const activeBelongsToCurrentProgram = !!session.activePlanId
+      && currentPlanIds.has(session.activePlanId)
+      && this.isOnOrAfterProgramCreation(session.startedAt ?? session.completedAt);
+    const completedBelongsToCurrentProgram = !!session.completedPlanId
+      && currentPlanIds.has(session.completedPlanId)
+      && this.isOnOrAfterProgramCreation(session.completedAt ?? session.startedAt);
+
+    return {
+      date: session.date,
+      activePlanId: activeBelongsToCurrentProgram ? session.activePlanId : null,
+      startedAt: activeBelongsToCurrentProgram ? session.startedAt : null,
+      completedPlanId: completedBelongsToCurrentProgram ? session.completedPlanId : null,
+      completedAt: completedBelongsToCurrentProgram ? session.completedAt : null,
+      motivationalQuote: completedBelongsToCurrentProgram ? session.motivationalQuote : null,
+    };
+  }
+
+  private isCurrentProgramCompletion(session: WorkoutSession, today: string, planId?: string): boolean {
+    const currentProgram = this._program();
+    if (!currentProgram) return false;
+    if (session.completedDate !== today) return false;
+    if (planId && session.planId !== planId) return false;
+
+    const currentPlanIds = new Set(currentProgram.plans.map(plan => plan.id));
+    if (!currentPlanIds.has(session.planId)) return false;
+
+    return this.isOnOrAfterProgramCreation(session.completedAt);
+  }
+
+  private isOnOrAfterProgramCreation(value: string | null | undefined): boolean {
+    const createdAt = this._program()?.createdAt;
+    if (!createdAt || !value) return false;
+
+    const createdAtMs = new Date(createdAt).getTime();
+    const valueMs = new Date(value).getTime();
+
+    if (Number.isNaN(createdAtMs) || Number.isNaN(valueMs)) {
+      return false;
+    }
+
+    return valueMs >= createdAtMs;
   }
 
   // ── Private loaders ──────────────────────────────────────────────────────────
@@ -928,7 +1027,7 @@ export class WorkoutService {
           ? payload.history.map(normalizeHistorySession).filter((session): session is WorkoutSession => !!session)
           : [];
 
-        this._program.set(payload.program ?? null);
+        this._program.set(normalizeProgram(payload.program ?? null));
         this._history.set(history);
         this._totalXp.set(Number(payload.totalXp ?? history.reduce((sum, session) => sum + session.xpEarned, 0)));
         this._daySession.set(normalizeRemoteDaySession(payload.daySession ?? null, this._todayKey()));

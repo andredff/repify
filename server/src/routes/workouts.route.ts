@@ -82,6 +82,17 @@ interface WorkoutHistoryRow {
   xp_earned: number;
 }
 
+function isoToMillis(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
+function isDuplicateDailyWorkoutHistoryError(error: { message?: string } | null | undefined): boolean {
+  const message = error?.message ?? '';
+  return message.includes('workout_history_user_completed_date_idx') || message.includes('duplicate key value');
+}
+
 function xpForWorkout(difficulty: 'Iniciante' | 'Intermediário' | 'Avançado', allDone: boolean): number {
   const base = 50;
   const diffBonus = { Iniciante: 0, Intermediário: 20, Avançado: 40 };
@@ -253,23 +264,37 @@ router.post('/session/start', requireAuth, async (req: AuthRequest, res: Respons
   const today = todayDateString();
   const nowIso = new Date().toISOString();
 
-  const existingResult = await supabaseAdmin
+  const [existingResult, programResult] = await Promise.all([
+    supabaseAdmin
     .from('workout_day_sessions')
     .select('user_id,session_date,active_plan_id,started_at,completed_plan_id,completed_at,motivational_quote')
     .eq('user_id', userId)
     .eq('session_date', today)
-    .maybeSingle();
+    .maybeSingle(),
+    supabaseAdmin
+      .from('workout_programs')
+      .select('created_at')
+      .eq('user_id', userId)
+      .maybeSingle(),
+  ]);
 
   if (existingResult.error) {
     res.status(500).json({ error: 'Failed to read workout session.', details: existingResult.error.message });
     return;
   }
 
-  const existing = existingResult.data as WorkoutDaySessionRow | null;
-  if (existing?.completed_at) {
-    res.status(409).json({ error: 'Workout already completed today.', daySession: existing });
+  if (programResult.error) {
+    res.status(500).json({ error: 'Failed to read workout program.', details: programResult.error.message });
     return;
   }
+
+  const existing = existingResult.data as WorkoutDaySessionRow | null;
+  const currentProgram = programResult.data as { created_at?: string | null } | null;
+  const programCreatedAtMs = isoToMillis(currentProgram?.created_at ?? null);
+  const completedAtMs = isoToMillis(existing?.completed_at ?? null);
+  const completedAfterCurrentProgram = completedAtMs != null && programCreatedAtMs != null
+    ? completedAtMs >= programCreatedAtMs
+    : !!existing?.completed_at;
 
   if (existing?.active_plan_id && existing.active_plan_id !== parsed.data.planId) {
     res.status(409).json({ error: 'Another workout is already active today.', daySession: existing });
@@ -281,9 +306,9 @@ router.post('/session/start', requireAuth, async (req: AuthRequest, res: Respons
     session_date: today,
     active_plan_id: parsed.data.planId,
     started_at: existing?.started_at ?? nowIso,
-    completed_plan_id: existing?.completed_plan_id ?? null,
-    completed_at: existing?.completed_at ?? null,
-    motivational_quote: existing?.motivational_quote ?? null,
+    completed_plan_id: completedAfterCurrentProgram ? existing?.completed_plan_id ?? null : null,
+    completed_at: completedAfterCurrentProgram ? existing?.completed_at ?? null : null,
+    motivational_quote: completedAfterCurrentProgram ? existing?.motivational_quote ?? null : null,
   };
 
   const { data, error } = await supabaseAdmin
@@ -318,7 +343,7 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
   const weekStartStr = weekStart.toISOString().slice(0, 10);
 
-  const [existingStatsResult, existingHistoryResult, existingDaySessionResult] = await Promise.all([
+  const [existingStatsResult, rewardedWorkoutResult, existingDaySessionResult] = await Promise.all([
     supabaseAdmin
       .from('user_stats')
       .select('total_xp, weekly_xp, week_start, streak_days')
@@ -326,9 +351,10 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
       .maybeSingle(),
     supabaseAdmin
       .from('workout_history')
-      .select('id')
+      .select('id,xp_earned')
       .eq('user_id', userId)
       .eq('completed_date', today)
+      .gt('xp_earned', 0)
       .maybeSingle(),
     supabaseAdmin
       .from('workout_day_sessions')
@@ -344,9 +370,9 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
     return;
   }
 
-  if (existingHistoryResult.error) {
-    console.error('[workouts] workout_history fetch error:', existingHistoryResult.error);
-    sendStageError(res, 'workout_history fetch', existingHistoryResult.error);
+  if (rewardedWorkoutResult.error) {
+    console.error('[workouts] workout_history fetch error:', rewardedWorkoutResult.error);
+    sendStageError(res, 'workout_history fetch', rewardedWorkoutResult.error);
     return;
   }
 
@@ -356,20 +382,17 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
     return;
   }
 
-  if (existingHistoryResult.data?.id) {
-    res.status(409).json({ error: 'Workout already completed today.' });
-    return;
-  }
-
   const existingStats = existingStatsResult.data;
   const existingDaySession = existingDaySessionResult.data as WorkoutDaySessionRow | null;
+  const rewardedWorkoutToday = !!rewardedWorkoutResult.data?.id;
   const weekRolled = existingStats && existingStats.week_start !== weekStartStr;
   const previousTotalXp = Number(existingStats?.total_xp ?? 0);
   const previousWeeklyXp = weekRolled ? 0 : Number(existingStats?.weekly_xp ?? 0);
   const previousStreakDays = Number(existingStats?.streak_days ?? 0);
   const streakDays = payload.streakDays ?? previousStreakDays;
-  const totalXp = previousTotalXp + xp;
-  const weeklyXp = previousWeeklyXp + xp;
+  const earnedXp = rewardedWorkoutToday ? 0 : xp;
+  const totalXp = previousTotalXp + earnedXp;
+  const weeklyXp = previousWeeklyXp + earnedXp;
 
   const historyInsertResult = await supabaseAdmin
     .from('workout_history')
@@ -384,18 +407,19 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
       exercises_done: payload.exercisesDone,
       total_exercises: payload.totalExercises,
       estimated_duration: payload.estimatedDuration,
-      xp_earned: xp,
+      xp_earned: earnedXp,
     })
     .select('id')
     .single();
 
-  if (historyInsertResult.error) {
+  const canSkipHistoryInsert = earnedXp === 0 && isDuplicateDailyWorkoutHistoryError(historyInsertResult.error);
+  if (historyInsertResult.error && !canSkipHistoryInsert) {
     console.error('[workouts] workout_history insert error:', historyInsertResult.error);
     sendStageError(res, 'workout_history insert', historyInsertResult.error);
     return;
   }
 
-  const insertedHistoryId = historyInsertResult.data.id as string;
+  const insertedHistoryId = historyInsertResult.data?.id as string | undefined;
   const completedDaySession = {
     user_id: userId,
     session_date: today,
@@ -411,7 +435,9 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
     .upsert(completedDaySession, { onConflict: 'user_id,session_date' });
 
   if (daySessionUpsertError) {
-    await supabaseAdmin.from('workout_history').delete().eq('id', insertedHistoryId);
+    if (insertedHistoryId) {
+      await supabaseAdmin.from('workout_history').delete().eq('id', insertedHistoryId);
+    }
     console.error('[workouts] workout_day_sessions upsert error:', daySessionUpsertError);
     sendStageError(res, 'workout_day_sessions upsert', daySessionUpsertError);
     return;
@@ -429,7 +455,9 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
     }, { onConflict: 'user_id' });
 
   if (upsertError) {
-    await supabaseAdmin.from('workout_history').delete().eq('id', insertedHistoryId);
+    if (insertedHistoryId) {
+      await supabaseAdmin.from('workout_history').delete().eq('id', insertedHistoryId);
+    }
     if (existingDaySession) {
       await supabaseAdmin.from('workout_day_sessions').upsert(existingDaySession, { onConflict: 'user_id,session_date' });
     } else {
@@ -440,12 +468,43 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
     return;
   }
 
-  const { error: xpInsertError } = await supabaseAdmin
-    .from('xp_events')
-    .insert({ user_id: userId, type: 'workout', xp });
+  const xpInsertError = earnedXp > 0
+    ? (await supabaseAdmin
+      .from('xp_events')
+      .insert({ user_id: userId, type: 'workout', xp: earnedXp })).error
+    : null;
+
+  if (earnedXp === 0) {
+    const { data: existingUser, error: userFetchError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (userFetchError || !existingUser.user) {
+      console.error('[workouts] auth user fetch error:', userFetchError);
+      sendStageError(res, 'auth user fetch', userFetchError);
+      return;
+    }
+
+    const meta = existingUser.user.user_metadata ?? {};
+    const workoutsDone = Number(meta['workouts_done'] ?? 0);
+    const yearlyGoal = Number(meta['yearly_goal'] ?? DEFAULT_YEARLY_GOAL) || DEFAULT_YEARLY_GOAL;
+
+    res.json({
+      ok: true,
+      metrics: {
+        totalXp,
+        weeklyXp,
+        workoutsDone,
+        yearlyGoal,
+        streakDays,
+        xpEarned: earnedXp,
+      },
+      daySession: completedDaySession,
+    });
+    return;
+  }
 
   if (xpInsertError) {
-    await supabaseAdmin.from('workout_history').delete().eq('id', insertedHistoryId);
+    if (insertedHistoryId) {
+      await supabaseAdmin.from('workout_history').delete().eq('id', insertedHistoryId);
+    }
     if (existingDaySession) {
       await supabaseAdmin.from('workout_day_sessions').upsert(existingDaySession, { onConflict: 'user_id,session_date' });
     } else {
@@ -507,7 +566,7 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
       workoutsDone,
       yearlyGoal,
       streakDays,
-      xpEarned: xp,
+      xpEarned: earnedXp,
     },
     daySession: completedDaySession,
   });

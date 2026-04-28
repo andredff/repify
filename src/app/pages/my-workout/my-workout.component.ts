@@ -9,16 +9,15 @@ import { NewPostModalComponent, WorkoutPostPrefillSummary } from '../feed/compon
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
 import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
 
-type Step = 'plan' | 'goal' | 'level' | 'days' | 'duration' | 'result';
+type Step = 'plan' | 'goal' | 'level' | 'duration' | 'result';
 type Goal = 'hipertrofia' | 'emagrecimento' | 'forca' | 'condicionamento';
 type Level = 'iniciante' | 'intermediario' | 'avancado';
-type Days = 3 | 4 | 5;
+type Days = 5;
 type SessionDuration = 20 | 40 | 60;
 
 interface WizardState {
-  goal:            Goal            | null;
+  goals:           Goal[];
   level:           Level           | null;
-  days:            Days            | null;
   sessionDuration: SessionDuration | null;
 }
 
@@ -462,23 +461,33 @@ const CALI_PLANS: Record<Level, PlanDay[]> = {
 };
 
 // dayLabel → JS day index (0=Dom)
-const DAY_SCHEDULE: Record<number, Array<{ label: string; index: number }>> = {
-  3: [{ label:'Segunda', index:1 }, { label:'Quarta', index:3 }, { label:'Sexta',  index:5 }],
-  4: [{ label:'Segunda', index:1 }, { label:'Terça',  index:2 }, { label:'Quinta', index:4 }, { label:'Sexta', index:5 }],
-  5: [{ label:'Segunda', index:1 }, { label:'Terça',  index:2 }, { label:'Quarta', index:3 }, { label:'Quinta', index:4 }, { label:'Sexta', index:5 }],
-};
+const DAY_SCHEDULE: Array<{ label: string; index: number }> = [
+  { label:'Segunda', index:1 },
+  { label:'Terça', index:2 },
+  { label:'Quarta', index:3 },
+  { label:'Quinta', index:4 },
+  { label:'Sexta', index:5 },
+];
+
+const FIXED_TRAINING_DAYS: Days = 5;
 
 function buildWorkouts(state: WizardState): GeneratedWorkout[] {
-  const rawDays = PLANS[state.goal!][state.level!].slice(0, state.days!);
+  const selectedGoals: Goal[] = state.goals.length ? state.goals : ['hipertrofia'];
+  const rawDays = DAY_SCHEDULE.map((_, index) => {
+    const goal = selectedGoals[index % selectedGoals.length];
+    const planDays = PLANS[goal][state.level!];
+    const day = planDays[index % planDays.length];
+    return { ...day, goal };
+  });
 
   const levelLabel: 'Iniciante' | 'Intermediário' | 'Avançado' =
     state.level === 'avancado' ? 'Avançado'
     : state.level === 'intermediario' ? 'Intermediário'
     : 'Iniciante';
-  const schedule = DAY_SCHEDULE[state.days!];
+  const schedule = DAY_SCHEDULE;
 
   return rawDays.map((day, i) => {
-    let exercises = day.exercises;
+    let exercises: Ex[] = day.exercises;
     let duration  = day.duration;
 
     if (state.sessionDuration === 20) {
@@ -489,11 +498,13 @@ function buildWorkouts(state: WizardState): GeneratedWorkout[] {
       duration  = day.duration + 15;
     }
 
+    const goalLabel = GOAL_OPTIONS.find(option => option.value === day.goal)?.label ?? 'Treino personalizado';
+
     return {
-      id:                `${state.goal}-${state.level}-day${i + 1}`,
-      name:              day.name,
+      id:                `${selectedGoals.join('-')}-${state.level}-day${i + 1}`,
+      name:              selectedGoals.length > 1 ? `${goalLabel} • ${day.name}` : day.name,
       muscleGroup:       day.muscleGroup,
-      exercises:         exercises.map((e, j) => ({ ...e, id: String(j + 1) })),
+      exercises:         exercises.map((exercise, index) => ({ ...exercise, id: String(index + 1) })),
       estimatedDuration: duration,
       totalExercises:    exercises.length,
       difficulty:        levelLabel,
@@ -518,12 +529,6 @@ const LEVEL_OPTIONS: { value: Level; label: string; desc: string }[] = [
   { value:'iniciante',     label:'Iniciante',     desc:'Menos de 6 meses de treino' },
   { value:'intermediario', label:'Intermediário', desc:'6 meses a 2 anos' },
   { value:'avancado',      label:'Avançado',      desc:'Mais de 2 anos' },
-];
-
-const DAYS_OPTIONS: { value: Days; label: string; desc: string }[] = [
-  { value:3, label:'3 dias', desc:'Segunda, Quarta, Sexta' },
-  { value:4, label:'4 dias', desc:'Seg, Ter, Qui, Sex' },
-  { value:5, label:'5 dias', desc:'Segunda a Sexta' },
 ];
 
 const DURATION_OPTIONS: { value: SessionDuration; label: string; desc: string }[] = [
@@ -581,7 +586,7 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
         <section class="pt-0 pb-5">
           <p class="text-[22px] font-display font-bold text-white">Meu Treino</p>
           <p class="text-[12px] font-body text-text-2 mt-1">
-            {{ step() !== 'result' && step() !== 'plan' ? 'Passo ' + (stepIndex() + 1) + ' de 4' : 'Monte, ajuste e acompanhe seu programa' }}
+            {{ step() !== 'result' && step() !== 'plan' ? 'Passo ' + (stepIndex() + 1) + ' de 3' : 'Monte, ajuste e acompanhe seu programa' }}
           </p>
         </section>
 
@@ -748,15 +753,19 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
               </button>
               <h2 class="text-[20px] font-display font-bold text-white">Objetivo</h2>
             </header>
-            <p class="text-[13px] font-body text-text-2 mb-7">Vamos montar um plano completo pra você.</p>
+            <p class="text-[13px] font-body text-text-2 mb-3">Escolha um ou mais objetivos para misturar o foco da sua semana.</p>
+            <div class="mb-7 rounded-2xl border border-primary/15 bg-primary/8 px-4 py-3 text-[11px] font-body leading-relaxed text-text-2">
+              O plano sempre será montado de segunda a sexta. Quando você marcar mais de um objetivo, o Repify alterna sessões específicas ao longo da semana.
+            </div>
             <div class="grid grid-cols-2 gap-3">
               @for (opt of goalOptions; track opt.value) {
-                <button (click)="set('goal', opt.value)"
+                <button (click)="toggleGoal(opt.value)"
                         class="relative flex flex-col items-start gap-2 p-4 rounded-2xl border transition-all text-left"
-                        [class]="wizard().goal === opt.value
+                        [attr.aria-pressed]="hasGoal(opt.value)"
+                        [class]="hasGoal(opt.value)
                           ? 'bg-primary/10 border-primary shadow-glow-sm'
                           : 'bg-card-2 border-border hover:border-border-2'">
-                  @if (wizard().goal === opt.value) {
+                  @if (hasGoal(opt.value)) {
                     <div class="absolute top-3 right-3 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
                       <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#080C10" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"/>
@@ -802,39 +811,6 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
                   <div>
                     <p class="text-[15px] font-body font-semibold text-white">{{ opt.label }}</p>
                     <p class="text-[12px] font-body text-text-2 mt-0.5">{{ opt.desc }}</p>
-                  </div>
-                </button>
-              }
-            </div>
-          </div>
-        }
-
-        <!-- ── DAYS ── -->
-        @if (step() === 'days') {
-          <div class="animate-slide-up">
-            <header class="flex items-center gap-3 mb-6">
-              <button (click)="back()" class="w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-white transition-colors shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-              </button>
-              <h2 class="text-[20px] font-display font-bold text-white">Dias por semana</h2>
-            </header>
-            <p class="text-[13px] font-body text-text-2 mb-7">Cada dia terá um treino completo e diferente.</p>
-            <div class="space-y-3">
-              @for (opt of daysOptions; track opt.value) {
-                <button (click)="set('days', opt.value)"
-                        class="w-full flex items-center justify-between gap-4 p-4 rounded-2xl border transition-all text-left"
-                        [class]="wizard().days === opt.value
-                          ? 'bg-primary/10 border-primary shadow-glow-sm'
-                          : 'bg-card-2 border-border hover:border-border-2'">
-                  <div>
-                    <p class="text-[18px] font-display font-bold text-white">{{ opt.label }}</p>
-                    <p class="text-[12px] font-body text-text-2 mt-0.5">{{ opt.desc }}</p>
-                  </div>
-                  <div class="flex gap-1 shrink-0">
-                    @for (d of dayDots(opt.value); track d) {
-                      <div class="w-2 h-2 rounded-full transition-colors"
-                           [class]="wizard().days === opt.value ? 'bg-primary' : 'bg-border'"></div>
-                    }
                   </div>
                 </button>
               }
@@ -913,9 +889,11 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
 
             <!-- Summary tags -->
             <div class="flex flex-wrap gap-2 mb-6">
-              <span class="px-3 py-1 rounded-full bg-card border border-border text-[11px] font-body text-text-2">{{ goalLabel() }}</span>
+              @for (goal of goalLabels(); track goal) {
+                <span class="px-3 py-1 rounded-full bg-card border border-border text-[11px] font-body text-text-2">{{ goal }}</span>
+              }
               <span class="px-3 py-1 rounded-full bg-card border border-border text-[11px] font-body text-text-2">{{ levelLabel() }}</span>
-              <span class="px-3 py-1 rounded-full bg-card border border-border text-[11px] font-body text-text-2">{{ wizard().days }}x/semana</span>
+              <span class="px-3 py-1 rounded-full bg-card border border-border text-[11px] font-body text-text-2">Segunda a sexta</span>
               <span class="px-3 py-1 rounded-full bg-card border border-border text-[11px] font-body text-text-2">{{ wizard().sessionDuration }} min</span>
             </div>
 
@@ -1063,16 +1041,15 @@ export class MyWorkoutComponent implements OnInit {
   private postService = inject(PostService);
   workoutService   = inject(WorkoutService);
 
-  readonly stepKeys: Step[] = ['goal', 'level', 'days', 'duration'];
+  readonly stepKeys: Step[] = ['goal', 'level', 'duration'];
   showNotifications = signal(false);
   readonly goalOptions     = GOAL_OPTIONS;
   readonly levelOptions    = LEVEL_OPTIONS;
-  readonly daysOptions     = DAYS_OPTIONS;
   readonly durationOptions = DURATION_OPTIONS;
   readonly weekProgression = WEEK_PROGRESSION;
 
   step           = signal<Step>('goal');
-  wizard         = signal<WizardState>({ goal: null, level: null, days: null, sessionDuration: null });
+  wizard         = signal<WizardState>({ goals: [], level: null, sessionDuration: null });
   generated      = signal<GeneratedWorkout[]>([]);
   previewWorkout = signal<StoredPlan | GeneratedWorkout | null>(null);
   showNewPost = signal(false);
@@ -1150,9 +1127,8 @@ export class MyWorkoutComponent implements OnInit {
   canAdvance = computed(() => {
     const w = this.wizard();
     switch (this.step()) {
-      case 'goal':     return !!w.goal;
+      case 'goal':     return w.goals.length > 0;
       case 'level':    return !!w.level;
-      case 'days':     return !!w.days;
       case 'duration': return !!w.sessionDuration;
       default: return false;
     }
@@ -1163,9 +1139,9 @@ export class MyWorkoutComponent implements OnInit {
     return map[this.wizard().level ?? ''] ?? '';
   });
 
-  goalLabel = computed(() => {
+  goalLabels = computed(() => {
     const map: Record<string, string> = { hipertrofia:'Hipertrofia', emagrecimento:'Emagrecimento', forca:'Força', condicionamento:'Condicionamento' };
-    return map[this.wizard().goal ?? ''] ?? '';
+    return this.wizard().goals.map(goal => map[goal] ?? goal);
   });
 
   async ngOnInit(): Promise<void> {
@@ -1180,12 +1156,8 @@ export class MyWorkoutComponent implements OnInit {
   }
 
   stepDone(s: Step): boolean {
-    const order: Step[] = ['goal', 'level', 'days'];
+    const order: Step[] = ['goal', 'level'];
     return order.indexOf(s) < this.stepIndex();
-  }
-
-  dayDots(n: number): number[] {
-    return Array.from({ length: n });
   }
 
   muscleGradient(mg: string): string {
@@ -1202,19 +1174,33 @@ export class MyWorkoutComponent implements OnInit {
     this.wizard.update(w => ({ ...w, [field]: value }));
   }
 
+  hasGoal(goal: Goal): boolean {
+    return this.wizard().goals.includes(goal);
+  }
+
+  toggleGoal(goal: Goal): void {
+    this.wizard.update(state => ({
+      ...state,
+      goals: state.goals.includes(goal)
+        ? state.goals.filter(entry => entry !== goal)
+        : [...state.goals, goal],
+    }));
+  }
+
   async next(): Promise<void> {
-    const order: Step[] = ['goal', 'level', 'days', 'duration'];
+    const order: Step[] = ['goal', 'level', 'duration'];
     const idx = order.indexOf(this.step() as any);
     if (idx < order.length - 1) {
       this.step.set(order[idx + 1]);
     } else {
       const workouts = buildWorkouts(this.wizard());
       const program: ActiveProgram = {
-        goal:            this.wizard().goal!,
+        goal:            this.goalLabels().join(' + '),
         level:           this.wizard().level!,
-        days:            this.wizard().days!,
+        days:            FIXED_TRAINING_DAYS,
         plans:           workouts,
         createdAt:       new Date().toISOString(),
+        styles:          this.wizard().goals,
         sessionDuration: this.wizard().sessionDuration!,
       };
       await this.workoutService.saveProgram(program);
@@ -1225,7 +1211,7 @@ export class MyWorkoutComponent implements OnInit {
 
   back(): void {
     if (this.step() === 'plan') { this.location.back(); return; }
-    const order: Step[] = ['goal', 'level', 'days', 'duration'];
+    const order: Step[] = ['goal', 'level', 'duration'];
     const idx = order.indexOf(this.step() as any);
     if (idx > 0) {
       this.step.set(order[idx - 1]);
@@ -1251,7 +1237,7 @@ export class MyWorkoutComponent implements OnInit {
   async confirmReset(): Promise<void> {
     if (confirm('Apagar plano atual e criar um novo?')) {
       await this.workoutService.clearProgram();
-      this.wizard.set({ goal: null, level: null, days: null, sessionDuration: null });
+      this.wizard.set({ goals: [], level: null, sessionDuration: null });
       this.generated.set([]);
       this.step.set('goal');
     }
@@ -1259,7 +1245,7 @@ export class MyWorkoutComponent implements OnInit {
 
   async reset(): Promise<void> {
     await this.workoutService.clearProgram();
-    this.wizard.set({ goal: null, level: null, days: null, sessionDuration: null });
+    this.wizard.set({ goals: [], level: null, sessionDuration: null });
     this.generated.set([]);
     this.step.set('goal');
   }
