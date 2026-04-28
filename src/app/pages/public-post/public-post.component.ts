@@ -19,6 +19,8 @@ interface PublicPost {
   id: string;
   caption: string | null;
   photo_url: string | null;
+  photo_url_medium: string | null;
+  photo_url_thumb: string | null;
   workout: { name: string; muscleGroup: string } | null;
   likes: number;
   comments: number;
@@ -685,6 +687,8 @@ export class PublicPostComponent implements OnInit {
       id,
       caption: qp.get('c'),
       photo_url: qp.get('p'),
+      photo_url_medium: null,
+      photo_url_thumb: null,
       workout: qp.get('wn') ? { name: qp.get('wn')!, muscleGroup: qp.get('wm') ?? '' } : null,
       likes: Number(qp.get('lk') ?? 0),
       comments: Number(qp.get('cm') ?? 0),

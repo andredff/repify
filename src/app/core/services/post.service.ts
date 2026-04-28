@@ -1,5 +1,4 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { supabase } from '../supabase/supabaseClient';
 import { AuthService } from './auth.service';
 import { WorkoutPost } from '../models/workout-post.model';
 
@@ -18,6 +17,8 @@ interface ApiPost {
   id: string;
   caption: string | null;
   photo_url: string | null;
+  photo_url_medium: string | null;
+  photo_url_thumb: string | null;
   workout: { name: string; muscleGroup: string } | null;
   likes: number;
   comments: number;
@@ -35,7 +36,6 @@ interface ApiPost {
   };
 }
 
-const BUCKET   = 'workout-photos';
 
 @Injectable({ providedIn: 'root' })
 export class PostService {
@@ -83,28 +83,34 @@ export class PostService {
     if (!this.canCreatePost()) throw new Error(this.createPostRequirementMessage());
 
     let photoUrl: string | undefined;
+    let photoUrlMedium: string | undefined;
+    let photoUrlThumb: string | undefined;
 
     if (data.photo) {
-      const ext  = data.photo.name.split('.').pop()?.toLowerCase() ?? 'jpg';
-      const path = `${user.id}/${Date.now()}.${ext}`;
+      const form = new FormData();
+      form.append('photo', data.photo, data.photo.name || 'photo');
 
-      const { error } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, data.photo, { upsert: false, contentType: data.photo.type });
-
-      if (error) throw new Error('Falha ao enviar foto: ' + error.message);
-
-      photoUrl = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+      const uploadRes = await this.fetch('/api/upload/post-photo', { method: 'POST', body: form });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Falha ao enviar foto.');
+      }
+      const urls = await uploadRes.json();
+      photoUrl       = urls.full;
+      photoUrlMedium = urls.medium;
+      photoUrlThumb  = urls.thumb;
     }
 
     const res = await this.fetch('/api/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        caption:        data.caption || undefined,
-        photo_url:      photoUrl,
-        workout_name:   data.workout?.name,
-        workout_muscle: data.workout?.muscleGroup,
+        caption:          data.caption || undefined,
+        photo_url:        photoUrl,
+        photo_url_medium: photoUrlMedium,
+        photo_url_thumb:  photoUrlThumb,
+        workout_name:     data.workout?.name,
+        workout_muscle:   data.workout?.muscleGroup,
       }),
     });
 
@@ -179,12 +185,14 @@ export class PostService {
       yearlyGoal:  p.user.yearly_goal   != null ? Number(p.user.yearly_goal)   : null,
       workoutsDone:p.user.workouts_done  != null ? Number(p.user.workouts_done) : null,
     },
-    timeAgo:  p.time_ago,
-    caption:  p.caption ?? undefined,
-    workout:  p.workout ?? undefined,
-    photo:    p.photo_url ?? undefined,
-    likes:    p.likes,
-    comments: p.comments,
-    liked:    p.liked,
+    timeAgo:      p.time_ago,
+    caption:      p.caption ?? undefined,
+    workout:      p.workout ?? undefined,
+    photo:        p.photo_url        ?? undefined,
+    photoMedium:  p.photo_url_medium ?? undefined,
+    photoThumb:   p.photo_url_thumb  ?? undefined,
+    likes:        p.likes,
+    comments:     p.comments,
+    liked:        p.liked,
   });
 }

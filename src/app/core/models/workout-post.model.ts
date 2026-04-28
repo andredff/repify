@@ -23,6 +23,8 @@ export interface WorkoutPost {
     muscleGroup: string;
   };
   photo?: string;
+  photoMedium?: string;
+  photoThumb?: string;
   likes: number;
   comments: number;
   liked: boolean;

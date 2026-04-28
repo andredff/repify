@@ -6,10 +6,12 @@ import { supabaseAdmin } from '../supabase';
 const router = Router();
 
 const PostSchema = z.object({
-  caption:        z.string().max(500).optional(),
-  photo_url:      z.string().url().optional(),
-  workout_name:   z.string().max(80).optional(),
-  workout_muscle: z.string().max(30).optional(),
+  caption:          z.string().max(500).optional(),
+  photo_url:        z.string().url().optional(),
+  photo_url_medium: z.string().url().optional(),
+  photo_url_thumb:  z.string().url().optional(),
+  workout_name:     z.string().max(80).optional(),
+  workout_muscle:   z.string().max(30).optional(),
 }).refine(
   d => d.caption?.trim() || d.photo_url || d.workout_name,
   { message: 'O post precisa ter ao menos foto, descrição ou treino.' },
@@ -126,11 +128,13 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
   const { data, error } = await supabaseAdmin
     .from('posts')
     .insert({
-      user_id:        req.userId,
-      caption:        parsed.data.caption        ?? null,
-      photo_url:      parsed.data.photo_url      ?? null,
-      workout_name:   parsed.data.workout_name   ?? null,
-      workout_muscle: parsed.data.workout_muscle ?? null,
+      user_id:          req.userId,
+      caption:          parsed.data.caption          ?? null,
+      photo_url:        parsed.data.photo_url        ?? null,
+      photo_url_medium: parsed.data.photo_url_medium ?? null,
+      photo_url_thumb:  parsed.data.photo_url_thumb  ?? null,
+      workout_name:     parsed.data.workout_name     ?? null,
+      workout_muscle:   parsed.data.workout_muscle   ?? null,
     })
     .select()
     .single();
@@ -154,7 +158,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
 
   const { data: existing, error: fetchErr } = await supabaseAdmin
     .from('posts')
-    .select('user_id, photo_url')
+    .select('user_id, photo_url, photo_url_medium, photo_url_thumb')
     .eq('id', id)
     .maybeSingle();
 
@@ -167,14 +171,18 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  // Remove storage photo if any
-  if (existing.photo_url) {
-    const marker = '/object/public/workout-photos/';
-    const idx = existing.photo_url.indexOf(marker);
-    if (idx !== -1) {
-      const path = decodeURIComponent(existing.photo_url.slice(idx + marker.length).split('?')[0]);
-      await supabaseAdmin.storage.from('workout-photos').remove([path]);
-    }
+  // Remove all storage variants (full, medium, thumb)
+  const marker = '/object/public/workout-photos/';
+  const pathsToRemove = [existing.photo_url, (existing as any).photo_url_medium, (existing as any).photo_url_thumb]
+    .filter(Boolean)
+    .map((url: string) => {
+      const idx = url.indexOf(marker);
+      return idx !== -1 ? decodeURIComponent(url.slice(idx + marker.length).split('?')[0]) : null;
+    })
+    .filter(Boolean) as string[];
+
+  if (pathsToRemove.length) {
+    await supabaseAdmin.storage.from('workout-photos').remove(pathsToRemove);
   }
 
   const { error: delErr } = await supabaseAdmin.from('posts').delete().eq('id', id);
