@@ -3,6 +3,7 @@ import { Location } from '@angular/common';
 import { Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
+import { WorkoutService } from '../../core/services/workout.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { CheckinService } from '../../core/services/checkin.service';
 import { RankingService } from '../../core/services/ranking.service';
@@ -282,6 +283,74 @@ const MAX_SIZE_MB   = 5;
               </div>
             </div>
 
+            <div class="bg-card-2 border border-primary/20 rounded-2xl p-4 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.18)]">
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                  <div class="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">🏁</div>
+                  <div>
+                    <p class="text-[13px] font-body font-semibold text-white">Meta semanal</p>
+                    <p class="text-[11px] leading-relaxed text-text-2 font-body">Escolha quantos dias quer treinar por semana e transforme consistência em XP.</p>
+                  </div>
+                </div>
+                <div class="rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-[10px] font-body font-semibold uppercase tracking-[0.16em] text-primary">
+                  50 XP por dia
+                </div>
+              </div>
+
+              <div class="space-y-2">
+                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Dias por semana</label>
+                <div class="grid grid-cols-3 gap-2">
+                  @for (days of weeklyGoalOptions; track days) {
+                    <button type="button"
+                            (click)="profileForm.get('weekly_goal_days')?.setValue(days)"
+                            class="rounded-xl border px-3 py-3 text-left transition-all"
+                            [class]="profileForm.get('weekly_goal_days')?.value === days
+                              ? 'border-primary/45 bg-primary/10 text-white shadow-glow-sm'
+                              : 'border-border bg-card text-text-2 hover:border-primary/25 hover:text-white'">
+                      <p class="text-[20px] font-display font-bold leading-none">{{ days }}</p>
+                      <p class="mt-1 text-[10px] font-body uppercase tracking-[0.14em]">dias</p>
+                    </button>
+                  }
+                </div>
+              </div>
+
+              <div class="rounded-2xl border border-white/8 bg-card p-4 space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <p class="text-[12px] font-body font-semibold text-white">Progresso da semana</p>
+                    <p class="text-[11px] font-body text-text-2">{{ weeklyTrainingDays() }}/{{ profileForm.get('weekly_goal_days')?.value }} dias concluídos</p>
+                  </div>
+                  <div class="rounded-xl border border-primary/15 bg-primary/10 px-3 py-2 text-right">
+                    <p class="text-[9px] uppercase tracking-[0.14em] text-primary/80 font-body">Bônus</p>
+                    <p class="text-[15px] font-display font-bold text-primary">+{{ (profileForm.get('weekly_goal_days')?.value ?? 0) * 50 }} XP</p>
+                  </div>
+                </div>
+
+                <div class="h-2 rounded-full bg-border overflow-hidden">
+                  <div class="h-full rounded-full bg-primary transition-all duration-500" [style.width]="weeklyGoalPreviewPct() + '%' "></div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-center">
+                  <div class="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2">
+                    <p class="text-[9px] uppercase tracking-[0.14em] text-text-2 font-body">Hoje</p>
+                    <p class="mt-1 text-[15px] font-display font-bold text-white">{{ weeklyTrainingDays() }}</p>
+                  </div>
+                  <div class="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2">
+                    <p class="text-[9px] uppercase tracking-[0.14em] text-text-2 font-body">Concluídas</p>
+                    <p class="mt-1 text-[15px] font-display font-bold text-white">{{ weeklyCompletedWeeks() }}</p>
+                  </div>
+                  <div class="rounded-xl border border-primary/15 bg-primary/10 px-3 py-2">
+                    <p class="text-[9px] uppercase tracking-[0.14em] text-primary/80 font-body">Sequência</p>
+                    <p class="mt-1 text-[15px] font-display font-bold text-primary">{{ weeklyBestStreak() }}</p>
+                  </div>
+                </div>
+
+                <div class="rounded-xl border border-primary/15 bg-primary/8 px-3 py-3 text-[11px] leading-relaxed text-text-2 font-body">
+                  Ao bater a meta da semana, o app libera a recompensa automaticamente e marca conquistas como <span class="font-semibold text-white">primeira meta concluída</span> e <span class="font-semibold text-white">semanas consecutivas</span>.
+                </div>
+              </div>
+            </div>
+
             <!-- Meta anual -->
             <div class="bg-card-2 border border-border rounded-2xl p-4 space-y-3">
               <div class="flex items-center gap-2">
@@ -501,6 +570,7 @@ const MAX_SIZE_MB   = 5;
 })
 export class ProfileComponent implements OnInit {
   auth    = inject(AuthService);
+  workoutService = inject(WorkoutService);
   checkin = inject(CheckinService);
   ranking = inject(RankingService);
   router  = inject(Router);
@@ -553,6 +623,8 @@ export class ProfileComponent implements OnInit {
     { value: 'performance',   emoji: '🏃', label: 'Performance' },
   ];
 
+  weeklyGoalOptions = [3, 4, 5];
+
   avatarInitial = computed(() => {
     const name  = this.auth.profile().full_name;
     const email = this.auth.user()?.email ?? '';
@@ -576,6 +648,9 @@ export class ProfileComponent implements OnInit {
   strengthLabel     = computed(() => ['Muito fraca','Fraca','Média','Forte','Muito forte'][this.passwordStrength()] ?? '');
   backendWorkoutsDone = computed(() => this.ranking.myRank()?.workoutsDone ?? Number(this.auth.profile().workouts_done ?? 0));
   backendStreak = computed(() => this.ranking.myRank()?.streakDays ?? this.checkin.streak());
+  weeklyTrainingDays = computed(() => this.workoutService.weeklyGoalState().completedDays);
+  weeklyCompletedWeeks = computed(() => this.workoutService.weeklyGoalState().completedWeeks);
+  weeklyBestStreak = computed(() => this.workoutService.weeklyGoalState().bestStreak);
 
   heroProgressPct = computed(() => {
     const done = this.backendWorkoutsDone();
@@ -591,6 +666,13 @@ export class ProfileComponent implements OnInit {
     return Math.min(Math.round((done / goal) * 100), 100);
   });
 
+  weeklyGoalPreviewPct = computed(() => {
+    const done = this.weeklyTrainingDays();
+    const goal = Number(this.profileForm?.get('weekly_goal_days')?.value ?? this.auth.profile().weekly_goal_days ?? 0);
+    if (!goal) return 0;
+    return Math.min(Math.round((done / goal) * 100), 100);
+  });
+
   ngOnInit(): void {
     const p = this.auth.profile();
     this.profileForm = this.fb.group({
@@ -601,6 +683,7 @@ export class ProfileComponent implements OnInit {
       weight:       [p.weight,       [Validators.min(20), Validators.max(400)]],
       height:       [p.height,       [Validators.min(50), Validators.max(300)]],
       yearly_goal:  [p.yearly_goal,  [Validators.min(1), Validators.max(999)]],
+      weekly_goal_days: [p.weekly_goal_days, [Validators.min(3), Validators.max(5)]],
     });
     this.emailForm = this.fb.group({
       newEmail: ['', [Validators.required, Validators.email]],

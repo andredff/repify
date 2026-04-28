@@ -74,7 +74,7 @@ function normalizeMyRank(entry: MyRank | null): MyRank | null {
 
 function applyXpDelta<T extends RankEntry | MyRank>(
   entry: T,
-  type: 'workout' | 'walk' | 'streak_bonus',
+  type: 'workout' | 'walk' | 'streak_bonus' | 'weekly_goal_bonus',
   xp: number,
   extras: { streakDays?: number; distanceKm?: number },
 ): T {
@@ -184,10 +184,10 @@ export class RankingService {
   }
 
   async recordXp(
-    type: 'workout' | 'walk' | 'streak_bonus',
+    type: 'workout' | 'walk' | 'streak_bonus' | 'weekly_goal_bonus',
     xp: number,
     extras: { streakDays?: number; distanceKm?: number } = {},
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       const res = await this._fetch('/api/ranking/xp', {
         method: 'POST',
@@ -196,14 +196,17 @@ export class RankingService {
       });
 
       if (!res.ok) {
-        return;
+        return false;
       }
 
       this.applyLocalDelta(type, xp, extras);
 
       // Reload ranking after XP recorded to reconcile with backend ordering/ranks.
       setTimeout(() => void this.load(true), 300);
+      return true;
     } catch { /* non-critical */ }
+
+    return false;
   }
 
   syncCurrentUserMetrics(metrics: CurrentUserRankingMetrics): void {
@@ -291,7 +294,7 @@ export class RankingService {
   }
 
   private applyLocalDelta(
-    type: 'workout' | 'walk' | 'streak_bonus',
+    type: 'workout' | 'walk' | 'streak_bonus' | 'weekly_goal_bonus',
     xp: number,
     extras: { streakDays?: number; distanceKm?: number },
   ): void {

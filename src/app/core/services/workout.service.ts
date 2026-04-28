@@ -65,6 +65,27 @@ export interface WorkoutCompletionSummary {
   state: WorkoutAvailabilityState;
 }
 
+interface WeeklyGoalAchievementContext {
+  completedWeeks: number;
+  currentStreak: number;
+}
+
+export interface WeeklyGoalState {
+  weekKey: string;
+  weekLabel: string;
+  goalDays: number;
+  completedDays: number;
+  remainingDays: number;
+  progressPct: number;
+  rewardXp: number;
+  isCompleted: boolean;
+  isRewardClaimed: boolean;
+  completedWeeks: number;
+  currentStreak: number;
+  bestStreak: number;
+  statusLabel: string;
+}
+
 interface WorkoutDaySession {
   date: string;
   activePlanId: string | null;
@@ -117,16 +138,18 @@ export const LEVELS = [
 ];
 
 export const ACHIEVEMENTS = [
-  { id: 'first',      emoji: '🎯', name: 'Primeiro Treino',   desc: 'Complete seu primeiro treino',         condition: (h: WorkoutSession[]) => h.length >= 1 },
-  { id: 'streak3',    emoji: '🔥', name: 'Trinca',            desc: '3 treinos na semana',                  condition: (h: WorkoutSession[]) => weekCount(h) >= 3 },
-  { id: 'streak7',    emoji: '⚡', name: 'Semana Completa',   desc: '7 treinos no mês',                    condition: (h: WorkoutSession[]) => h.length >= 7 },
-  { id: 'total10',    emoji: '💥', name: 'Dedicado',          desc: '10 treinos concluídos',               condition: (h: WorkoutSession[]) => h.length >= 10 },
-  { id: 'total25',    emoji: '🏅', name: 'Consistente',       desc: '25 treinos concluídos',               condition: (h: WorkoutSession[]) => h.length >= 25 },
-  { id: 'total50',    emoji: '🥇', name: 'Veterano',          desc: '50 treinos concluídos',               condition: (h: WorkoutSession[]) => h.length >= 50 },
-  { id: 'xp500',      emoji: '🌟', name: '500 XP',            desc: 'Acumule 500 pontos de experiência',   condition: (_: WorkoutSession[], xp: number) => xp >= 500 },
-  { id: 'xp1000',     emoji: '👑', name: '1000 XP',           desc: 'Acumule 1000 pontos de experiência',  condition: (_: WorkoutSession[], xp: number) => xp >= 1000 },
-  { id: 'legs',       emoji: '🦵', name: 'Pernão',            desc: 'Complete 3 treinos de pernas',        condition: (h: WorkoutSession[]) => h.filter(s => s.muscleGroup === 'pernas').length >= 3 },
-  { id: 'chest',      emoji: '🫁', name: 'Supino Master',     desc: 'Complete 3 treinos de peito',         condition: (h: WorkoutSession[]) => h.filter(s => s.muscleGroup === 'peito').length >= 3 },
+  { id: 'first',         emoji: '🎯', name: 'Primeiro Treino',    desc: 'Complete seu primeiro treino',              condition: (h: WorkoutSession[]) => h.length >= 1 },
+  { id: 'streak3',       emoji: '🔥', name: 'Trinca',             desc: '3 dias treinados na semana',                condition: (h: WorkoutSession[]) => weekCount(h) >= 3 },
+  { id: 'streak7',       emoji: '⚡', name: 'Semana Completa',    desc: '7 treinos no mês',                         condition: (h: WorkoutSession[]) => h.length >= 7 },
+  { id: 'weekly-first',  emoji: '📅', name: 'Meta da Semana',     desc: 'Conclua sua primeira meta semanal',        condition: (_: WorkoutSession[], __: number, ctx: WeeklyGoalAchievementContext) => ctx.completedWeeks >= 1 },
+  { id: 'weekly-streak', emoji: '🏁', name: 'Em Sequência',       desc: 'Feche 3 metas semanais seguidas',          condition: (_: WorkoutSession[], __: number, ctx: WeeklyGoalAchievementContext) => ctx.currentStreak >= 3 },
+  { id: 'total10',       emoji: '💥', name: 'Dedicado',           desc: '10 treinos concluídos',                    condition: (h: WorkoutSession[]) => h.length >= 10 },
+  { id: 'total25',       emoji: '🏅', name: 'Consistente',        desc: '25 treinos concluídos',                    condition: (h: WorkoutSession[]) => h.length >= 25 },
+  { id: 'total50',       emoji: '🥇', name: 'Veterano',           desc: '50 treinos concluídos',                    condition: (h: WorkoutSession[]) => h.length >= 50 },
+  { id: 'xp500',         emoji: '🌟', name: '500 XP',             desc: 'Acumule 500 pontos de experiência',        condition: (_: WorkoutSession[], xp: number) => xp >= 500 },
+  { id: 'xp1000',        emoji: '👑', name: '1000 XP',            desc: 'Acumule 1000 pontos de experiência',       condition: (_: WorkoutSession[], xp: number) => xp >= 1000 },
+  { id: 'legs',          emoji: '🦵', name: 'Pernão',             desc: 'Complete 3 treinos de pernas',             condition: (h: WorkoutSession[]) => h.filter(s => s.muscleGroup === 'pernas').length >= 3 },
+  { id: 'chest',         emoji: '🫁', name: 'Supino Master',      desc: 'Complete 3 treinos de peito',              condition: (h: WorkoutSession[]) => h.filter(s => s.muscleGroup === 'peito').length >= 3 },
 ];
 
 const REPlFY_MOTIVATIONAL_QUOTES = [
@@ -143,11 +166,72 @@ const REPlFY_MOTIVATIONAL_QUOTES = [
 ];
 
 function weekCount(history: WorkoutSession[]): number {
-  const now = new Date();
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay());
-  weekStart.setHours(0, 0, 0, 0);
-  return history.filter(s => new Date(`${s.completedDate}T12:00:00`) >= weekStart).length;
+  return countTrainingDaysInWeek(history, weekKeyFromDate(todayStr()));
+}
+
+function weekKeyFromDate(date: string): string {
+  const source = new Date(`${date}T12:00:00`);
+  source.setHours(0, 0, 0, 0);
+  source.setDate(source.getDate() - source.getDay());
+  return formatBusinessDate(source);
+}
+
+function weekLabelFromKey(weekKey: string): string {
+  const start = new Date(`${weekKey}T12:00:00`);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+
+  const formatter = new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: 'short',
+    timeZone: BUSINESS_TIME_ZONE,
+  });
+
+  return `${formatter.format(start)} - ${formatter.format(end)}`;
+}
+
+function countTrainingDaysInWeek(history: WorkoutSession[], weekKey: string): number {
+  const start = new Date(`${weekKey}T12:00:00`);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+
+  const days = new Set<string>();
+  for (const session of history) {
+    const completedAt = new Date(`${session.completedDate}T12:00:00`);
+    if (completedAt >= start && completedAt < end) {
+      days.add(session.completedDate);
+    }
+  }
+
+  return days.size;
+}
+
+function normalizeCompletedWeeks(value: string[]): string[] {
+  return [...new Set(value.filter(entry => /^\d{4}-\d{2}-\d{2}$/.test(entry)))].sort((left, right) => right.localeCompare(left)).slice(0, 156);
+}
+
+function consecutiveCompletedWeeks(weekKeys: string[]): number {
+  const normalized = normalizeCompletedWeeks(weekKeys);
+  if (!normalized.length) return 0;
+
+  let streak = 1;
+  let cursor = normalized[0];
+
+  for (let index = 1; index < normalized.length; index += 1) {
+    const previous = new Date(`${cursor}T12:00:00`);
+    previous.setDate(previous.getDate() - 7);
+    const expected = formatBusinessDate(previous);
+
+    if (normalized[index] !== expected) {
+      break;
+    }
+
+    streak += 1;
+    cursor = normalized[index];
+  }
+
+  return streak;
 }
 
 function formatBusinessDate(date: Date): string {
@@ -311,6 +395,7 @@ export class WorkoutService {
   private _hydrated = signal(false);
   private _loadVersion = 0;
   private _loadPromise: Promise<void> | null = null;
+  private _weeklyGoalClaiming = false;
 
   // ── Public readonly state ────────────────────────────────────────────────────
 
@@ -390,16 +475,53 @@ export class WorkoutService {
   });
 
   readonly weekSessions = computed(() => {
-    const now = new Date(); now.setHours(0,0,0,0);
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay());
-    return this._history().filter(s => new Date(`${s.completedDate}T12:00:00`) >= weekStart).length;
+    return countTrainingDaysInWeek(this._history(), weekKeyFromDate(this._todayKey()));
+  });
+
+  readonly weeklyGoalState = computed<WeeklyGoalState>(() => {
+    const goalDays = Math.min(Math.max(Number(this.auth.profile().weekly_goal_days ?? 0), 0), 5);
+    const weekKey = weekKeyFromDate(this._todayKey());
+    const completedDays = countTrainingDaysInWeek(this._history(), weekKey);
+    const rewardXp = goalDays > 0 ? goalDays * 50 : 0;
+    const completedWeeks = normalizeCompletedWeeks(this.auth.profile().weekly_goal_completed_weeks ?? []);
+    const isRewardClaimed = completedWeeks.includes(weekKey);
+    const isCompleted = goalDays > 0 && completedDays >= goalDays;
+    const remainingDays = goalDays > 0 ? Math.max(goalDays - completedDays, 0) : 0;
+    const progressPct = goalDays > 0 ? Math.min(Math.round((completedDays / goalDays) * 100), 100) : 0;
+    const currentStreak = consecutiveCompletedWeeks(completedWeeks);
+    const bestStreak = Math.max(Number(this.auth.profile().weekly_goal_best_streak ?? 0), currentStreak);
+
+    return {
+      weekKey,
+      weekLabel: weekLabelFromKey(weekKey),
+      goalDays,
+      completedDays,
+      remainingDays,
+      progressPct,
+      rewardXp,
+      isCompleted,
+      isRewardClaimed,
+      completedWeeks: completedWeeks.length,
+      currentStreak,
+      bestStreak,
+      statusLabel: goalDays <= 0
+        ? 'Escolha uma meta para começar sua sequência semanal.'
+        : isRewardClaimed
+          ? `Meta concluída. +${rewardXp} XP já liberados.`
+          : isCompleted
+            ? `Meta batida. Recompensa de +${rewardXp} XP liberada.`
+            : `${remainingDays} dia${remainingDays === 1 ? '' : 's'} para fechar a semana.`,
+    };
   });
 
   readonly unlockedAchievements = computed(() => {
     const h  = this._history();
     const xp = this._totalXp();
-    return ACHIEVEMENTS.filter(a => a.condition(h, xp));
+    const weeklyGoal = this.weeklyGoalState();
+    return ACHIEVEMENTS.filter(a => a.condition(h, xp, {
+      completedWeeks: weeklyGoal.completedWeeks,
+      currentStreak: weeklyGoal.currentStreak,
+    }));
   });
 
   readonly muscleEmoji = (mg: string) => MUSCLE_EMOJI[mg] ?? '💪';
@@ -431,6 +553,14 @@ export class WorkoutService {
       this._todayKey.set(todayStr());
       this._hydrated.set(false);
       void this.reloadState();
+    });
+
+    effect(() => {
+      const weeklyGoal = this.weeklyGoalState();
+      const userId = this.auth.user()?.id;
+      if (!userId || !this._hydrated()) return;
+      if (!weeklyGoal.goalDays || !weeklyGoal.isCompleted || weeklyGoal.isRewardClaimed) return;
+      void this.claimWeeklyGoalReward(weeklyGoal);
     });
   }
 
@@ -848,6 +978,58 @@ export class WorkoutService {
   private randomMotivationalQuote(): string {
     const index = Math.floor(Math.random() * REPlFY_MOTIVATIONAL_QUOTES.length);
     return REPlFY_MOTIVATIONAL_QUOTES[index] ?? REPlFY_MOTIVATIONAL_QUOTES[0];
+  }
+
+  private async claimWeeklyGoalReward(state: WeeklyGoalState): Promise<void> {
+    if (this._weeklyGoalClaiming) {
+      return;
+    }
+
+    const userId = this.auth.user()?.id;
+    if (!userId || !state.goalDays || state.isRewardClaimed || !state.isCompleted) {
+      return;
+    }
+
+    this._weeklyGoalClaiming = true;
+
+    const previousWeeks = normalizeCompletedWeeks(this.auth.profile().weekly_goal_completed_weeks ?? []);
+    const previousBestStreak = Number(this.auth.profile().weekly_goal_best_streak ?? 0);
+    const nextWeeks = normalizeCompletedWeeks([state.weekKey, ...previousWeeks]);
+    const nextStreak = consecutiveCompletedWeeks(nextWeeks);
+    const nextBestStreak = Math.max(Number(this.auth.profile().weekly_goal_best_streak ?? 0), nextStreak);
+    const nextPatch = {
+      weekly_goal_completed_weeks: nextWeeks,
+      weekly_goal_best_streak: nextBestStreak,
+    };
+    const previousPatch = {
+      weekly_goal_completed_weeks: previousWeeks,
+      weekly_goal_best_streak: previousBestStreak,
+    };
+    let persisted = false;
+
+    this.auth.applyProfilePatch(nextPatch);
+
+    try {
+      await this.auth.updateProfile(nextPatch);
+      persisted = true;
+
+      const awarded = await this.ranking.recordXp('weekly_goal_bonus', state.rewardXp);
+      if (!awarded) {
+        throw new Error('weekly-goal-bonus-failed');
+      }
+    } catch {
+      this.auth.applyProfilePatch(previousPatch);
+
+      if (persisted) {
+        try {
+          await this.auth.updateProfile(previousPatch);
+        } catch {
+          // Keep local state consistent even if the metadata rollback fails remotely.
+        }
+      }
+    } finally {
+      this._weeklyGoalClaiming = false;
+    }
   }
 
   private async _fetch(path: string, init: RequestInit = {}): Promise<Response> {

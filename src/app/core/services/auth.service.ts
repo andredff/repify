@@ -5,6 +5,7 @@ import { supabase } from '../supabase/supabaseClient';
 import { environment } from '../../../environments/environment';
 
 const DEFAULT_YEARLY_GOAL = 320;
+const DEFAULT_WEEKLY_GOAL_DAYS = 4;
 const AUTH_STORAGE_KEY = 'repify-auth';
 const APP_STORAGE_PREFIX = 'repify_';
 const PROFILE_CACHE_KEY = `${APP_STORAGE_PREFIX}profile_cache`;
@@ -19,6 +20,9 @@ export interface UserProfile {
   avatar_url: string;
   avatar_version: number | null; // unix timestamp — cache-buster for storage URLs
   yearly_goal: number | null;
+  weekly_goal_days: number | null;
+  weekly_goal_completed_weeks: string[];
+  weekly_goal_best_streak: number | null;
   workouts_done: number | null;
 }
 
@@ -31,6 +35,9 @@ interface BackendProfileResponse {
   goal?: string;
   avatar_url?: string;
   yearly_goal?: number | null;
+  weekly_goal_days?: number | null;
+  weekly_goal_completed_weeks?: string[];
+  weekly_goal_best_streak?: number | null;
   workouts_done?: number | null;
 }
 
@@ -72,6 +79,9 @@ export class AuthService {
       avatar_url:     meta['avatar_url']     ?? '',
       avatar_version: meta['avatar_version'] ?? null,
       yearly_goal:    this.readNumericMeta(meta['yearly_goal'], DEFAULT_YEARLY_GOAL),
+      weekly_goal_days: this.readNumericMeta(meta['weekly_goal_days'], DEFAULT_WEEKLY_GOAL_DAYS),
+      weekly_goal_completed_weeks: this.readStringArrayMeta(meta['weekly_goal_completed_weeks']),
+      weekly_goal_best_streak: this.readOptionalNumericMeta(meta['weekly_goal_best_streak'], 0),
       workouts_done:  this.readNumericMeta(meta['workouts_done'], 0),
     };
   });
@@ -127,6 +137,18 @@ export class AuthService {
       missing.yearly_goal = DEFAULT_YEARLY_GOAL;
     }
 
+    if (meta['weekly_goal_days'] == null) {
+      missing.weekly_goal_days = DEFAULT_WEEKLY_GOAL_DAYS;
+    }
+
+    if (!Array.isArray(meta['weekly_goal_completed_weeks'])) {
+      missing.weekly_goal_completed_weeks = [];
+    }
+
+    if (meta['weekly_goal_best_streak'] == null) {
+      missing.weekly_goal_best_streak = 0;
+    }
+
     if (meta['workouts_done'] == null) {
       missing.workouts_done = 0;
     }
@@ -147,6 +169,11 @@ export class AuthService {
     if (value == null) return fallback;
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  private readStringArrayMeta(value: unknown): string[] {
+    if (!Array.isArray(value)) return [];
+    return value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
   }
 
   async apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
@@ -291,6 +318,9 @@ export class AuthService {
         goal: profile.goal ?? this.profile().goal,
         avatar_url: profile.avatar_url ?? this.profile().avatar_url,
         yearly_goal: this.readOptionalNumericMeta(profile.yearly_goal, this.profile().yearly_goal),
+        weekly_goal_days: this.readOptionalNumericMeta(profile.weekly_goal_days, this.profile().weekly_goal_days),
+        weekly_goal_completed_weeks: this.readStringArrayMeta(profile.weekly_goal_completed_weeks ?? this.profile().weekly_goal_completed_weeks),
+        weekly_goal_best_streak: this.readOptionalNumericMeta(profile.weekly_goal_best_streak, this.profile().weekly_goal_best_streak),
         workouts_done: this.readOptionalNumericMeta(profile.workouts_done, this.profile().workouts_done),
       });
     } catch {

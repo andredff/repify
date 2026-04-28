@@ -21,6 +21,7 @@ import { WalkService } from '../../core/services/walk.service';
 import { RankingService } from '../../core/services/ranking.service';
 import { NotificationsPanelComponent } from './components/notifications-panel.component';
 import { HomeRankingCardComponent } from './components/home-ranking-card.component';
+import { WeeklyGoalCardComponent } from './components/weekly-goal-card.component';
 
 export type { WorkoutPost };
 
@@ -72,6 +73,7 @@ function isoToday(): string {
     NotificationsPanelComponent,
     DecimalPipe,
     HomeRankingCardComponent,
+    WeeklyGoalCardComponent,
   ],
   template: `
     <div class="bg-bg relative">
@@ -160,6 +162,18 @@ function isoToday(): string {
             [progressPct]="rankProgressPct()"
             [xpDelta]="recentXpGain()"
             (openRanking)="router.navigateByUrl('/ranking')" />
+
+          <app-weekly-goal-card
+            [goalDays]="weeklyGoal().goalDays"
+            [completedDays]="weeklyGoal().completedDays"
+            [remainingDays]="weeklyGoal().remainingDays"
+            [progressPct]="weeklyGoal().progressPct"
+            [rewardXp]="weeklyGoal().rewardXp"
+            [isCompleted]="weeklyGoal().isCompleted"
+            [isRewardClaimed]="weeklyGoal().isRewardClaimed"
+            [currentStreak]="weeklyGoal().currentStreak"
+            [weekLabel]="weeklyGoal().weekLabel"
+            [statusLabel]="weeklyGoal().statusLabel" />
 
           <!-- Daily XP summary -->
           <div class="bg-card border border-border rounded-2xl p-4 space-y-3">
@@ -315,6 +329,20 @@ function isoToday(): string {
         </div>
       }
 
+      <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.06s">
+        <app-weekly-goal-card
+          [goalDays]="weeklyGoal().goalDays"
+          [completedDays]="weeklyGoal().completedDays"
+          [remainingDays]="weeklyGoal().remainingDays"
+          [progressPct]="weeklyGoal().progressPct"
+          [rewardXp]="weeklyGoal().rewardXp"
+          [isCompleted]="weeklyGoal().isCompleted"
+          [isRewardClaimed]="weeklyGoal().isRewardClaimed"
+          [currentStreak]="weeklyGoal().currentStreak"
+          [weekLabel]="weeklyGoal().weekLabel"
+          [statusLabel]="weeklyGoal().statusLabel" />
+      </div>
+
       <!-- Rank card (mobile only — desktop shows in right rail) -->
       <div class="px-4 mt-4 animate-slide-up lg:hidden" style="animation-delay:0.03s">
         <app-home-ranking-card
@@ -450,6 +478,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   currentRank    = computed(() => this.ranking.myRank()?.rank ?? 0);
   currentXp      = computed(() => this.ranking.myRank()?.totalXp ?? 0);
   currentStreak  = computed(() => this.ranking.myRank()?.streakDays ?? 0);
+  weeklyGoal     = computed(() => this.workoutService.weeklyGoalState());
   dailyXp        = computed(() => {
     const today = isoToday();
     const checkinXp = this.checkin.todayChecked() ? CHECKIN_XP : 0;

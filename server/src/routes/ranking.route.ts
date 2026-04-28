@@ -203,7 +203,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
 
 // ── POST /api/ranking/xp — record XP event and upsert user_stats ─────────────
 const XpSchema = z.object({
-  type:       z.enum(['workout', 'walk', 'streak_bonus']),
+  type:       z.enum(['workout', 'walk', 'streak_bonus', 'weekly_goal_bonus']),
   xp:         z.number().int().min(1).max(500),
   streakDays: z.number().int().min(0).optional(),
   distanceKm: z.number().min(0).max(500).optional(),
