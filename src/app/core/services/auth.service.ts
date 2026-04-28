@@ -6,6 +6,7 @@ import { environment } from '../../../environments/environment';
 const DEFAULT_YEARLY_GOAL = 320;
 const AUTH_STORAGE_KEY = 'repify-auth';
 const APP_STORAGE_PREFIX = 'repify_';
+const PROFILE_CACHE_KEY = `${APP_STORAGE_PREFIX}profile_cache`;
 
 export interface UserProfile {
   full_name: string;
@@ -39,6 +40,9 @@ export class AuthService {
   private readonly _session     = signal<Session | null>(null);
   private readonly _initialized = signal(false);
   private readonly _avatarUrl   = signal<string>('');
+  private readonly _profileCache = signal<Partial<UserProfile>>({});
+  private readonly _profileReady = signal(false);
+  private readonly _profileSyncing = signal(false);
   private syncingProfile = false;
   private lastSessionUserId: string | null = null;
 
@@ -47,9 +51,14 @@ export class AuthService {
   readonly isAuthenticated = computed(() => !!this._session());
   readonly initialized     = this._initialized.asReadonly();
   readonly avatarUrl       = this._avatarUrl.asReadonly();
+  readonly profileReady    = this._profileReady.asReadonly();
+  readonly profileSyncing  = this._profileSyncing.asReadonly();
 
   readonly profile = computed<UserProfile>(() => {
-    const meta = this._session()?.user?.user_metadata ?? {};
+    const meta = {
+      ...(this._session()?.user?.user_metadata ?? {}),
+      ...this._profileCache(),
+    };
     return {
       full_name:      meta['full_name']      ?? '',
       username:       meta['username']       ?? '',
@@ -79,12 +88,16 @@ export class AuthService {
       this.lastSessionUserId = nextUserId;
       this._session.set(session);
 
-      const meta        = session?.user?.user_metadata ?? {};
+      const cachedProfile = nextUserId ? this.readCachedProfile(nextUserId) : {};
+      this._profileCache.set(cachedProfile);
+      this._profileReady.set(!session || Object.keys(cachedProfile).length > 0);
+
+      const meta        = { ...(session?.user?.user_metadata ?? {}), ...cachedProfile };
       const avatarPath  = meta['avatar_url'];
       const version     = meta['avatar_version'] ?? null;
 
       if (avatarPath) {
-        this._resolveAvatarUrl(avatarPath, version);
+        this._resolveAvatarUrl(String(avatarPath), this.readOptionalNumericMeta(version, null));
       } else {
         this._avatarUrl.set('');
       }
@@ -93,6 +106,9 @@ export class AuthService {
 
       if (session) {
         void this.refreshProfileFromBackend();
+      } else {
+        this._profileSyncing.set(false);
+        this._profileReady.set(true);
       }
 
       if (!this._initialized()) {
@@ -229,6 +245,8 @@ export class AuthService {
   async refreshProfileFromBackend(): Promise<void> {
     if (this.syncingProfile || !this.user()) return;
     this.syncingProfile = true;
+    this._profileSyncing.set(true);
+    this._profileReady.set(Object.keys(this._profileCache()).length > 0);
 
     try {
       const res = await this.authorizedFetch('/api/profile/me');
@@ -250,6 +268,8 @@ export class AuthService {
       // Best effort hydration only.
     } finally {
       this.syncingProfile = false;
+      this._profileSyncing.set(false);
+      this._profileReady.set(true);
     }
   }
 
@@ -278,8 +298,48 @@ export class AuthService {
       };
     });
 
+    this._profileCache.update(current => ({ ...current, ...data }));
+    this.persistCachedProfile();
+    this._profileReady.set(true);
+
     if (data.avatar_url) {
       this._resolveAvatarUrl(data.avatar_url, data.avatar_version ?? this.profile().avatar_version);
+    }
+  }
+
+  private profileCacheStorageKey(userId: string): string {
+    return `${PROFILE_CACHE_KEY}:${userId}`;
+  }
+
+  private readCachedProfile(userId: string): Partial<UserProfile> {
+    if (typeof window === 'undefined') {
+      return {};
+    }
+
+    try {
+      const raw = localStorage.getItem(this.profileCacheStorageKey(userId));
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as Partial<UserProfile>;
+      return parsed && typeof parsed === 'object' ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private persistCachedProfile(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const userId = this.user()?.id;
+    if (!userId) {
+      return;
+    }
+
+    try {
+      localStorage.setItem(this.profileCacheStorageKey(userId), JSON.stringify(this._profileCache()));
+    } catch {
+      // Ignore storage quota/access failures.
     }
   }
 

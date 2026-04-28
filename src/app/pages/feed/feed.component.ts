@@ -48,6 +48,7 @@ interface XpCarouselSlide {
 }
 
 const HOME_RANK_SNAPSHOT_KEY = 'repify_home_rank_snapshot';
+const FEED_PAGE_SIZE = 20;
 
 function isoToday(): string {
   return new Date().toISOString().slice(0, 10);
@@ -412,10 +413,17 @@ function isoToday(): string {
           </div>
         }
 
+        @if (loadingMore()) {
+          <div class="flex items-center justify-center gap-3 rounded-2xl border border-border bg-card-2 px-4 py-4 text-center">
+            <div class="h-4 w-4 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+            <p class="text-[12px] font-body text-text-2">Carregando mais postagens...</p>
+          </div>
+        }
+
         @if (loadError()) {
           <div class="bg-danger/10 border border-danger/30 rounded-xl p-3 text-center">
             <p class="text-[12px] font-body text-danger">{{ loadError() }}</p>
-            <button (click)="loadFeed()" class="mt-2 text-[12px] font-body text-primary underline">Tentar novamente</button>
+            <button (click)="retryFeedLoad()" class="mt-2 text-[12px] font-body text-primary underline">Tentar novamente</button>
           </div>
         }
       </div>
@@ -603,10 +611,13 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
 
   posts      = signal<WorkoutPost[]>([]);
   loading    = signal(false);
+  loadingMore = signal(false);
+  hasMorePosts = signal(true);
   loadError  = signal('');
   refreshing = signal(false);
   pullHeight = signal(0);
   pullRotation = computed(() => Math.min((this.pullHeight() / 70) * 180, 180));
+  private loadedPostCount = 0;
 
   private touchStartY  = 0;
   private pulling      = false;
@@ -682,7 +693,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    this.loadFeed();
+    void this.loadFeed({ reset: true });
     void this.ranking.load(true);
     this.rankingPoll = setInterval(() => void this.ranking.load(true), 60000);
     this.xpCarouselTimer = setInterval(() => {
@@ -694,20 +705,24 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     const el = this.mainScrollRef.nativeElement;
+    el.addEventListener('scroll', this.onMainScroll, { passive: true });
     el.addEventListener('touchstart', this.onTouchStart, { passive: true });
     el.addEventListener('touchmove',  this.onTouchMove,  { passive: false });
     el.addEventListener('touchend',   this.onTouchEnd,   { passive: true });
     el.addEventListener('touchcancel', this.onTouchEnd,  { passive: true });
+    window.addEventListener('scroll', this.onWindowScroll, { passive: true });
   }
 
   ngOnDestroy(): void {
     const el = this.mainScrollRef?.nativeElement;
     if (el) {
+      el.removeEventListener('scroll', this.onMainScroll);
       el.removeEventListener('touchstart',  this.onTouchStart);
       el.removeEventListener('touchmove',   this.onTouchMove);
       el.removeEventListener('touchend',    this.onTouchEnd);
       el.removeEventListener('touchcancel', this.onTouchEnd);
     }
+    window.removeEventListener('scroll', this.onWindowScroll);
     if (this.rankingPoll) clearInterval(this.rankingPoll);
     if (this.xpCarouselTimer) clearInterval(this.xpCarouselTimer);
     if (this.xpFeedbackTimer) clearTimeout(this.xpFeedbackTimer);
@@ -758,22 +773,76 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   private async triggerRefresh(): Promise<void> {
     this.refreshing.set(true);
     this.pullHeight.set(56);
-    await this.loadFeed();
+    await this.loadFeed({ reset: true });
     this.refreshing.set(false);
     this.pullHeight.set(0);
   }
 
-  async loadFeed(): Promise<void> {
-    this.loading.set(true);
+  private onMainScroll = (): void => {
+    const el = this.mainScrollRef?.nativeElement;
+    if (!el) return;
+
+    const remaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+    if (remaining <= 320) {
+      void this.loadMorePosts();
+    }
+  };
+
+  private onWindowScroll = (): void => {
+    if (window.innerWidth < 1024) return;
+
+    const doc = document.documentElement;
+    const remaining = doc.scrollHeight - (window.scrollY + window.innerHeight);
+    if (remaining <= 520) {
+      void this.loadMorePosts();
+    }
+  };
+
+  async loadFeed(options: { reset?: boolean } = {}): Promise<void> {
+    const reset = options.reset ?? false;
+    if (reset) {
+      this.loading.set(true);
+      this.loadedPostCount = 0;
+      this.hasMorePosts.set(true);
+    } else {
+      if (this.loading() || this.loadingMore() || !this.hasMorePosts()) return;
+      this.loadingMore.set(true);
+    }
+
     this.loadError.set('');
+
     try {
-      const data = await this.postService.listFeed();
-      this.posts.set(data);
+      const page = await this.postService.listFeed(FEED_PAGE_SIZE, this.loadedPostCount);
+      this.loadedPostCount += page.posts.length;
+      this.hasMorePosts.set(page.hasMore);
+
+      if (reset) {
+        this.posts.set(page.posts);
+      } else {
+        this.posts.update(current => [...current, ...page.posts]);
+      }
     } catch (err: any) {
       this.loadError.set(err?.message ?? 'Não foi possível carregar o feed.');
     } finally {
-      this.loading.set(false);
+      if (reset) {
+        this.loading.set(false);
+      } else {
+        this.loadingMore.set(false);
+      }
     }
+  }
+
+  async loadMorePosts(): Promise<void> {
+    await this.loadFeed();
+  }
+
+  async retryFeedLoad(): Promise<void> {
+    if (this.posts().length > 0) {
+      await this.loadMorePosts();
+      return;
+    }
+
+    await this.loadFeed({ reset: true });
   }
 
   async deletePost(post: WorkoutPost): Promise<void> {

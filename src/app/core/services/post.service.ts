@@ -10,6 +10,11 @@ export interface NewPostData {
   workout?: { name: string; muscleGroup: string } | null;
 }
 
+export interface FeedPage {
+  posts: WorkoutPost[];
+  hasMore: boolean;
+}
+
 interface ApiPost {
   id: string;
   caption: string | null;
@@ -47,11 +52,15 @@ export class PostService {
 
   // ─── Public API ────────────────────────────────────────────────────────────
 
-  async listFeed(limit = 20, offset = 0): Promise<WorkoutPost[]> {
+  async listFeed(limit = 20, offset = 0): Promise<FeedPage> {
     const res = await this.fetch(`/api/posts?limit=${limit}&offset=${offset}`);
     if (!res.ok) throw new Error(`Erro ao carregar feed (${res.status})`);
     const data = await res.json();
-    return ((data.posts ?? []) as ApiPost[]).map(this.mapApiToPost);
+    const posts = ((data.posts ?? []) as ApiPost[]).map(this.mapApiToPost);
+    return {
+      posts,
+      hasMore: posts.length === limit,
+    };
   }
 
   async listByUser(userId: string): Promise<WorkoutPost[]> {

@@ -12,6 +12,22 @@ import { WorkoutPost } from '../core/models/workout-post.model';
   template: `
     <div class="flex min-h-screen bg-bg">
 
+      @if (showProfileBootstrapLoading()) {
+        <div class="fixed inset-0 z-[90] flex items-center justify-center bg-bg/92 backdrop-blur-sm">
+          <div class="flex flex-col items-center gap-4 rounded-[28px] border border-primary/20 bg-card/95 px-7 py-8 shadow-2xl">
+            <div class="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/12">
+              <svg class="animate-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="2.5" stroke-linecap="round">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+              </svg>
+            </div>
+            <div class="text-center">
+              <p class="text-[15px] font-display font-bold text-white">Sincronizando seu perfil</p>
+              <p class="mt-1 text-[12px] font-body text-text-2">Aguardando os dados mais recentes do backend.</p>
+            </div>
+          </div>
+        </div>
+      }
+
       <!-- ─── Desktop Sidebar ──────────────────────────────────── -->
       <aside
         class="hidden lg:flex flex-col fixed left-0 top-0 h-full w-[220px] xl:w-[260px]
@@ -151,6 +167,9 @@ export class AppShellComponent {
   );
 
   userEmail = computed(() => this.auth.user()?.email ?? '');
+  showProfileBootstrapLoading = computed(() =>
+    this.auth.isAuthenticated() && this.auth.profileSyncing() && !this.auth.profileReady(),
+  );
 
   onPostPublished(post: WorkoutPost): void {
     this.postService.setPendingPost(post);
