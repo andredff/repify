@@ -16,6 +16,7 @@ const users_route_1 = __importDefault(require("./routes/users.route"));
 const notifications_route_1 = __importDefault(require("./routes/notifications.route"));
 const ranking_route_1 = __importDefault(require("./routes/ranking.route"));
 const workouts_route_1 = __importDefault(require("./routes/workouts.route"));
+const upload_route_1 = __importDefault(require("./routes/upload.route"));
 const app = (0, express_1.default)();
 // ── Security & parsing ──────────────────────────────────────────────────────
 app.use((0, helmet_1.default)({
@@ -40,6 +41,7 @@ app.use((0, cors_1.default)({
     },
 }));
 app.use(express_1.default.json({ limit: '1mb' }));
+app.use(express_1.default.urlencoded({ extended: false }));
 // ── Routes ──────────────────────────────────────────────────────────────────
 app.use('/health', health_route_1.default);
 app.use('/api/checkin', checkin_route_1.default);
@@ -49,6 +51,7 @@ app.use('/api/users', users_route_1.default);
 app.use('/api/notifications', notifications_route_1.default);
 app.use('/api/ranking', ranking_route_1.default);
 app.use('/api/workouts', workouts_route_1.default);
+app.use('/api/upload', upload_route_1.default);
 // ── 404 fallback ────────────────────────────────────────────────────────────
 app.use((_req, res) => {
     res.status(404).json({ error: 'Not found.' });
