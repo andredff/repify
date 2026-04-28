@@ -10,6 +10,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/register/register.component').then(m => m.RegisterComponent),
   },
+  {
+    path: 'p/:id',
+    loadComponent: () =>
+      import('./pages/public-post/public-post.component').then(m => m.PublicPostComponent),
+  },
   // ─── Authenticated routes wrapped in desktop shell ──────────────────────
   {
     path: '',

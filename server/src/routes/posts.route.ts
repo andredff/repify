@@ -16,6 +16,59 @@ const PostSchema = z.object({
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/posts/public/:id — dados de um post sem autenticação (link público)
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/public/:id', async (req, res: Response) => {
+  const id = req.params['id'];
+  if (!id) { res.status(400).json({ error: 'Missing id.' }); return; }
+
+  const { data: post, error } = await supabaseAdmin
+    .from('posts')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error || !post) { res.status(404).json({ error: 'Post not found.' }); return; }
+
+  const { data: { user } } = await supabaseAdmin.auth.admin.getUserById(post.user_id);
+  const meta = user?.user_metadata ?? user?.raw_user_meta_data ?? {};
+
+  const [{ data: statsRow }, { data: workoutRows }, { data: streakRow }] = await Promise.all([
+    supabaseAdmin.from('user_stats').select('total_xp').eq('user_id', post.user_id).maybeSingle(),
+    supabaseAdmin.from('xp_events').select('user_id').eq('type', 'workout').eq('user_id', post.user_id),
+    supabaseAdmin.from('user_stats').select('streak_days').eq('user_id', post.user_id).maybeSingle(),
+  ]);
+
+  const totalXp      = Number((statsRow as any)?.total_xp ?? 0);
+  const workoutsDone = (workoutRows ?? []).length;
+  const streakDays   = Number((streakRow as any)?.streak_days ?? 0);
+
+  res.json({
+    post: {
+      id:         post.id,
+      caption:    post.caption,
+      photo_url:  post.photo_url,
+      workout:    post.workout_name ? { name: post.workout_name, muscleGroup: post.workout_muscle ?? '' } : null,
+      likes:      post.likes,
+      comments:   post.comments,
+      created_at: post.created_at,
+      time_ago:   timeAgo(post.created_at),
+      user: {
+        id:            post.user_id,
+        name:          meta['full_name'] || user?.email?.split('@')[0] || 'Usuário',
+        username:      meta['username']  || null,
+        avatar:        resolveAvatarUrl(meta['avatar_url']),
+        level:         levelFromXp(totalXp),
+        yearly_goal:   meta['yearly_goal'] != null ? Number(meta['yearly_goal']) : null,
+        workouts_done: workoutsDone,
+        streak_days:   streakDays,
+        total_xp:      totalXp,
+      },
+    },
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/posts — feed público (paginado), com dados do autor
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {

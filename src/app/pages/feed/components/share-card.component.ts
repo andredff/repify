@@ -4,6 +4,7 @@ import {
 } from '@angular/core';
 import { WorkoutPost } from '../../../core/models/workout-post.model';
 import { PostService } from '../../../core/services/post.service';
+import { environment } from '../../../../environments/environment';
 
 type CardMode = 'post' | 'story';
 
@@ -191,7 +192,17 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // ── Footer ────────────────────────────────────────────────────────────────
     const footer = this.el_(`
-      <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08);flex-shrink:0">
+      <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,0.08);flex-shrink:0;display:flex;flex-direction:column;gap:8px">
+        <button id="sc-link" style="width:100%;padding:13px 0;border-radius:14px;
+                background:rgba(255,255,255,0.06);color:#fff;font-size:13px;font-weight:600;
+                border:1px solid rgba(255,255,255,0.1);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
+                transition:opacity .15s,background .15s;letter-spacing:-.1px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          Copiar link público
+        </button>
         <button id="sc-share" style="width:100%;padding:14px 0;border-radius:14px;
                 background:#00FF88;color:#080C10;font-size:14px;font-weight:700;
                 border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;
@@ -201,11 +212,15 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
             <polyline points="16 6 12 2 8 6"/>
             <line x1="12" y1="2" x2="12" y2="15"/>
           </svg>
-          Salvar / Compartilhar
+          Salvar / Compartilhar imagem
         </button>
       </div>
     `);
+    const linkBtn  = footer.querySelector('#sc-link')  as HTMLButtonElement;
     const shareBtn = footer.querySelector('#sc-share') as HTMLButtonElement;
+    linkBtn.addEventListener('click',  () => this.copyLink(linkBtn));
+    linkBtn.addEventListener('mouseenter', () => { linkBtn.style.opacity = '.8'; });
+    linkBtn.addEventListener('mouseleave', () => { linkBtn.style.opacity = '1'; });
     shareBtn.addEventListener('click', () => this.share(shareBtn));
     shareBtn.addEventListener('mouseenter', () => { shareBtn.style.opacity = '.85'; });
     shareBtn.addEventListener('mouseleave', () => { shareBtn.style.opacity = '1'; });
@@ -277,6 +292,48 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   close(): void { this.onClose.emit(); }
+
+  private buildPublicPostUrl(): string {
+    const post = this.post();
+    const params = new URLSearchParams({
+      n: post.user.name,
+      u: post.user.username ?? '',
+      a: post.user.avatar ?? '',
+      l: post.user.level ?? '',
+      yg: String(post.user.yearlyGoal ?? ''),
+      wd: String(post.user.workoutsDone ?? ''),
+      sd: String(post.streak ?? 0),
+      wn: post.workout?.name ?? '',
+      wm: post.workout?.muscleGroup ?? '',
+      c: post.caption ?? '',
+      p: post.photo ?? '',
+      lk: String(post.likes ?? 0),
+      cm: String(post.comments ?? 0),
+      ta: post.timeAgo ?? '',
+    });
+
+    return `${environment.appUrl}/p/${post.id}?${params.toString()}`;
+  }
+
+  async copyLink(btn: HTMLButtonElement): Promise<void> {
+    const url = this.buildPublicPostUrl();
+    try {
+      await navigator.clipboard.writeText(url);
+      btn.textContent = '✓ Link copiado!';
+      btn.style.color = '#00FF88';
+      btn.style.borderColor = 'rgba(0,255,136,0.4)';
+      setTimeout(() => {
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:8px"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Copiar link público`;
+        btn.style.color = '#fff';
+        btn.style.borderColor = 'rgba(255,255,255,0.1)';
+      }, 2000);
+    } catch {
+      // fallback: open share sheet if clipboard unavailable
+      if (navigator.share) {
+        navigator.share({ url, title: `Treino de ${this.post().user.name} no Repify` }).catch(() => {});
+      }
+    }
+  }
 
   toggle(opt: 'photo'|'user'|'goal'|'caption'): void {
     if (opt === 'photo')   this.showPhoto.update(v => !v);
@@ -543,7 +600,7 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
 
       btn.textContent = 'Criando link...';
       const shortlink = await this.postService.getShortlink(this.post().id);
-      const shareUrl  = shortlink || `${window.location.origin}/post/${this.post().id}`;
+      const shareUrl  = shortlink || this.buildPublicPostUrl();
       const shareText = `Confira minha publicação no Repify! 💪 ${shareUrl}`;
 
       if (navigator.canShare?.({ files: [file] })) {
