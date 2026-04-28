@@ -7,7 +7,7 @@ import { NotificationService } from '../../../core/services/notification.service
   selector: 'app-feed-header',
   standalone: true,
   template: `
-    <header class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 glass border-b border-border safe-top">
+    <header class="lg:hidden fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50 glass border-b border-border safe-top">
       <div class="flex items-center gap-3 px-4 py-3">
 
         <div class="flex items-center gap-3 shrink-0">

@@ -12,13 +12,13 @@ import { MyRank, RankEntry, RankingService } from '../../core/services/ranking.s
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DecimalPipe, BottomNavComponent, FeedHeaderComponent, NotificationsPanelComponent],
   template: `
-    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
+    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto lg:max-w-3xl relative overflow-x-hidden">
       <app-feed-header
         [showBack]="true"
         (onBack)="location.back()"
         (onOpenNotifications)="showNotifications.set(true)" />
 
-      <div class="flex-1 overflow-y-auto px-4 pb-24" style="padding-top: calc(76px + env(safe-area-inset-top))">
+      <div class="flex-1 overflow-y-auto px-4 pb-24 lg:pb-12 lg:pt-8" style="padding-top: calc(76px + env(safe-area-inset-top))">
         <section class="pt-0 pb-5">
           <p class="text-[22px] font-display font-bold tracking-tight text-white">Ranking</p>
           <p class="text-[12px] font-body text-text-2 mt-1">Onde a consistência vira prova.</p>

@@ -45,7 +45,7 @@ const GOAL_LABELS: Record<string, string> = {
     @if (showNewPost()) {
       <app-new-post-modal (onClose)="showNewPost.set(false)" />
     }
-    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
+    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto lg:max-w-2xl">
 
       <app-feed-header
         [showBack]="true"
@@ -66,7 +66,7 @@ const GOAL_LABELS: Record<string, string> = {
         </div>
       } @else if (publicUser()) {
 
-        <div class="flex-1 overflow-y-auto pb-28" style="padding-top: calc(76px + env(safe-area-inset-top))">
+        <div class="flex-1 overflow-y-auto pb-28 lg:pb-12 lg:pt-8" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
           <section class="px-4 pt-0 pb-5 text-center">
             <p class="text-[22px] font-display font-bold text-white truncate">

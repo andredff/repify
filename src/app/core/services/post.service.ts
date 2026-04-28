@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { supabase } from '../supabase/supabaseClient';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
@@ -37,6 +37,13 @@ const API_BASE = environment.apiBaseUrl;
 @Injectable({ providedIn: 'root' })
 export class PostService {
   private auth = inject(AuthService);
+
+  /** Set when a post is published from the desktop shell so the feed can pick it up. */
+  readonly pendingPost = signal<WorkoutPost | null>(null);
+
+  setPendingPost(post: WorkoutPost | null): void {
+    this.pendingPost.set(post);
+  }
 
   // ─── Public API ────────────────────────────────────────────────────────────
 

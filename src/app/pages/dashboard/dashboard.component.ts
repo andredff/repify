@@ -42,14 +42,14 @@ const MUSCLE_GRADIENT: Record<string, string> = {
     @if (showNewPost()) {
       <app-new-post-modal (onClose)="showNewPost.set(false)" />
     }
-    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
+    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto lg:max-w-3xl">
 
       <app-feed-header
         [showBack]="true"
         (onBack)="location.back()"
         (onOpenNotifications)="showNotifications.set(true)" />
 
-      <main class="flex-1 overflow-y-auto px-4 pb-28 space-y-5" style="padding-top: calc(76px + env(safe-area-inset-top))">
+      <main class="flex-1 overflow-y-auto px-4 pb-28 lg:pb-12 space-y-5 lg:pt-8" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
         <section class="pt-0 pb-5">
           <p class="text-[22px] font-display font-bold text-white">Progresso</p>

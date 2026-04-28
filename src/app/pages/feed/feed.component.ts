@@ -1,5 +1,6 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestroy, OnInit, ViewChild, computed, effect, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
 import { CHECKIN_XP, CheckinService } from '../../core/services/checkin.service';
 import { PostService } from '../../core/services/post.service';
@@ -56,6 +57,7 @@ function isoToday(): string {
   selector: 'app-feed',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    NgTemplateOutlet,
     FeedHeaderComponent,
     CheckInCardComponent,
     WorkoutPostComponent,
@@ -71,54 +73,81 @@ function isoToday(): string {
     HomeRankingCardComponent,
   ],
   template: `
-    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative overflow-x-hidden">
+    <div class="bg-bg relative">
 
+      <!-- Mobile-only fixed header (hidden on desktop by the component itself) -->
       <app-feed-header [userEmail]="userEmail()" (onOpenNotifications)="showNotifications.set(true)" />
 
-      <main #mainScroll class="flex-1 overflow-y-auto pb-24 pt-[64px]" style="padding-top: calc(64px + env(safe-area-inset-top))">
-
-        <!-- Pull to refresh indicator -->
-        <div class="overflow-hidden transition-all duration-200 ease-out"
-             [style.height.px]="pullHeight()">
-          <div class="flex items-center justify-center h-14"
-               [class.opacity-0]="pullHeight() < 20"
-               [class.opacity-100]="pullHeight() >= 20">
-            @if (refreshing()) {
-              <div class="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
-            } @else {
-              <svg class="transition-transform duration-200"
-                   [style.transform]="'rotate(' + pullRotation() + 'deg)'"
-                   width="20" height="20" viewBox="0 0 24 24" fill="none"
-                   stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="1 4 1 10 7 10"/>
-                <path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
-              </svg>
-            }
-          </div>
+      <!-- Desktop page header (hidden on mobile) -->
+      <div class="hidden lg:flex items-center justify-between px-8 py-5 border-b border-border sticky top-0 bg-bg/95 backdrop-blur-sm z-40">
+        <div>
+          <h1 class="text-[22px] font-display font-bold text-white">Feed</h1>
+          <p class="text-[12px] font-body text-text-2 mt-0.5">O que a comunidade está treinando</p>
         </div>
+        <div class="flex items-center gap-3">
+          <button (click)="showNotifications.set(true)"
+                  class="relative w-9 h-9 flex items-center justify-center rounded-full bg-card-2 border border-border text-text-2 hover:text-primary hover:border-primary/50 transition-colors">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+          </button>
+          <button (click)="showNewPost.set(true)"
+                  class="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-bg font-body text-[13px] font-semibold hover:bg-primary/90 active:scale-95 transition-all shadow-glow">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Novo post
+          </button>
+        </div>
+      </div>
 
-        <app-stories-bar />
+      <!-- ─── MOBILE layout (< lg) ──────────────────────────────── -->
+      <div class="lg:hidden fixed inset-0 flex flex-col bg-bg" style="z-index: 10">
 
-                @if (auth.profile().yearly_goal) {
-          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
-            <div class="bg-card-2 border border-border rounded-xl px-4 py-3 space-y-1.5">
-              <div class="flex justify-between items-center">
-                <span class="text-[11px] font-body text-text-2">Meta anual de treinos</span>
-                <span class="text-[11px] font-mono font-semibold text-primary">
-                  {{ workoutsDone() }}/{{ auth.profile().yearly_goal }}
-                </span>
-              </div>
-              <div class="h-1.5 bg-border rounded-full overflow-hidden">
-                <div class="h-full bg-primary rounded-full transition-all duration-500"
-                     [style.width]="yearlyGoalPct() + '%'"></div>
-              </div>
+        <main #mainScroll class="flex-1 overflow-y-auto pb-24" style="padding-top: calc(64px + env(safe-area-inset-top))">
+
+          <!-- Pull to refresh indicator -->
+          <div class="overflow-hidden transition-all duration-200 ease-out"
+               [style.height.px]="pullHeight()">
+            <div class="flex items-center justify-center h-14"
+                 [class.opacity-0]="pullHeight() < 20"
+                 [class.opacity-100]="pullHeight() >= 20">
+              @if (refreshing()) {
+                <div class="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
+              } @else {
+                <svg class="transition-transform duration-200"
+                     [style.transform]="'rotate(' + pullRotation() + 'deg)'"
+                     width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="#00FF88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="1 4 1 10 7 10"/>
+                  <path d="M3.51 15a9 9 0 1 0 .49-4.5"/>
+                </svg>
+              }
             </div>
           </div>
-        }
 
+          <ng-container *ngTemplateOutlet="feedContent" />
 
+        </main>
 
-        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.03s">
+        <app-bottom-nav [active]="'feed'" (onNewPost)="showNewPost.set(true)" />
+      </div>
+
+      <!-- ─── DESKTOP layout (≥ lg) ──────────────────────────────── -->
+      <div class="hidden lg:flex items-start gap-8 px-8 xl:px-12 pt-8 max-w-[1200px] mx-auto pb-12 min-h-screen">
+
+        <!-- Main feed column -->
+        <div class="flex-1 min-w-0 max-w-[640px] xl:max-w-[700px]">
+          <ng-container *ngTemplateOutlet="feedContent" />
+        </div>
+
+        <!-- Right rail -->
+        <aside class="flex flex-col w-[280px] xl:w-[300px] shrink-0 gap-4 pb-8">
+
+          <!-- Rank card -->
           <app-home-ranking-card
             [currentRank]="currentRank()"
             [previousRank]="previousRankSnapshot()"
@@ -130,112 +159,116 @@ function isoToday(): string {
             [progressPct]="rankProgressPct()"
             [xpDelta]="recentXpGain()"
             (openRanking)="router.navigateByUrl('/ranking')" />
-        </div>
 
-                <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
-          <div class="mb-3 flex items-end justify-between gap-3 px-1">
-            <div class="min-w-0">
-              <p class="text-[10px] font-body uppercase tracking-[0.22em] text-primary/75">Rotas de XP</p>
-              <p class="mt-1 text-[14px] font-display font-bold tracking-tight text-white">{{ currentXpCarouselSlide().label }}</p>
-              <p class="mt-1 text-[11px] font-body text-text-2">{{ currentXpCarouselSlide().hint }}</p>
+          <!-- Daily XP summary -->
+          <div class="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <p class="text-[10px] font-body uppercase tracking-[0.2em] text-text-2">XP de Hoje</p>
+            <div class="flex items-baseline gap-2">
+              <span class="text-[28px] font-display font-bold text-white">{{ dailyXp() }}</span>
+              <span class="text-[12px] font-body text-text-2">XP</span>
             </div>
-            <span class="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-body font-semibold text-primary">
-              {{ currentXpCarouselSlide().reward }}
-            </span>
-          </div>
-
-          <div class="overflow-hidden rounded-[30px]">
-            <div class="flex transition-transform duration-500 ease-out"
-                 [style.width.%]="xpCarouselSlides().length * 100"
-                 [style.transform]="'translateX(-' + (xpCarouselIndexClamped() * (100 / xpCarouselSlides().length)) + '%)'">
-              @for (slide of xpCarouselSlides(); track slide.id) {
-                <div class="shrink-0" [style.width.%]="100 / xpCarouselSlides().length">
-                  @if (slide.id === 'checkin') {
-                    <app-check-in-card (onWalk)="showWalk.set(true)" />
-                  } @else if (slide.id === 'workout') {
-                    <app-daily-workout-card
-                      [workout]="todayWorkout()!"
-                      [state]="todayWorkoutAccess().state"
-                      (onStart)="startWorkout($event)" />
-                  } @else {
-                    <app-walk-card (onStart)="showWalk.set(true)" />
-                  }
-                </div>
-              }
-            </div>
-          </div>
-
-          @if (xpCarouselSlides().length > 1) {
-            <div class="mt-3 flex items-center justify-center gap-2">
-              @for (slide of xpCarouselSlides(); track slide.id; let i = $index) {
-                <button type="button"
-                        (click)="setXpCarouselIndex(i)"
-                        class="h-2.5 rounded-full transition-all"
-                        [attr.aria-label]="'Abrir slide ' + slide.label"
-                        [class]="xpCarouselIndexClamped() === i ? 'w-6 bg-primary' : 'w-2.5 bg-border hover:bg-border-2'"></button>
-              }
-            </div>
-          }
-        </div>
-
-        @if (!workoutService.hasProgram()) {
-          <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
-            <app-setup-workout-card (onSetup)="router.navigateByUrl('/my-workout')" />
-          </div>
-        }
-
-        <!-- Feed posts -->
-        <div class="px-4 mt-5 space-y-4">
-
-          @if (loading() && posts().length === 0) {
-            <!-- Skeleton -->
-            <div class="bg-card-2 border border-border rounded-2xl p-4 animate-pulse space-y-3">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-full bg-card"></div>
-                <div class="flex-1 space-y-1.5">
-                  <div class="h-3 w-24 bg-card rounded-lg"></div>
-                  <div class="h-2.5 w-16 bg-card rounded-lg"></div>
-                </div>
+            <div class="space-y-1.5">
+              <div class="flex items-center gap-2 text-[12px] font-body"
+                   [class]="checkin.todayChecked() ? 'text-text-2' : 'text-border-2'">
+                <span [class]="checkin.todayChecked() ? 'text-primary' : 'text-border'">
+                  {{ checkin.todayChecked() ? '✓' : '○' }}
+                </span>
+                Check-in diário +{{ CHECKIN_XP }} XP
               </div>
-              <div class="aspect-video bg-card rounded-xl"></div>
+              <div class="flex items-center gap-2 text-[12px] font-body"
+                   [class]="workoutService.todayFinished() ? 'text-text-2' : 'text-border-2'">
+                <span [class]="workoutService.todayFinished() ? 'text-primary' : 'text-border'">
+                  {{ workoutService.todayFinished() ? '✓' : '○' }}
+                </span>
+                Treino do dia +70 XP
+              </div>
+              <div class="flex items-center gap-2 text-[12px] font-body"
+                   [class]="todayWalkDone() ? 'text-text-2' : 'text-border-2'">
+                <span [class]="todayWalkDone() ? 'text-primary' : 'text-border'">
+                  {{ todayWalkDone() ? '✓' : '○' }}
+                </span>
+                Caminhada +5 XP
+              </div>
+            </div>
+          </div>
+
+          <!-- Streak & meta anual -->
+          @if (currentStreak() > 0 || auth.profile().yearly_goal) {
+            <div class="bg-card border border-border rounded-2xl p-4 space-y-3">
+              @if (currentStreak() > 0) {
+                <div class="flex items-center gap-3">
+                  <div class="w-10 h-10 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
+                    <span class="text-[18px]">🔥</span>
+                  </div>
+                  <div>
+                    <p class="text-[16px] font-display font-bold text-white">{{ currentStreak() }} dias</p>
+                    <p class="text-[11px] font-body text-text-2">sequência ativa</p>
+                  </div>
+                </div>
+              }
+              @if (auth.profile().yearly_goal) {
+                <div class="space-y-1.5">
+                  <div class="flex justify-between items-center">
+                    <span class="text-[11px] font-body text-text-2">Meta anual</span>
+                    <span class="text-[11px] font-mono font-semibold text-primary">
+                      {{ workoutsDone() }}/{{ auth.profile().yearly_goal }}
+                    </span>
+                  </div>
+                  <div class="h-1.5 bg-border rounded-full overflow-hidden">
+                    <div class="h-full bg-primary rounded-full transition-all duration-500"
+                         [style.width]="yearlyGoalPct() + '%'"></div>
+                  </div>
+                </div>
+              }
             </div>
           }
 
-          @for (post of posts(); track post.id; let i = $index) {
-            <div class="animate-slide-up" [style.animation-delay]="(0.1 + i * 0.07) + 's'">
-              <app-workout-post [post]="post" (onLike)="toggleLike(post.id)" (onDelete)="deletePost(post)" />
-            </div>
-          }
+          <!-- Quick nav links -->
+          <div class="bg-card border border-border rounded-2xl p-3 space-y-1">
+            <button (click)="router.navigateByUrl('/ranking')"
+                    class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-body text-text-2 hover:text-white hover:bg-card-2 transition-all text-left">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8 21H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h3"/>
+                <path d="M16 21h3a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-3"/>
+                <rect x="8" y="8" width="8" height="13" rx="1"/>
+              </svg>
+              Ver ranking completo
+            </button>
+            <button (click)="router.navigateByUrl('/progress')"
+                    class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-body text-text-2 hover:text-white hover:bg-card-2 transition-all text-left">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19h16"/><path d="M7 16V9"/><path d="M12 16V5"/><path d="M17 16v-3"/>
+              </svg>
+              Meu progresso
+            </button>
+            <button (click)="router.navigateByUrl('/my-workout')"
+                    class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-body text-text-2 hover:text-white hover:bg-card-2 transition-all text-left">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+                <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                <line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
+              </svg>
+              Meu treino
+            </button>
+          </div>
+        </aside>
+      </div>
 
-          @if (!loading() && posts().length === 0) {
-            <div class="bg-card-2 border border-border rounded-2xl p-8 text-center">
-              <p class="text-[32px] mb-2">📭</p>
-              <p class="text-[14px] font-body font-semibold text-white mb-1">Nenhum post ainda</p>
-              <p class="text-[12px] font-body text-text-2">Seja o primeiro a publicar!</p>
-            </div>
-          }
-
-          @if (loadError()) {
-            <div class="bg-danger/10 border border-danger/30 rounded-xl p-3 text-center">
-              <p class="text-[12px] font-body text-danger">{{ loadError() }}</p>
-              <button (click)="loadFeed()" class="mt-2 text-[12px] font-body text-primary underline">Tentar novamente</button>
-            </div>
-          }
-        </div>
-
-        <div class="h-8"></div>
-      </main>
-
-      <app-bottom-nav [active]="'feed'" (onNewPost)="showNewPost.set(true)" />
+      <!-- ─── Overlays (all layouts) ─────────────────────────── -->
 
       @if (showNewPost()) {
         <app-new-post-modal (onClose)="showNewPost.set(false)" (onPublish)="addPost($event)" />
       }
 
-      <!-- Floating walk bar (visible when a walk is active and modal is closed) -->
+      <!-- Floating walk bar -->
       @if (walkSvc.isActive() && !showWalk()) {
         <div (click)="showWalk.set(true)"
-             class="fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl border border-primary/40 bg-bg/90 backdrop-blur-md shadow-glow cursor-pointer active:scale-95 transition-all"
+             class="fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 rounded-2xl
+                    border border-primary/40 bg-bg/90 backdrop-blur-md shadow-glow cursor-pointer
+                    active:scale-95 transition-all"
              style="bottom:calc(72px + env(safe-area-inset-bottom));max-width:390px;width:calc(100% - 32px)">
           <div class="w-2 h-2 rounded-full bg-primary animate-pulse shrink-0"></div>
           <span class="text-[13px] font-display font-bold text-white tracking-tight">🚶 {{ walkSvc.formattedTime() }}</span>
@@ -258,6 +291,137 @@ function isoToday(): string {
       }
 
     </div>
+
+    <!-- ─── Shared feed content template ──────────────────────────── -->
+    <ng-template #feedContent>
+
+      <app-stories-bar />
+
+      @if (auth.profile().yearly_goal) {
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.05s">
+          <div class="bg-card-2 border border-border rounded-xl px-4 py-3 space-y-1.5">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] font-body text-text-2">Meta anual de treinos</span>
+              <span class="text-[11px] font-mono font-semibold text-primary">
+                {{ workoutsDone() }}/{{ auth.profile().yearly_goal }}
+              </span>
+            </div>
+            <div class="h-1.5 bg-border rounded-full overflow-hidden">
+              <div class="h-full bg-primary rounded-full transition-all duration-500"
+                   [style.width]="yearlyGoalPct() + '%'"></div>
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- Rank card (mobile only — desktop shows in right rail) -->
+      <div class="px-4 mt-4 animate-slide-up lg:hidden" style="animation-delay:0.03s">
+        <app-home-ranking-card
+          [currentRank]="currentRank()"
+          [previousRank]="previousRankSnapshot()"
+          [recentDelta]="recentRankDelta()"
+          [totalXp]="currentXp()"
+          [streakDays]="currentStreak()"
+          [positionsToClimb]="positionsToClimb()"
+          [xpToClimb]="xpToClimbTarget()"
+          [progressPct]="rankProgressPct()"
+          [xpDelta]="recentXpGain()"
+          (openRanking)="router.navigateByUrl('/ranking')" />
+      </div>
+
+      <!-- XP Carousel -->
+      <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
+        <div class="mb-3 flex items-end justify-between gap-3 px-1">
+          <div class="min-w-0">
+            <p class="text-[10px] font-body uppercase tracking-[0.22em] text-primary/75">Rotas de XP</p>
+            <p class="mt-1 text-[14px] font-display font-bold tracking-tight text-white">{{ currentXpCarouselSlide().label }}</p>
+            <p class="mt-1 text-[11px] font-body text-text-2">{{ currentXpCarouselSlide().hint }}</p>
+          </div>
+          <span class="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-body font-semibold text-primary">
+            {{ currentXpCarouselSlide().reward }}
+          </span>
+        </div>
+
+        <div class="overflow-hidden rounded-[30px]">
+          <div class="flex transition-transform duration-500 ease-out"
+               [style.width.%]="xpCarouselSlides().length * 100"
+               [style.transform]="'translateX(-' + (xpCarouselIndexClamped() * (100 / xpCarouselSlides().length)) + '%)'">
+            @for (slide of xpCarouselSlides(); track slide.id) {
+              <div class="shrink-0" [style.width.%]="100 / xpCarouselSlides().length">
+                @if (slide.id === 'checkin') {
+                  <app-check-in-card (onWalk)="showWalk.set(true)" />
+                } @else if (slide.id === 'workout') {
+                  <app-daily-workout-card
+                    [workout]="todayWorkout()!"
+                    [state]="todayWorkoutAccess().state"
+                    (onStart)="startWorkout($event)" />
+                } @else {
+                  <app-walk-card (onStart)="showWalk.set(true)" />
+                }
+              </div>
+            }
+          </div>
+        </div>
+
+        @if (xpCarouselSlides().length > 1) {
+          <div class="mt-3 flex items-center justify-center gap-2">
+            @for (slide of xpCarouselSlides(); track slide.id; let i = $index) {
+              <button type="button"
+                      (click)="setXpCarouselIndex(i)"
+                      class="h-2.5 rounded-full transition-all"
+                      [attr.aria-label]="'Abrir slide ' + slide.label"
+                      [class]="xpCarouselIndexClamped() === i ? 'w-6 bg-primary' : 'w-2.5 bg-border hover:bg-border-2'"></button>
+            }
+          </div>
+        }
+      </div>
+
+      @if (!workoutService.hasProgram()) {
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.1s">
+          <app-setup-workout-card (onSetup)="router.navigateByUrl('/my-workout')" />
+        </div>
+      }
+
+      <!-- Feed posts -->
+      <div class="px-4 mt-5 space-y-4">
+
+        @if (loading() && posts().length === 0) {
+          <div class="bg-card-2 border border-border rounded-2xl p-4 animate-pulse space-y-3">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-card"></div>
+              <div class="flex-1 space-y-1.5">
+                <div class="h-3 w-24 bg-card rounded-lg"></div>
+                <div class="h-2.5 w-16 bg-card rounded-lg"></div>
+              </div>
+            </div>
+            <div class="aspect-video bg-card rounded-xl"></div>
+          </div>
+        }
+
+        @for (post of posts(); track post.id; let i = $index) {
+          <div class="animate-slide-up" [style.animation-delay]="(0.1 + i * 0.07) + 's'">
+            <app-workout-post [post]="post" (onLike)="toggleLike(post.id)" (onDelete)="deletePost(post)" />
+          </div>
+        }
+
+        @if (!loading() && posts().length === 0) {
+          <div class="bg-card-2 border border-border rounded-2xl p-8 text-center">
+            <p class="text-[32px] mb-2">📭</p>
+            <p class="text-[14px] font-body font-semibold text-white mb-1">Nenhum post ainda</p>
+            <p class="text-[12px] font-body text-text-2">Seja o primeiro a publicar!</p>
+          </div>
+        }
+
+        @if (loadError()) {
+          <div class="bg-danger/10 border border-danger/30 rounded-xl p-3 text-center">
+            <p class="text-[12px] font-body text-danger">{{ loadError() }}</p>
+            <button (click)="loadFeed()" class="mt-2 text-[12px] font-body text-primary underline">Tentar novamente</button>
+          </div>
+        }
+      </div>
+
+      <div class="h-8"></div>
+    </ng-template>
   `,
 })
 export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -268,6 +432,8 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   workoutService      = inject(WorkoutService);
   walkSvc             = inject(WalkService);
   ranking             = inject(RankingService);
+
+  readonly CHECKIN_XP = CHECKIN_XP;
 
   @ViewChild('mainScroll') private mainScrollRef!: ElementRef<HTMLElement>;
 
@@ -453,6 +619,14 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   private lastSeenUserId: string | null = null;
 
   constructor() {
+    // Pick up posts published from the desktop shell sidebar
+    effect(() => {
+      const pending = this.postService.pendingPost();
+      if (!pending) return;
+      this.posts.update(all => [pending, ...all]);
+      this.postService.pendingPost.set(null);
+    });
+
     effect(() => {
       const me = this.ranking.myRank();
       const userId = this.auth.user()?.id;

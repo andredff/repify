@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './pages/login/login.component';
 import { authGuard } from './core/guards/auth.guard';
+import { AppShellComponent } from './shared/app-shell.component';
 
 export const routes: Routes = [
   { path: '', component: LoginComponent },
@@ -9,52 +10,53 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./pages/register/register.component').then(m => m.RegisterComponent),
   },
+  // ─── Authenticated routes wrapped in desktop shell ──────────────────────
   {
-    path: 'feed',
-    loadComponent: () =>
-      import('./pages/feed/feed.component').then(m => m.FeedComponent),
+    path: '',
+    component: AppShellComponent,
     canActivate: [authGuard],
-  },
-  {
-    path: 'profile',
-    loadComponent: () =>
-      import('./pages/profile/profile.component').then(m => m.ProfileComponent),
-    canActivate: [authGuard],
-  },
-  {
-    path: 'progress',
-    loadComponent: () =>
-      import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
-    canActivate: [authGuard],
-  },
-  {
-    path: 'dashboard',
-    redirectTo: 'progress',
-    pathMatch: 'full',
-  },
-  {
-    path: 'u/:handle',
-    loadComponent: () =>
-      import('./pages/public-profile/public-profile.component').then(m => m.PublicProfileComponent),
-    canActivate: [authGuard],
-  },
-  {
-    path: 'my-workout',
-    loadComponent: () =>
-      import('./pages/my-workout/my-workout.component').then(m => m.MyWorkoutComponent),
-    canActivate: [authGuard],
-  },
-  {
-    path: 'workout/:id',
-    loadComponent: () =>
-      import('./pages/workout/workout.component').then(m => m.WorkoutComponent),
-    canActivate: [authGuard],
-  },
-  {
-    path: 'ranking',
-    loadComponent: () =>
-      import('./pages/ranking/ranking.component').then(m => m.RankingComponent),
-    canActivate: [authGuard],
+    children: [
+      {
+        path: 'feed',
+        loadComponent: () =>
+          import('./pages/feed/feed.component').then(m => m.FeedComponent),
+      },
+      {
+        path: 'profile',
+        loadComponent: () =>
+          import('./pages/profile/profile.component').then(m => m.ProfileComponent),
+      },
+      {
+        path: 'progress',
+        loadComponent: () =>
+          import('./pages/dashboard/dashboard.component').then(m => m.DashboardComponent),
+      },
+      {
+        path: 'dashboard',
+        redirectTo: '/progress',
+        pathMatch: 'full',
+      },
+      {
+        path: 'u/:handle',
+        loadComponent: () =>
+          import('./pages/public-profile/public-profile.component').then(m => m.PublicProfileComponent),
+      },
+      {
+        path: 'my-workout',
+        loadComponent: () =>
+          import('./pages/my-workout/my-workout.component').then(m => m.MyWorkoutComponent),
+      },
+      {
+        path: 'workout/:id',
+        loadComponent: () =>
+          import('./pages/workout/workout.component').then(m => m.WorkoutComponent),
+      },
+      {
+        path: 'ranking',
+        loadComponent: () =>
+          import('./pages/ranking/ranking.component').then(m => m.RankingComponent),
+      },
+    ],
   },
   { path: '**', redirectTo: '' },
 ];

@@ -408,14 +408,14 @@ const WEEKDAY_SHORT: Record<number,string> = { 0:'Dom', 1:'Seg', 2:'Ter', 3:'Qua
     @if (showNewPost()) {
       <app-new-post-modal (onClose)="showNewPost.set(false)" />
     }
-    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
+    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto lg:max-w-3xl">
 
       <app-feed-header
         [showBack]="true"
         (onBack)="back()"
         (onOpenNotifications)="showNotifications.set(true)" />
 
-      <main class="flex-1 px-4 pb-28 overflow-y-auto" style="padding-top: calc(76px + env(safe-area-inset-top))">
+      <main class="flex-1 px-4 pb-28 lg:pb-12 overflow-y-auto lg:pt-8" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
         <section class="pt-0 pb-5">
           <p class="text-[22px] font-display font-bold text-white">Meu Treino</p>

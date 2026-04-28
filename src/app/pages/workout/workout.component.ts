@@ -53,7 +53,7 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FeedHeaderComponent, NotificationsPanelComponent, WorkoutCompletionStateComponent],
   template: `
-    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto">
+    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto lg:max-w-3xl">
 
       <app-feed-header
         [showBack]="true"
@@ -61,7 +61,7 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
         (onOpenNotifications)="showNotifications.set(true)" />
 
       <!-- Content -->
-      <main class="flex-1 px-4 pb-32 overflow-y-auto" style="padding-top: calc(76px + env(safe-area-inset-top))">
+      <main class="flex-1 px-4 pb-32 lg:pb-12 overflow-y-auto lg:pt-8" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
         @if (viewMode() === 'completed' && completionSummary()) {
           <section class="pt-6">

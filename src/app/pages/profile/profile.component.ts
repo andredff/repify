@@ -39,7 +39,7 @@ const MAX_SIZE_MB   = 5;
         (onCancel)="avatarCropSrc.set(null)"
         (onCropped)="onAvatarCropped($event)" />
     }
-    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto relative">
+    <div class="min-h-screen bg-bg flex flex-col max-w-[430px] mx-auto lg:max-w-2xl relative">
 
       <!-- Hidden file input -->
       <input
@@ -56,7 +56,7 @@ const MAX_SIZE_MB   = 5;
         (onOpenNotifications)="showNotifications.set(true)" />
 
       <!-- Scrollable body -->
-      <div class="flex-1 overflow-y-auto pb-28" style="padding-top: calc(76px + env(safe-area-inset-top))">
+      <div class="flex-1 overflow-y-auto lg:overflow-visible pb-28 lg:pb-12 lg:pt-8" style="padding-top: calc(76px + env(safe-area-inset-top))">
 
         <section class="px-4 pt-0 pb-5">
           <p class="text-[22px] font-display font-bold text-white">Meu Perfil</p>
