@@ -499,7 +499,7 @@ const MAX_PHOTOS = 6;
             </svg>
           </div>
           <p class="text-[13px] font-body text-primary">
-            {{ videoFile() ? 'Comprimindo e enviando vídeo...' : totalPhotoCount() > 0 ? 'Enviando ' + totalPhotoCount() + (totalPhotoCount() === 1 ? ' foto...' : ' fotos...') : 'Publicando...' }}
+            {{ videoFile() ? 'enviando vídeo...' : totalPhotoCount() > 0 ? 'Enviando ' + totalPhotoCount() + (totalPhotoCount() === 1 ? ' foto...' : ' fotos...') : 'Publicando...' }}
           </p>
         </div>
       }
