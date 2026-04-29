@@ -5,7 +5,7 @@ const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'im
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
 const ALLOWED_VIDEO_MIME = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']);
-const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200 MB — compressed server-side
+const MAX_VIDEO_BYTES = 100 * 1024 * 1024; // 100 MB
 
 const _multerImage = multer({
   storage: multer.memoryStorage(),

@@ -373,7 +373,7 @@ const MAX_PHOTOS = 6;
               </div>
               <div class="text-left">
                 <p class="text-[13px] font-body font-semibold text-white group-hover:text-primary transition-colors">Adicionar vídeo</p>
-                <p class="text-[11px] text-text-2 font-body">MP4, WebM ou MOV · máx 200MB · comprimido automaticamente</p>
+                <p class="text-[11px] text-text-2 font-body">MP4, WebM ou MOV · máx 100MB</p>
               </div>
             </button>
           </div>
@@ -394,7 +394,7 @@ const MAX_PHOTOS = 6;
                      class="w-full max-h-[320px] object-contain bg-black">
               </video>
             </div>
-            <p class="text-[10px] font-body text-text-2">O vídeo será comprimido automaticamente no envio.</p>
+            <p class="text-[10px] font-body text-text-2">Máx 100MB · MP4, WebM ou MOV</p>
           </div>
 
           @if (!hasAnyPhoto()) {
@@ -704,7 +704,7 @@ export class NewPostModalComponent {
     const file = (event.target as HTMLInputElement).files?.[0];
     (event.target as HTMLInputElement).value = '';
     if (!file) return;
-    if (file.size > 200 * 1024 * 1024) { this.error.set('Vídeo muito grande. Máximo 200MB.'); return; }
+    if (file.size > 100 * 1024 * 1024) { this.error.set('Vídeo muito grande. Máximo 100MB.'); return; }
     this.videoFile.set(file);
     this.videoPreview.set(URL.createObjectURL(file));
   }

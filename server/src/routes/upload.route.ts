@@ -3,7 +3,6 @@ import { randomUUID } from 'crypto';
 import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
 import { uploadSingle, uploadVideoSingle } from '../middleware/upload.middleware';
 import { processImage } from '../lib/image-processor';
-import { compressVideo } from '../lib/video-processor';
 import { supabaseAdmin } from '../supabase';
 
 const router = Router();
@@ -74,8 +73,8 @@ router.post(
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/upload/post-video
-// Recebe vídeo via multipart, comprime com ffmpeg (720p, CRF 28) e salva no
-// bucket workout-videos. Retorna { url }.
+// Recebe vídeo via multipart e salva diretamente no bucket workout-videos.
+// Compressão server-side desativada (CPU insuficiente no free tier).
 // ─────────────────────────────────────────────────────────────────────────────
 router.post(
   '/post-video',
@@ -87,22 +86,15 @@ router.post(
       return;
     }
 
-    const userId = req.userId!;
-    const id     = randomUUID();
-    const path   = `${userId}/${id}.mp4`;
-
-    let compressed: Buffer;
-    try {
-      compressed = await compressVideo(req.file.buffer);
-    } catch (err) {
-      console.error('[upload] compressVideo error:', err);
-      res.status(422).json({ error: 'Não foi possível processar o vídeo.' });
-      return;
-    }
+    const userId    = req.userId!;
+    const id        = randomUUID();
+    const ext       = req.file.mimetype === 'video/webm' ? 'webm' : 'mp4';
+    const path      = `${userId}/${id}.${ext}`;
+    const mimeType  = req.file.mimetype;
 
     const { error: uploadErr } = await supabaseAdmin.storage
       .from(VIDEO_BUCKET)
-      .upload(path, compressed, { contentType: 'video/mp4', upsert: false });
+      .upload(path, req.file.buffer, { contentType: mimeType, upsert: false });
 
     if (uploadErr) {
       console.error('[upload] video storage error:', uploadErr);
