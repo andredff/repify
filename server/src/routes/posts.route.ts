@@ -518,12 +518,22 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
   }
 
   const likePreviewNameByPost = new Map<string, string>();
+  const likePreviewsByPost = new Map<string, Array<{ name: string; avatar: string }>>();
   for (const row of likeRows) {
-    if (likePreviewNameByPost.has(row.post_id)) continue;
+    const previews = likePreviewsByPost.get(row.post_id) ?? [];
+    if (previews.length >= 5) continue;
     const liker = previewLikeUserMap.get(row.user_id);
     const displayName = extractUserDisplayName(liker);
     if (displayName) {
-      likePreviewNameByPost.set(row.post_id, extractFirstName(displayName));
+      const firstName = extractFirstName(displayName);
+      if (!likePreviewNameByPost.has(row.post_id)) {
+        likePreviewNameByPost.set(row.post_id, firstName);
+      }
+      previews.push({
+        name: firstName,
+        avatar: resolveAvatarUrl(liker?.user_metadata?.['avatar_url']) ?? '',
+      });
+      likePreviewsByPost.set(row.post_id, previews);
     }
   }
 
@@ -543,7 +553,8 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
       video_url:   p.video_url,
       workout:     p.workout_name ? { name: p.workout_name, muscleGroup: p.workout_muscle ?? '' } : null,
       likes:       p.likes,
-      liked_by_preview_name: likePreviewNameByPost.get(p.id) ?? null,
+      liked_by_preview_name:   likePreviewNameByPost.get(p.id) ?? null,
+      liked_by_previews:       likePreviewsByPost.get(p.id) ?? [],
       comments:    p.comments,
       liked:       likedSet.has(p.id),
       created_at:  p.created_at,

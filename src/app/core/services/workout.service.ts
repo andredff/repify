@@ -680,17 +680,6 @@ export class WorkoutService {
     const completedToday = this.todayFinished();
     const isCompletedPlan = completedToday && ((session.completedPlanId === plan.id) || this.isFinishedToday(plan.id));
 
-    if (session.activePlanId === plan.id) {
-      return {
-        state: 'in_progress',
-        canStart: true,
-        canResume: true,
-        isLocked: false,
-        completedAt: session.completedAt,
-        label: completedToday ? 'Continuar sem XP' : 'Continuar treino',
-      };
-    }
-
     if (isCompletedPlan) {
       return {
         state: 'completed',
@@ -699,6 +688,17 @@ export class WorkoutService {
         isLocked: false,
         completedAt: session.completedAt,
         label: 'Treino concluido',
+      };
+    }
+
+    if (session.activePlanId === plan.id) {
+      return {
+        state: 'in_progress',
+        canStart: true,
+        canResume: true,
+        isLocked: false,
+        completedAt: session.completedAt,
+        label: completedToday ? 'Continuar sem XP' : 'Continuar treino',
       };
     }
 
@@ -811,7 +811,7 @@ export class WorkoutService {
 
     this._saveDaySession({
       date,
-      activePlanId: plan.id,
+      activePlanId: null, // Clear active plan since workout is completed
       startedAt: previousDaySession.startedAt ?? completedAt,
       completedPlanId: plan.id,
       completedAt,
@@ -947,13 +947,15 @@ export class WorkoutService {
       && currentPlanIds.has(session.completedPlanId)
       && this.isOnOrAfterProgramCreation(session.completedAt ?? session.startedAt);
 
+    const isTodaySession = session.date === this._todayKey();
+
     return {
       date: session.date,
       activePlanId: activeBelongsToCurrentProgram ? session.activePlanId : null,
       startedAt: activeBelongsToCurrentProgram ? session.startedAt : null,
-      completedPlanId: completedBelongsToCurrentProgram ? session.completedPlanId : null,
-      completedAt: completedBelongsToCurrentProgram ? session.completedAt : null,
-      motivationalQuote: completedBelongsToCurrentProgram ? session.motivationalQuote : null,
+      completedPlanId: (completedBelongsToCurrentProgram || isTodaySession) ? session.completedPlanId : null,
+      completedAt: (completedBelongsToCurrentProgram || isTodaySession) ? session.completedAt : null,
+      motivationalQuote: (completedBelongsToCurrentProgram || isTodaySession) ? session.motivationalQuote : null,
     };
   }
 

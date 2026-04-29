@@ -156,11 +156,11 @@ const MUSCLE_COLORS: Record<string, string> = {
       <!-- Photo -->
       @if (postPhotos().length > 0) {
         <div class="mx-4 mb-3 overflow-hidden rounded-2xl bg-card">
-          <div class="relative">
+          <div class="relative overflow-hidden">
             <div class="flex transition-transform duration-300 ease-out"
                  [style.transform]="'translateX(-' + (activePhotoIndex() * 100) + '%)'">
               @for (photo of postPhotos(); track photo.full) {
-                <div class="w-full shrink-0">
+                <div class="w-full shrink-0 min-w-full">
                   <img
                     [src]="photo.medium || photo.full"
                     alt="foto do treino"
@@ -411,7 +411,7 @@ export class WorkoutPostComponent {
   localLiked       = signal(false);
   localLikesCount  = signal(0);
   localLikePreviewName   = signal('');
-  localLikePreviewAvatar = signal('');
+  localLikePreviews      = signal<Array<{ name: string; avatar: string }>>([]);
   editing          = signal(false);
   editSaving       = signal(false);
   editDraft        = '';
@@ -433,7 +433,7 @@ export class WorkoutPostComponent {
         this.localLiked.set(p.liked);
         this.localLikesCount.set(p.likes);
         this.localLikePreviewName.set(p.likedByPreviewName ?? '');
-        this.localLikePreviewAvatar.set(p.likedByPreviewAvatar ?? '');
+        this.localLikePreviews.set(p.likedByPreviews ?? []);
         this.likeUsers.set([]);
         this.likesError.set('');
         this.likesLoading.set(false);
@@ -482,13 +482,14 @@ export class WorkoutPostComponent {
       if (av) seen.add(av);
     }
 
-    const previewAvatar = this.localLikePreviewAvatar();
-    const previewName   = this.localLikePreviewName().trim();
-    if (previewName && list.length < count && (!previewAvatar || !seen.has(previewAvatar))) {
-      list.push({ avatar: previewAvatar, initial: previewName.charAt(0) });
+    for (const p of this.localLikePreviews()) {
+      if (list.length >= 5) break;
+      if (p.avatar && seen.has(p.avatar)) continue;
+      list.push({ avatar: p.avatar, initial: p.name.charAt(0) });
+      if (p.avatar) seen.add(p.avatar);
     }
 
-    return list.slice(0, 3);
+    return list.slice(0, 5);
   });
 
   isOwner = computed(() => {
@@ -541,11 +542,14 @@ export class WorkoutPostComponent {
     this.localLikesCount.update(v => nowLiked ? v + 1 : v - 1);
     if (nowLiked && !this.localLikePreviewName()) {
       this.localLikePreviewName.set(this.currentUserFirstName());
-      this.localLikePreviewAvatar.set(this.auth.avatarUrl());
+      this.localLikePreviews.update(prev => [
+        { name: this.currentUserFirstName(), avatar: this.auth.avatarUrl() },
+        ...prev,
+      ]);
     }
     if (!nowLiked && this.localLikesCount() <= 0) {
       this.localLikePreviewName.set('');
-      this.localLikePreviewAvatar.set('');
+      this.localLikePreviews.set([]);
     }
     this.onLike.emit();
   }

@@ -34,7 +34,7 @@ export interface WorkoutPost {
   videoUrl?: string;
   likes: number;
   likedByPreviewName?: string;
-  likedByPreviewAvatar?: string;
+  likedByPreviews?: Array<{ name: string; avatar: string }>;
   comments: number;
   liked: boolean;
   streak?: number;

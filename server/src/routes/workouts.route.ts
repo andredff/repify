@@ -419,7 +419,7 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
   const completedDaySession = {
     user_id: userId,
     session_date: today,
-    active_plan_id: payload.planId,
+    active_plan_id: null, // Clear active plan since workout is completed
     started_at: existingDaySession?.started_at ?? completedAt,
     completed_plan_id: payload.planId,
     completed_at: completedAt,

@@ -264,52 +264,85 @@ const MAX_PHOTOS = 6;
           <!-- Multi-photo strip -->
           <div class="space-y-3">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Fotos do post</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Fotos do post</span>
+                @if (totalPhotoCount() > 1) {
+                  <span class="text-[10px] font-body text-text-2/60 flex items-center gap-1">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="5 9 2 12 5 15"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/>
+                    </svg>
+                    arraste para reordenar
+                  </span>
+                }
+              </div>
               <span class="text-[10px] font-mono text-text-2 bg-card-2 border border-border rounded-full px-2 py-0.5">
                 {{ totalPhotoCount() }}/{{ MAX_PHOTOS }}
               </span>
             </div>
 
-            <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory">
+            <div class="flex gap-2 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory"
+                 (touchmove)="onTouchMove($event)" (touchend)="onTouchEnd()" (dragover)="$event.preventDefault()">
 
-              <!-- Main photo thumbnail -->
+              <!-- Main photo -->
               @if (photoPreview()) {
-                <div class="relative shrink-0 w-[116px] h-[116px] rounded-xl overflow-hidden border-2 border-border snap-start group">
-                  <img [src]="photoPreview()" class="w-full h-full object-cover" />
+                <div class="relative shrink-0 w-[116px] h-[116px] rounded-xl overflow-hidden snap-start group transition-all duration-150 cursor-grab"
+                     [attr.data-thumb-index]="0"
+                     [class.opacity-40]="dragIndex() === 0"
+                     [class.ring-2]="dragOver() === 0"
+                     [class.ring-primary]="dragOver() === 0"
+                     draggable="true"
+                     (dragstart)="onDragStart(0)"
+                     (dragenter)="onDragEnter(0)"
+                     (dragend)="onDragEnd()"
+                     (touchstart)="onTouchStart(0, $event)">
+                  <div class="absolute inset-0 border-2 rounded-xl z-10 pointer-events-none"
+                       [class.border-border]="dragOver() !== 0"
+                       [class.border-primary]="dragOver() === 0"></div>
+                  <img [src]="photoPreview()" class="w-full h-full object-cover" draggable="false" />
 
-                  <!-- Overlay controls -->
-                  <div class="absolute inset-0 bg-bg/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5">
+                  <div class="absolute inset-0 bg-bg/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5 z-20">
                     <div class="flex items-start justify-between">
                       <span class="bg-bg/75 text-white text-[9px] font-mono rounded-full w-5 h-5 flex items-center justify-center font-bold">1</span>
-                      <button (click)="removePhoto(0)"
+                      <button (click)="removePhoto(0)" (mousedown)="$event.stopPropagation()"
                               class="w-5 h-5 bg-bg/80 rounded-full flex items-center justify-center text-white hover:bg-danger/80 transition-colors">
                         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
                           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                         </svg>
                       </button>
                     </div>
-                    <button (click)="cropSrc.set(photoPreview()); showFormatPicker.set(true)"
+                    <button (click)="cropSrc.set(photoPreview()); showFormatPicker.set(true)" (mousedown)="$event.stopPropagation()"
                             class="w-full bg-bg/75 rounded-lg text-[9px] text-white py-1 text-center font-body font-medium hover:bg-bg/90 transition-colors">
                       Ajustar
                     </button>
                   </div>
 
-                  <!-- Always-visible number badge -->
-                  <div class="absolute top-1 left-1 group-hover:opacity-0 transition-opacity">
+                  <div class="absolute top-1 left-1 group-hover:opacity-0 transition-opacity z-10">
                     <span class="bg-bg/75 text-white text-[9px] font-mono rounded-full w-5 h-5 flex items-center justify-center font-bold">1</span>
                   </div>
                 </div>
               }
 
-              <!-- Extra photos thumbnails -->
+              <!-- Extra photos -->
               @for (preview of extraPhotoPreviews(); track $index) {
-                <div class="relative shrink-0 w-[116px] h-[116px] rounded-xl overflow-hidden border-2 border-border snap-start group">
-                  <img [src]="preview" class="w-full h-full object-cover" />
+                <div class="relative shrink-0 w-[116px] h-[116px] rounded-xl overflow-hidden snap-start group transition-all duration-150 cursor-grab"
+                     [attr.data-thumb-index]="$index + 1"
+                     [class.opacity-40]="dragIndex() === $index + 1"
+                     [class.ring-2]="dragOver() === $index + 1"
+                     [class.ring-primary]="dragOver() === $index + 1"
+                     draggable="true"
+                     (dragstart)="onDragStart($index + 1)"
+                     (dragenter)="onDragEnter($index + 1)"
+                     (dragend)="onDragEnd()"
+                     (touchstart)="onTouchStart($index + 1, $event)">
+                  <div class="absolute inset-0 border-2 rounded-xl z-10 pointer-events-none"
+                       [class.border-border]="dragOver() !== $index + 1"
+                       [class.border-primary]="dragOver() === $index + 1"></div>
+                  <img [src]="preview" class="w-full h-full object-cover" draggable="false" />
 
-                  <div class="absolute inset-0 bg-bg/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5">
+                  <div class="absolute inset-0 bg-bg/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5 z-20">
                     <div class="flex items-start justify-between">
                       <span class="bg-bg/75 text-white text-[9px] font-mono rounded-full w-5 h-5 flex items-center justify-center font-bold">{{ $index + 2 }}</span>
-                      <button (click)="removePhoto($index + 1)"
+                      <button (click)="removePhoto($index + 1)" (mousedown)="$event.stopPropagation()"
                               class="w-5 h-5 bg-bg/80 rounded-full flex items-center justify-center text-white hover:bg-danger/80 transition-colors">
                         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
                           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -318,7 +351,7 @@ const MAX_PHOTOS = 6;
                     </div>
                   </div>
 
-                  <div class="absolute top-1 left-1 group-hover:opacity-0 transition-opacity">
+                  <div class="absolute top-1 left-1 group-hover:opacity-0 transition-opacity z-10">
                     <span class="bg-bg/75 text-white text-[9px] font-mono rounded-full w-5 h-5 flex items-center justify-center font-bold">{{ $index + 2 }}</span>
                   </div>
                 </div>
@@ -326,13 +359,27 @@ const MAX_PHOTOS = 6;
 
               <!-- Artwork thumbnail -->
               @if (galleryArtworkPreview()) {
-                <div class="relative shrink-0 w-[116px] h-[116px] rounded-xl overflow-hidden border-2 border-primary/40 snap-start group">
-                  <img [src]="galleryArtworkPreview()" class="w-full h-full object-cover" />
+                @let artIdx = totalPhotoCount() - 1;
+                <div class="relative shrink-0 w-[116px] h-[116px] rounded-xl overflow-hidden snap-start group transition-all duration-150 cursor-grab"
+                     [attr.data-thumb-index]="artIdx"
+                     [class.opacity-40]="dragIndex() === artIdx"
+                     [class.ring-2]="dragOver() === artIdx"
+                     [class.ring-primary]="dragOver() === artIdx"
+                     draggable="true"
+                     (dragstart)="onDragStart(artIdx)"
+                     (dragenter)="onDragEnter(artIdx)"
+                     (dragend)="onDragEnd()"
+                     (touchstart)="onTouchStart(artIdx, $event)">
+                  <div class="absolute inset-0 border-2 rounded-xl z-10 pointer-events-none"
+                       [class.border-primary]="dragOver() !== artIdx"
+                       [class.border-primary/80]="dragOver() === artIdx"
+                       style="border-color: rgba(0,255,136,0.4)"></div>
+                  <img [src]="galleryArtworkPreview()" class="w-full h-full object-cover" draggable="false" />
 
-                  <div class="absolute inset-0 bg-bg/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5">
+                  <div class="absolute inset-0 bg-bg/20 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-1.5 z-20">
                     <div class="flex items-start justify-between">
                       <span class="bg-primary/80 text-bg text-[9px] font-mono rounded-full w-5 h-5 flex items-center justify-center font-bold">{{ totalPhotoCount() }}</span>
-                      <button (click)="clearGalleryArtwork()"
+                      <button (click)="clearGalleryArtwork()" (mousedown)="$event.stopPropagation()"
                               class="w-5 h-5 bg-bg/80 rounded-full flex items-center justify-center text-white hover:bg-danger/80 transition-colors">
                         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
                           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -342,10 +389,10 @@ const MAX_PHOTOS = 6;
                     <p class="w-full bg-primary/20 rounded-lg text-[9px] text-primary py-1 text-center font-body font-semibold">Arte</p>
                   </div>
 
-                  <div class="absolute top-1 left-1 group-hover:opacity-0 transition-opacity">
+                  <div class="absolute top-1 left-1 group-hover:opacity-0 transition-opacity z-10">
                     <span class="bg-primary/80 text-bg text-[9px] font-mono rounded-full w-5 h-5 flex items-center justify-center font-bold">{{ totalPhotoCount() }}</span>
                   </div>
-                  <div class="absolute bottom-1 left-0 right-0 flex justify-center group-hover:opacity-0 transition-opacity">
+                  <div class="absolute bottom-1 left-0 right-0 flex justify-center group-hover:opacity-0 transition-opacity z-10">
                     <span class="bg-primary/70 text-bg text-[8px] font-body font-bold rounded px-1.5 py-0.5">ARTE</span>
                   </div>
                 </div>
@@ -585,6 +632,10 @@ export class NewPostModalComponent {
   private autoArtworkAttemptedKey = '';
   private addingExtraPhoto       = false;
 
+  // ── Drag-and-drop reorder ─────────────────────────────────────────────────
+  dragIndex = signal<number>(-1);
+  dragOver  = signal<number>(-1);
+
   // ── Computed ─────────────────────────────────────────────────────────────
   workoutsDone = computed(() => this.ranking.myRank()?.workoutsDone ?? Number(this.auth.profile().workouts_done ?? 0));
 
@@ -602,12 +653,7 @@ export class NewPostModalComponent {
 
   constructor() {
     effect(() => {
-      const initialCaption = this.prefillCaption();
       const initialWorkout = this.prefillWorkout();
-
-      if (!this.captionTouched && !this.caption && initialCaption) {
-        this.caption = initialCaption;
-      }
       if (!this.workoutTouched && !this.selectedWorkout() && initialWorkout) {
         this.selectedWorkout.set(initialWorkout);
       }
@@ -830,6 +876,96 @@ export class NewPostModalComponent {
       this.extraPhotoFiles.update(arr => arr.filter((_, idx) => idx !== i));
       this.extraPhotoPreviews.update(arr => arr.filter((_, idx) => idx !== i));
     }
+  }
+
+  // ── Drag reorder helpers ──────────────────────────────────────────────────
+
+  /** Build a flat ordered list of all slots for drag operations. */
+  private buildSlots(): { file: File | null; preview: string; isArtwork: boolean }[] {
+    const slots: { file: File | null; preview: string; isArtwork: boolean }[] = [];
+    if (this.photoPreview()) slots.push({ file: this.photoFile(), preview: this.photoPreview(), isArtwork: false });
+    this.extraPhotoPreviews().forEach((p, i) => slots.push({ file: this.extraPhotoFiles()[i], preview: p, isArtwork: false }));
+    if (this.galleryArtworkPreview()) slots.push({ file: this.galleryArtworkFile(), preview: this.galleryArtworkPreview(), isArtwork: true });
+    return slots;
+  }
+
+  /** Apply a reordered slot list back to the signals. */
+  private applySlots(slots: { file: File | null; preview: string; isArtwork: boolean }[]): void {
+    const regular = slots.filter(s => !s.isArtwork);
+    const artwork = slots.find(s => s.isArtwork) ?? null;
+
+    if (regular.length > 0) {
+      this.photoFile.set(regular[0].file);
+      this.photoPreview.set(regular[0].preview);
+      this.extraPhotoFiles.set(regular.slice(1).map(s => s.file!));
+      this.extraPhotoPreviews.set(regular.slice(1).map(s => s.preview));
+    } else {
+      this.photoFile.set(null);
+      this.photoPreview.set('');
+      this.extraPhotoFiles.set([]);
+      this.extraPhotoPreviews.set([]);
+    }
+
+    if (artwork) {
+      this.galleryArtworkFile.set(artwork.file);
+      this.galleryArtworkPreview.set(artwork.preview);
+    }
+  }
+
+  onDragStart(index: number): void {
+    this.dragIndex.set(index);
+  }
+
+  onDragEnter(index: number): void {
+    if (this.dragIndex() === -1 || this.dragIndex() === index) return;
+    this.dragOver.set(index);
+  }
+
+  onDragEnd(): void {
+    const from = this.dragIndex();
+    const to   = this.dragOver();
+    if (from !== -1 && to !== -1 && from !== to) {
+      const slots = this.buildSlots();
+      const [moved] = slots.splice(from, 1);
+      slots.splice(to, 0, moved);
+      this.applySlots(slots);
+    }
+    this.dragIndex.set(-1);
+    this.dragOver.set(-1);
+  }
+
+  // Touch-based drag (mobile)
+  private _touchDragIndex = -1;
+
+  onTouchStart(index: number, event: TouchEvent): void {
+    this._touchDragIndex = index;
+    this.dragIndex.set(index);
+    event.stopPropagation();
+  }
+
+  onTouchMove(event: TouchEvent): void {
+    if (this._touchDragIndex === -1) return;
+    event.preventDefault();
+    const touch = event.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const thumb = el?.closest('[data-thumb-index]') as HTMLElement | null;
+    if (!thumb) return;
+    const idx = Number(thumb.dataset['thumbIndex']);
+    if (!isNaN(idx) && idx !== this._touchDragIndex) this.dragOver.set(idx);
+  }
+
+  onTouchEnd(): void {
+    const from = this._touchDragIndex;
+    const to   = this.dragOver();
+    if (from !== -1 && to !== -1 && from !== to) {
+      const slots = this.buildSlots();
+      const [moved] = slots.splice(from, 1);
+      slots.splice(to, 0, moved);
+      this.applySlots(slots);
+    }
+    this._touchDragIndex = -1;
+    this.dragIndex.set(-1);
+    this.dragOver.set(-1);
   }
 
   clearGalleryArtwork(): void {
