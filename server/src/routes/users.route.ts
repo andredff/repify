@@ -13,7 +13,6 @@ interface PublicUser {
   avatar: string;
   goal: string;
   level: string;
-  yearly_goal: number | null;
   workouts_done: number | null;
   total_xp: number;
   total_walk_km: number;
@@ -141,7 +140,6 @@ function toPublicUser(u: any, stats?: UserStatsRow, workoutsDone = 0): PublicUse
     avatar:       resolveAvatarUrl(meta['avatar_url']),
     goal:         meta['goal']      || '',
     level:        levelFromXp(totalXp),
-    yearly_goal:  meta['yearly_goal']   ?? null,
     workouts_done:workoutsDone,
     total_xp:     totalXp,
     total_walk_km:Number(stats?.total_walk_km ?? 0),

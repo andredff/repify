@@ -29,7 +29,6 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
   copying     = signal(false);
   showPhoto   = signal(true);
   showUser    = signal(true);
-  showGoal    = signal(true);
   showCaption = signal(true);
 
   private panel!: HTMLElement;
@@ -40,7 +39,7 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor() {
     effect(() => {
-      this.showPhoto(); this.showUser(); this.showGoal(); this.showCaption(); this.mode();
+      this.showPhoto(); this.showUser(); this.showCaption(); this.mode();
       if (this.redrawPending) return;
       this.redrawPending = true;
       Promise.resolve().then(() => {
@@ -172,12 +171,9 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
     togglesWrap.style.cssText = 'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:14px;overflow:hidden';
 
     const post = this.post();
-    const toggleRows: Array<{ label: string; sub?: string; key: 'photo'|'user'|'goal'|'caption'; show: boolean }> = [];
+    const toggleRows: Array<{ label: string; sub?: string; key: 'photo'|'user'|'caption'; show: boolean }> = [];
     if (post.photo)              toggleRows.push({ label: 'Incluir foto',          key: 'photo',   show: true });
                                  toggleRows.push({ label: 'Nome e @usuário',        key: 'user',    show: true });
-    if (post.user.yearlyGoal)    toggleRows.push({ label: 'Meta anual',
-                                                   sub: `${post.user.workoutsDone ?? 0}/${post.user.yearlyGoal}`,
-                                                   key: 'goal',    show: true });
     if (post.caption)            toggleRows.push({ label: 'Mostrar texto',          key: 'caption', show: true });
 
     toggleRows.forEach((row, idx) => {
@@ -247,7 +243,7 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
     this.storyCanvas.style.display = mode === 'story' ? 'block' : 'none';
   }
 
-  private buildToggleRow(label: string, sub: string | undefined, key: 'photo'|'user'|'goal'|'caption', initialOn: boolean): HTMLElement {
+  private buildToggleRow(label: string, sub: string | undefined, key: 'photo'|'user'|'caption', initialOn: boolean): HTMLElement {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:13px 16px;';
 
@@ -337,10 +333,9 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  toggle(opt: 'photo'|'user'|'goal'|'caption'): void {
+  toggle(opt: 'photo'|'user'|'caption'): void {
     if (opt === 'photo')   this.showPhoto.update(v => !v);
     if (opt === 'user')    this.showUser.update(v => !v);
-    if (opt === 'goal')    this.showGoal.update(v => !v);
     if (opt === 'caption') this.showCaption.update(v => !v);
   }
 
@@ -433,72 +428,72 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  private async drawBrandingFooter(ctx: CanvasRenderingContext2D, W: number, H: number, M: number): Promise<void> {
-    const pillH  = Math.round(H * 0.052);
-    const pillR  = pillH / 2;
-    const pillW  = Math.round(W * 0.38);
-    const pillX  = W / 2 - pillW / 2;
-    const pillY  = H - M - pillH;
+  // private async drawBrandingFooter(ctx: CanvasRenderingContext2D, W: number, H: number, M: number): Promise<void> {
+  //   const pillH  = Math.round(H * 0.052);
+  //   const pillR  = pillH / 2;
+  //   const pillW  = Math.round(W * 0.38);
+  //   const pillX  = W / 2 - pillW / 2;
+  //   const pillY  = H - M - pillH;
 
-    // pill background
-    ctx.save();
-    ctx.fillStyle = 'rgba(0,255,136,0.10)';
-    this.roundRect(ctx, pillX, pillY, pillW, pillH, pillR);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(0,255,136,0.30)';
-    ctx.lineWidth = 2;
-    this.roundRect(ctx, pillX, pillY, pillW, pillH, pillR);
-    ctx.stroke();
+  //   // pill background
+  //   ctx.save();
+  //   ctx.fillStyle = 'rgba(0,255,136,0.10)';
+  //   this.roundRect(ctx, pillX, pillY, pillW, pillH, pillR);
+  //   ctx.fill();
+  //   ctx.strokeStyle = 'rgba(0,255,136,0.30)';
+  //   ctx.lineWidth = 2;
+  //   this.roundRect(ctx, pillX, pillY, pillW, pillH, pillR);
+  //   ctx.stroke();
 
-    const iconSize = Math.round(pillH * 0.52);
-    const iconX    = pillX + pillH * 0.55;
-    const iconY    = pillY + pillH / 2;
+  //   const iconSize = Math.round(pillH * 0.52);
+  //   const iconX    = pillX + pillH * 0.55;
+  //   const iconY    = pillY + pillH / 2;
 
-    // try to draw the app icon inside the pill
-    let iconLoaded = false;
-    try {
-      const icon = await this.loadImage('/icon.png');
-      ctx.save();
-      ctx.beginPath();
-      const ir = iconSize / 2;
-      ctx.arc(iconX, iconY, ir, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.drawImage(icon, iconX - ir, iconY - ir, iconSize, iconSize);
-      ctx.restore();
-      iconLoaded = true;
-    } catch { /* fallback below */ }
+  //   // try to draw the app icon inside the pill
+  //   let iconLoaded = false;
+  //   try {
+  //     const icon = await this.loadImage('/icon.png');
+  //     ctx.save();
+  //     ctx.beginPath();
+  //     const ir = iconSize / 2;
+  //     ctx.arc(iconX, iconY, ir, 0, Math.PI * 2);
+  //     ctx.clip();
+  //     ctx.drawImage(icon, iconX - ir, iconY - ir, iconSize, iconSize);
+  //     ctx.restore();
+  //     iconLoaded = true;
+  //   } catch { /* fallback below */ }
 
-    if (!iconLoaded) {
-      // draw a green "R" as fallback
-      ctx.fillStyle = '#00FF88';
-      ctx.font = `bold ${Math.round(iconSize * 0.9)}px system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('R', iconX, iconY);
-      ctx.textBaseline = 'alphabetic';
-    }
+  //   if (!iconLoaded) {
+  //     // draw a green "R" as fallback
+  //     ctx.fillStyle = '#00FF88';
+  //     ctx.font = `bold ${Math.round(iconSize * 0.9)}px system-ui, sans-serif`;
+  //     ctx.textAlign = 'center';
+  //     ctx.textBaseline = 'middle';
+  //     ctx.fillText('R', iconX, iconY);
+  //     ctx.textBaseline = 'alphabetic';
+  //   }
 
     // "REPIFY" label
-    const fontSize = Math.round(pillH * 0.34);
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font      = `700 ${fontSize}px system-ui, sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('REPIFY', iconX + iconSize / 2 + Math.round(pillH * 0.22), iconY);
+    // const fontSize = Math.round(pillH * 0.34);
+    // ctx.fillStyle = '#FFFFFF';
+    // ctx.font      = `700 ${fontSize}px system-ui, sans-serif`;
+    // ctx.textAlign = 'left';
+    // ctx.textBaseline = 'middle';
+    // ctx.fillText('REPIFY', iconX + iconSize / 2 + Math.round(pillH * 0.22), iconY);
 
-    // separator + url
-    const labelW   = ctx.measureText('REPIFY').width;
-    const sepX     = iconX + iconSize / 2 + Math.round(pillH * 0.22) + labelW + Math.round(pillH * 0.18);
-    ctx.fillStyle  = 'rgba(255,255,255,0.25)';
-    ctx.fillRect(sepX, pillY + pillH * 0.25, 2, pillH * 0.5);
+    // // separator + url
+    // const labelW   = ctx.measureText('REPIFY').width;
+    // const sepX     = iconX + iconSize / 2 + Math.round(pillH * 0.22) + labelW + Math.round(pillH * 0.18);
+    // ctx.fillStyle  = 'rgba(255,255,255,0.25)';
+    // ctx.fillRect(sepX, pillY + pillH * 0.25, 2, pillH * 0.5);
 
-    ctx.fillStyle    = 'rgba(255,255,255,0.55)';
-    ctx.font         = `${Math.round(fontSize * 0.82)}px system-ui, sans-serif`;
-    ctx.fillText('repify.com.br', sepX + Math.round(pillH * 0.2), iconY);
+    // ctx.fillStyle    = 'rgba(255,255,255,0.55)';
+    // ctx.font         = `${Math.round(fontSize * 0.82)}px system-ui, sans-serif`;
+    // ctx.fillText('repify.com.br', sepX + Math.round(pillH * 0.2), iconY);
 
-    ctx.textBaseline = 'alphabetic';
-    ctx.restore();
-  }
+    // ctx.textBaseline = 'alphabetic';
+    // ctx.restore();
+  // }
 
   private async drawAvatar(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): Promise<void> {
     ctx.save();
@@ -561,19 +556,6 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch { return false; }
   }
 
-  private drawGoalBadge(ctx: CanvasRenderingContext2D, x: number, y: number, done: number, goal: number, fontSize: number): void {
-    const text = `🎯 ${done}/${goal}`;
-    ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
-    const tw = ctx.measureText(text).width;
-    const pad = fontSize * 0.6, h = fontSize * 1.8;
-    ctx.fillStyle = 'rgba(0,255,136,0.12)';
-    this.roundRect(ctx, x, y - h * 0.72, tw + pad * 2, h, h / 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(0,255,136,0.3)'; ctx.lineWidth = 1.5;
-    this.roundRect(ctx, x, y - h * 0.72, tw + pad * 2, h, h / 2); ctx.stroke();
-    ctx.fillStyle = '#00FF88';
-    ctx.fillText(text, x + pad, y);
-  }
-
   // ── POST 4:5 (1080×1350) ───────────────────────────────────────────────────
 
   private async drawPost(): Promise<void> {
@@ -603,11 +585,8 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
       this.wrapText(ctx, caption, M, contentY, W - M * 2, hasPhoto ? 58 : 70, 3);
     }
 
-    await this.drawBrandingFooter(ctx, W, H, M);
+    // await this.drawBrandingFooter(ctx, W, H, M);
 
-    if (this.showGoal() && this.post().user.yearlyGoal) {
-      this.drawGoalBadge(ctx, M, H - M - 20, this.post().user.workoutsDone ?? 0, this.post().user.yearlyGoal!, 30);
-    }
   }
 
   // ── STORY 9:16 (1080×1920) ─────────────────────────────────────────────────
@@ -625,8 +604,7 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
     await this.drawLogo(ctx, W, M, 70, headerCY);
 
     const photoY  = headerCY + AR + 40;
-    const goalH   = this.showGoal() && this.post().user.yearlyGoal ? 100 : 0;
-    const footerH = 140 + goalH;
+    const footerH = 140;
     const photoH  = H - photoY - footerH;
     const photoW  = W - M * 2;
     const hasPhoto = this.showPhoto()
@@ -643,16 +621,12 @@ export class ShareCardComponent implements OnInit, AfterViewInit, OnDestroy {
       this.wrapText(ctx, caption, M, contentY, photoW, 44, 2);
     }
 
-    await this.drawBrandingFooter(ctx, W, H, M);
-
-    if (this.showGoal() && this.post().user.yearlyGoal) {
-      this.drawGoalBadge(ctx, M, H - M - 20, this.post().user.workoutsDone ?? 0, this.post().user.yearlyGoal!, 34);
-    }
+    // await this.drawBrandingFooter(ctx, W, H, M);
 
     if (this.post().streak) {
       ctx.fillStyle = '#8896A8'; ctx.font = '32px system-ui, sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(`🔥 ${this.post().streak} dias`, W - M, H - M - (goalH ? goalH + 60 : 20));
+      ctx.fillText(`🔥 ${this.post().streak} dias`, W - M, H - M - 20);
       ctx.textAlign = 'left';
     }
   }

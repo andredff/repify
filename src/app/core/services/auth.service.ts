@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 import { supabase } from '../supabase/supabaseClient';
 import { environment } from '../../../environments/environment';
 
-const DEFAULT_YEARLY_GOAL = 320;
 const AUTH_STORAGE_KEY = 'repify-auth';
 const APP_STORAGE_PREFIX = 'repify_';
 const PROFILE_CACHE_KEY = `${APP_STORAGE_PREFIX}profile_cache`;
@@ -21,7 +20,6 @@ export interface UserProfile {
   goal: string;
   avatar_url: string;
   avatar_version: number | null; // unix timestamp — cache-buster for storage URLs
-  yearly_goal: number | null;
   weekly_goal_days: number | null;
   weekly_goal_completed_weeks: string[];
   weekly_goal_best_streak: number | null;
@@ -36,7 +34,6 @@ interface BackendProfileResponse {
   height?: number | null;
   goal?: string;
   avatar_url?: string;
-  yearly_goal?: number | null;
   weekly_goal_days?: number | null;
   weekly_goal_completed_weeks?: string[];
   weekly_goal_best_streak?: number | null;
@@ -87,7 +84,6 @@ export class AuthService {
       goal:           meta['goal']           ?? '',
       avatar_url:     meta['avatar_url']     ?? '',
       avatar_version: meta['avatar_version'] ?? null,
-      yearly_goal:    this.readNumericMeta(meta['yearly_goal'], DEFAULT_YEARLY_GOAL),
       weekly_goal_days: this.readOptionalNumericMeta(meta['weekly_goal_days'], null),
       weekly_goal_completed_weeks: this.readStringArrayMeta(meta['weekly_goal_completed_weeks']),
       weekly_goal_best_streak: this.readOptionalNumericMeta(meta['weekly_goal_best_streak'], 0),
@@ -148,10 +144,6 @@ export class AuthService {
 
   private ensureProfileDefaults(meta: Record<string, unknown>): void {
     const missing: Partial<UserProfile> = {};
-
-    if (meta['yearly_goal'] == null) {
-      missing.yearly_goal = DEFAULT_YEARLY_GOAL;
-    }
 
     if (!Array.isArray(meta['weekly_goal_completed_weeks'])) {
       missing.weekly_goal_completed_weeks = [];
@@ -339,7 +331,6 @@ export class AuthService {
         height: profile.height ?? this.profile().height,
         goal: profile.goal ?? this.profile().goal,
         avatar_url: profile.avatar_url ?? this.profile().avatar_url,
-        yearly_goal: this.readOptionalNumericMeta(profile.yearly_goal, this.profile().yearly_goal),
         weekly_goal_days: this.readOptionalNumericMeta(profile.weekly_goal_days, this.profile().weekly_goal_days),
         weekly_goal_completed_weeks: this.readStringArrayMeta(profile.weekly_goal_completed_weeks ?? this.profile().weekly_goal_completed_weeks),
         weekly_goal_best_streak: this.readOptionalNumericMeta(profile.weekly_goal_best_streak, this.profile().weekly_goal_best_streak),

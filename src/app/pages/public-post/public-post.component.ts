@@ -9,7 +9,6 @@ interface PublicPostUser {
   username: string | null;
   avatar: string;
   level: string;
-  yearly_goal: number | null;
   workouts_done: number;
   streak_days: number;
   total_xp: number;
@@ -622,9 +621,6 @@ export class PublicPostComponent implements OnInit {
   readonly consistency = computed(() => {
     const user = this.post()?.user;
     if (!user) return 0;
-    if (user.yearly_goal && user.yearly_goal > 0) {
-      return Math.max(48, Math.min(98, Math.round((user.workouts_done / user.yearly_goal) * 100)));
-    }
     return Math.max(58, Math.min(96, 56 + user.streak_days * 4));
   });
   readonly gainedXp = computed(() => {
@@ -699,7 +695,6 @@ export class PublicPostComponent implements OnInit {
         username: qp.get('u'),
         avatar: qp.get('a') ?? '',
         level: qp.get('l') ?? 'Iniciante',
-        yearly_goal: nullableNumber(qp.get('yg')),
         workouts_done: Number(qp.get('wd') ?? 0),
         streak_days: Number(qp.get('sd') ?? 0),
         total_xp: estimateTotalXp(qp.get('l'), Number(qp.get('wd') ?? 0), Number(qp.get('sd') ?? 0)),
@@ -720,12 +715,6 @@ export class PublicPostComponent implements OnInit {
     return this.post()?.user.name.split(' ')[0] ?? 'esse atleta';
   }
 
-  yearlyPct(): number {
-    const u = this.post()?.user;
-    if (!u?.yearly_goal) return 0;
-    return Math.min(100, Math.round((u.workouts_done / u.yearly_goal) * 100));
-  }
-
   goToRegister(): void { this.router.navigate(['/register']); }
   goToLogin():    void { this.router.navigate(['/']); }
 }
@@ -741,11 +730,6 @@ function performanceLabel(consistency: number): string {
   return 'Boa';
 }
 
-function nullableNumber(value: string | null): number | null {
-  if (value == null || value === '') return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 function estimateTotalXp(level: string | null, workoutsDone: number, streakDays: number): number {
   const levelBase: Record<string, number> = {

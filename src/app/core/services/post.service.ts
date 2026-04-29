@@ -31,7 +31,6 @@ interface ApiPost {
     username: string | null;
     avatar: string;
     level: string;
-    yearly_goal: number | null;
     workouts_done: number | null;
   };
 }
@@ -182,7 +181,6 @@ export class PostService {
       username:    p.user.username ?? undefined,
       avatar:      p.user.avatar,
       level:       p.user.level,
-      yearlyGoal:  p.user.yearly_goal   != null ? Number(p.user.yearly_goal)   : null,
       workoutsDone:p.user.workouts_done  != null ? Number(p.user.workouts_done) : null,
     },
     timeAgo:      p.time_ago,

@@ -20,7 +20,6 @@ interface PublicUser {
   avatar: string;
   level: string;
   goal: string;
-  yearly_goal: number | null;
   workouts_done: number | null;
   total_xp: number;
   total_walk_km: number;
@@ -145,32 +144,7 @@ const GOAL_LABELS: Record<string, string> = {
                   <span class="text-[18px] font-display font-bold text-white">{{ profileLevel() }}</span>
                   <span class="text-[10px] text-text-2 font-body mt-0.5">nível</span>
                 </div>
-                @if (publicUser()!.yearly_goal) {
-                  <div class="flex-1 flex flex-col items-center py-3 border-l border-border">
-                    <span class="text-[15px] font-mono font-bold text-primary leading-tight">
-                      {{ profileWorkoutsDone() }}/{{ publicUser()!.yearly_goal }}
-                    </span>
-                    <span class="text-[10px] text-text-2 font-body mt-0.5">meta</span>
-                  </div>
-                }
               </div>
-
-              <!-- Meta anual -->
-              @if (publicUser()!.yearly_goal) {
-                <div class="mt-4 w-full max-w-[280px] space-y-1.5">
-                  <div class="flex justify-between items-center">
-                    <span class="text-[11px] font-body text-text-2">Meta anual</span>
-                    <span class="text-[11px] font-mono font-semibold text-primary">
-                      {{ profileWorkoutsDone() }}/{{ publicUser()!.yearly_goal }} treinos
-                    </span>
-                  </div>
-                  <div class="h-1.5 bg-border rounded-full overflow-hidden">
-                    <div class="h-full bg-primary rounded-full transition-all duration-500"
-                         [style.width]="yearlyGoalPct() + '%'"></div>
-                  </div>
-                  <p class="text-[10px] text-text-2 font-body text-right">{{ yearlyGoalPct() }}% concluído</p>
-                </div>
-              }
 
               <!-- Follow / Message (only if not own profile) -->
               @if (!publicUser()!.isOwn) {
@@ -298,13 +272,6 @@ export class PublicProfileComponent implements OnInit {
     return levelFromXp(this.profileXp(), this.publicUser()?.level ?? 'Iniciante');
   });
 
-  yearlyGoalPct = computed(() => {
-    const done = this.profileWorkoutsDone();
-    const goal = Number(this.publicUser()?.yearly_goal  ?? 0);
-    if (!goal) return 0;
-    return Math.min(Math.round((done / goal) * 100), 100);
-  });
-
   levelBadgeClass(): string {
     const level = this.profileLevel();
     if (level === 'Elite') return 'bg-primary/15 text-primary border-primary/30';
@@ -351,7 +318,6 @@ export class PublicProfileComponent implements OnInit {
         avatar:       this.auth.avatarUrl(),
         level:        levelFromXp(this.ranking.myRank()?.totalXp ?? 0),
         goal:         myMeta.goal,
-        yearly_goal:  myMeta.yearly_goal,
         workouts_done:myMeta.workouts_done,
         total_xp:     this.ranking.myRank()?.totalXp ?? 0,
         total_walk_km:this.ranking.myRank()?.totalKm ?? 0,
@@ -388,7 +354,6 @@ export class PublicProfileComponent implements OnInit {
         avatar:       found.avatar,
         level:        found.level,
         goal:         found.goal,
-        yearly_goal:  found.yearly_goal,
         workouts_done:found.workouts_done,
         total_xp:     found.total_xp,
         total_walk_km:found.total_walk_km,

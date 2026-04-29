@@ -114,7 +114,6 @@ interface WorkoutStateResponse {
 interface CompleteWorkoutResponse {
   ok: boolean;
   metrics: Omit<CurrentUserRankingMetrics, 'totalKm'> & {
-    yearlyGoal: number;
     xpEarned: number;
   };
 }
@@ -846,7 +845,6 @@ export class WorkoutService {
     const optimisticWorkoutsDone = alreadyRewardedToday
       ? (previousProfile.workouts_done ?? 0)
       : (previousProfile.workouts_done ?? 0) + 1;
-    const optimisticYearlyGoal = previousProfile.yearly_goal ?? 320;
     const optimisticStreakDays = this.streak();
     const optimisticMetrics: CurrentUserRankingMetrics = {
       totalXp: (previousRank?.totalXp ?? previousTotalXp) + xp,
@@ -856,10 +854,7 @@ export class WorkoutService {
       streakDays: optimisticStreakDays,
     };
 
-    this.auth.applyProfilePatch({
-      workouts_done: optimisticWorkoutsDone,
-      yearly_goal: optimisticYearlyGoal,
-    });
+    this.auth.applyProfilePatch({ workouts_done: optimisticWorkoutsDone });
     this.ranking.syncCurrentUserMetrics(optimisticMetrics);
 
     try {
@@ -888,7 +883,6 @@ export class WorkoutService {
       const data = await res.json() as CompleteWorkoutResponse;
       this.auth.applyProfilePatch({
         workouts_done: data.metrics.workoutsDone,
-        yearly_goal: data.metrics.yearlyGoal,
       });
       this.ranking.syncCurrentUserMetrics({
         totalXp: data.metrics.totalXp,
@@ -904,7 +898,6 @@ export class WorkoutService {
       this._saveDaySession(previousDaySession);
       this.auth.applyProfilePatch({
         workouts_done: previousProfile.workouts_done ?? 0,
-        yearly_goal: previousProfile.yearly_goal,
       });
 
       if (previousRank) {

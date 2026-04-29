@@ -10,7 +10,6 @@ export interface PublicUser {
   avatar: string;
   goal: string;
   level: string;
-  yearly_goal: number | null;
   workouts_done: number | null;
   total_xp: number;
   total_walk_km: number;

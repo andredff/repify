@@ -61,7 +61,6 @@ router.get('/public/:id', async (req, res: Response) => {
         username:      meta['username']  || null,
         avatar:        resolveAvatarUrl(meta['avatar_url']),
         level:         levelFromXp(totalXp),
-        yearly_goal:   meta['yearly_goal'] != null ? Number(meta['yearly_goal']) : null,
         workouts_done: workoutsDone,
         streak_days:   streakDays,
         total_xp:      totalXp,

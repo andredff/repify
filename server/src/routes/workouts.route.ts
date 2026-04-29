@@ -4,7 +4,6 @@ import { requireAuth, AuthRequest } from '../middleware/auth.middleware';
 import { supabaseAdmin } from '../supabase';
 
 const router = Router();
-const DEFAULT_YEARLY_GOAL = 320;
 const BUSINESS_TIME_ZONE = 'America/Sao_Paulo';
 
 const StoredExerciseSchema = z.object({
@@ -482,9 +481,7 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
       return;
     }
 
-    const meta = existingUser.user.user_metadata ?? {};
-    const workoutsDone = Number(meta['workouts_done'] ?? 0);
-    const yearlyGoal = Number(meta['yearly_goal'] ?? DEFAULT_YEARLY_GOAL) || DEFAULT_YEARLY_GOAL;
+    const workoutsDone = Number(existingUser.user.user_metadata?.['workouts_done'] ?? 0);
 
     res.json({
       ok: true,
@@ -492,7 +489,6 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
         totalXp,
         weeklyXp,
         workoutsDone,
-        yearlyGoal,
         streakDays,
         xpEarned: earnedXp,
       },
@@ -544,14 +540,9 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
 
   const meta = existingUser.user.user_metadata ?? {};
   const workoutsDone = Number(workoutEventsCount ?? 0);
-  const yearlyGoal = Number(meta['yearly_goal'] ?? DEFAULT_YEARLY_GOAL) || DEFAULT_YEARLY_GOAL;
 
   const { error: updateUserError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
-    user_metadata: {
-      ...meta,
-      yearly_goal: yearlyGoal,
-      workouts_done: workoutsDone,
-    },
+    user_metadata: { ...meta, workouts_done: workoutsDone },
   });
 
   if (updateUserError) {
@@ -564,7 +555,6 @@ router.post('/complete', requireAuth, async (req: AuthRequest, res: Response) =>
       totalXp,
       weeklyXp,
       workoutsDone,
-      yearlyGoal,
       streakDays,
       xpEarned: earnedXp,
     },

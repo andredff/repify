@@ -4,69 +4,46 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
   selector: 'app-weekly-goal-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="relative overflow-hidden rounded-[28px] border p-5 shadow-[0_18px_60px_rgba(0,0,0,0.28)]"
-             [class]="isCompleted() ? 'border-primary/35 bg-[linear-gradient(180deg,rgba(8,20,16,0.98),rgba(8,12,16,1))]' : 'border-border bg-[linear-gradient(180deg,rgba(10,17,23,0.98),rgba(8,12,16,1))]'">
+    <section class="relative overflow-hidden rounded-[22px] border px-3.5 py-3 shadow-[0_12px_32px_rgba(0,0,0,0.2)]"
+             [class]="isCompleted() ? 'border-primary/30 bg-[linear-gradient(180deg,rgba(8,20,16,0.96),rgba(8,12,16,1))]' : 'border-border bg-[linear-gradient(180deg,rgba(10,17,23,0.96),rgba(8,12,16,1))]'">
       <div class="absolute inset-0 opacity-90" [style.background]="backdropGradient()"></div>
-      <div class="relative z-[1] space-y-4">
-        <div class="flex items-start justify-between gap-3">
-          <div class="space-y-1.5">
-            <p class="text-[10px] font-body uppercase tracking-[0.24em] text-primary/70">Meta da semana</p>
-            <div class="flex items-end gap-3">
-              <div class="flex h-[62px] w-[62px] items-center justify-center rounded-[20px] border border-primary/15 bg-primary/10 shadow-[0_0_24px_rgba(0,255,136,0.08)]">
-                <span class="text-[24px]">{{ heroEmoji() }}</span>
+      <div class="relative z-[1] space-y-2.5">
+        <div class="flex items-center justify-between gap-3">
+          <div class="min-w-0 flex items-center gap-2.5">
+            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-[16px] border border-primary/15 bg-primary/10 text-[15px] shadow-[0_0_16px_rgba(0,255,136,0.08)]">{{ heroEmoji() }}</span>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <p class="text-[10px] font-body uppercase tracking-[0.18em] text-primary/70">Meta semanal</p>
+                <span class="shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-body font-semibold uppercase tracking-[0.12em]"
+                      [class]="isCompleted() ? 'border-primary/20 bg-primary/12 text-primary' : 'border-white/10 bg-white/[0.04] text-text-2'">
+                  {{ badgeLabel() }}
+                </span>
               </div>
-              <div class="pb-0.5">
-                <p class="text-[28px] font-display font-bold leading-none tracking-tight text-white">{{ completedDays() }}/{{ goalDays() }}</p>
-                <p class="mt-1 text-[12px] font-body text-text-2">dias treinados · {{ weekLabel() }}</p>
-              </div>
+              <p class="mt-0.5 truncate text-[11px] font-body text-text-2">{{ compactStatusLabel() }}</p>
             </div>
           </div>
 
-          <div class="rounded-full border px-3 py-1 text-[10px] font-body font-semibold uppercase tracking-[0.18em]"
-               [class]="isCompleted() ? 'border-primary/25 bg-primary/12 text-primary' : 'border-white/10 bg-white/[0.04] text-text-2'">
-            {{ badgeLabel() }}
+          <div class="shrink-0 text-right">
+            <p class="text-[26px] font-display font-bold leading-none tracking-tight text-white">{{ completedDays() }}/{{ goalDays() }}</p>
+            <p class="mt-0.5 text-[10px] font-body text-text-2">+{{ rewardXp() }} XP</p>
           </div>
         </div>
 
-        <div class="grid grid-cols-[repeat(auto-fit,minmax(44px,1fr))] gap-2">
-          @for (slot of daySlots(); track slot.index) {
-            <div class="rounded-2xl border px-3 py-2 text-center transition-all"
-                 [class]="slot.filled
-                   ? 'border-primary/30 bg-primary/12 shadow-[0_0_18px_rgba(0,255,136,0.08)]'
-                   : 'border-primary/5 bg-primary/[0.03]'">
-              <p class="text-[9px] font-body uppercase tracking-[0.16em]" [class]="slot.filled ? 'text-primary/80' : 'text-text-2/70'">Dia {{ slot.index }}</p>
-              <p class="mt-1 text-[15px] font-display font-bold" [class]="slot.filled ? 'text-white' : 'text-text-2/75'">{{ slot.filled ? '✓' : '•' }}</p>
+        <div class="rounded-[18px] border border-white/6 bg-white/[0.03] px-2.5 py-2">
+          <div class="flex items-center justify-between gap-3 text-[10px] font-body">
+            <div class="flex items-center gap-1.5">
+              @for (slot of daySlots(); track slot.index) {
+                <span class="h-2 w-2 rounded-full border transition-all"
+                      [class]="slot.filled ? 'border-primary/40 bg-primary shadow-[0_0_8px_rgba(0,255,136,0.45)]' : 'border-white/10 bg-white/[0.06]'">
+                </span>
+              }
+              <span class="ml-1 text-text-2">{{ weekLabel() }}</span>
             </div>
-          }
-        </div>
-
-        <div class="space-y-2">
-          <div class="flex items-center justify-between text-[11px] font-body">
-            <span class="text-text-2">Progresso</span>
             <span class="font-semibold" [class]="isCompleted() ? 'text-primary' : 'text-white'">{{ progressPct() }}%</span>
           </div>
-          <div class="h-2 overflow-hidden rounded-full bg-white/[0.06]">
+
+          <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-white/[0.06]">
             <div class="h-full rounded-full transition-all duration-500" [style.width.%]="progressPct()" [style.background]="progressGradient()"></div>
-          </div>
-        </div>
-
-        <div class="rounded-2xl border border-primary/5 bg-primary/[0.03] p-4">
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <p class="text-[13px] font-display font-bold text-white">{{ headline() }}</p>
-              <p class="mt-1 text-[11px] font-body leading-relaxed text-text-2">{{ statusLabel() }}</p>
-            </div>
-            <div class="rounded-xl border border-primary/15 bg-primary/10 px-3 py-2 text-right">
-              <p class="text-[9px] font-body uppercase tracking-[0.16em] text-primary/75">Recompensa</p>
-              <p class="mt-1 text-[15px] font-display font-bold text-primary">+{{ rewardXp() }} XP</p>
-            </div>
-          </div>
-
-          <div class="mt-3 flex items-center justify-between gap-3 text-[11px] font-body">
-            <span class="rounded-full border border-primary/5 bg-white/[0.03] px-3 py-1.5 text-text-2">{{ helperLabel() }}</span>
-            <span class="rounded-full border border-primary/15 bg-primary/10 px-3 py-1.5 font-semibold text-primary">
-              {{ currentStreak() }} semana{{ currentStreak() === 1 ? '' : 's' }} seguidas
-            </span>
           </div>
         </div>
       </div>
@@ -93,6 +70,17 @@ export class WeeklyGoalCardComponent {
 
   readonly badgeLabel = computed(() => this.isRewardClaimed() ? 'Concluída' : this.isCompleted() ? 'Fechada' : 'Em andamento');
   readonly heroEmoji = computed(() => this.isRewardClaimed() ? '🏆' : this.isCompleted() ? '✅' : '📆');
+  readonly compactStatusLabel = computed(() => {
+    if (this.isRewardClaimed()) {
+      return 'Bônus semanal já aplicado.';
+    }
+
+    if (this.isCompleted()) {
+      return `Meta fechada com +${this.rewardXp()} XP nesta semana.`;
+    }
+
+    return `Faltam ${this.remainingDays()} dia${this.remainingDays() === 1 ? '' : 's'} para bater a meta.`;
+  });
   readonly helperLabel = computed(() => this.isCompleted()
     ? 'Seu bônus semanal já entrou na conta.'
     : `Faltam ${this.remainingDays()} dia${this.remainingDays() === 1 ? '' : 's'} para bater a meta.`);

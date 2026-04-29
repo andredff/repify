@@ -13,7 +13,6 @@ export interface WorkoutPost {
     username?: string;
     avatar: string;
     level: string;
-    yearlyGoal?: number | null;
     workoutsDone?: number | null;
   };
   timeAgo: string;

@@ -1,6 +1,6 @@
 import { Component, inject, signal, computed, OnInit, ElementRef, ViewChild } from '@angular/core';
 import { Location } from '@angular/common';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkoutService } from '../../core/services/workout.service';
@@ -18,7 +18,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   return a && b && a !== b ? { mismatch: true } : null;
 }
 
-type ActiveTab = 'info' | 'security';
+type ActiveTab = 'pessoal' | 'treino' | 'security';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE_MB   = 5;
@@ -167,23 +167,6 @@ const MAX_SIZE_MB   = 5;
             </div>
           </div>
 
-          <!-- Meta anual (hero) -->
-          @if (auth.profile().yearly_goal) {
-            <div class="mt-4 w-full z-10 px-2 space-y-1.5">
-              <div class="flex justify-between items-center">
-                <span class="text-[11px] font-body text-text-2">Meta anual</span>
-                <span class="text-[11px] font-mono font-semibold text-primary">
-                  {{ backendWorkoutsDone() }} / {{ auth.profile().yearly_goal }} treinos
-                </span>
-              </div>
-              <div class="h-1.5 bg-border rounded-full overflow-hidden">
-                <div class="h-full bg-primary rounded-full transition-all duration-500"
-                     [style.width]="heroProgressPct() + '%'"></div>
-              </div>
-              <p class="text-[10px] text-text-2 font-body text-right">{{ heroProgressPct() }}% concluído</p>
-            </div>
-          }
-
           <!-- Invite button -->
           <button (click)="shareInvite()"
                   class="mt-4 z-10 flex items-center gap-2 px-4 py-2 rounded-xl border transition-all active:scale-95"
@@ -207,215 +190,187 @@ const MAX_SIZE_MB   = 5;
         <!-- Tabs -->
         <div class="mx-4 flex bg-card-2 border border-border rounded-xl p-1 gap-1 mb-5">
           <button
-            (click)="activeTab.set('info')"
-            class="flex-1 py-2 rounded-lg text-[13px] font-body font-medium transition-all"
-            [class]="activeTab() === 'info' ? 'bg-primary text-bg shadow-glow-sm' : 'text-text-2 hover:text-white'">
-            Dados Pessoais
+            (click)="activeTab.set('pessoal')"
+            class="flex-1 py-2 rounded-lg text-[12px] font-body font-medium transition-all"
+            [class]="activeTab() === 'pessoal' ? 'bg-primary text-bg shadow-glow-sm' : 'text-text-2 hover:text-white'">
+            Pessoal
+          </button>
+          <button
+            (click)="activeTab.set('treino')"
+            class="flex-1 py-2 rounded-lg text-[12px] font-body font-medium transition-all"
+            [class]="activeTab() === 'treino' ? 'bg-primary text-bg shadow-glow-sm' : 'text-text-2 hover:text-white'">
+            Meta
           </button>
           <button
             (click)="activeTab.set('security')"
-            class="flex-1 py-2 rounded-lg text-[13px] font-body font-medium transition-all"
+            class="flex-1 py-2 rounded-lg text-[12px] font-body font-medium transition-all"
             [class]="activeTab() === 'security' ? 'bg-primary text-bg shadow-glow-sm' : 'text-text-2 hover:text-white'">
             Segurança
           </button>
         </div>
 
-        <!-- ── TAB: Dados Pessoais ── -->
-        @if (activeTab() === 'info') {
-          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="px-4 space-y-4 animate-fade-in">
+        <!-- ── TAB: Pessoal (dados pessoais + conta) ── -->
+        @if (activeTab() === 'pessoal') {
+          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="px-4 space-y-8 animate-fade-in">
 
-            <div class="space-y-1.5">
-              <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Nome completo</label>
-              <input type="text" formControlName="full_name" placeholder="Seu nome"
-                     class="w-full bg-card-2 border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted"
-                     [class]="fieldClass(profileForm.get('full_name')!)" />
-            </div>
+            <!-- ─── Seção: Dados pessoais ─── -->
+            <section class="space-y-4">
+              <header class="flex items-baseline justify-between gap-3 px-1">
+                <h3 class="text-[13px] font-display font-bold tracking-tight text-white">Dados pessoais</h3>
+                <span class="text-[10px] font-body uppercase tracking-[0.18em] text-text-2">Identidade</span>
+              </header>
 
-            <div class="space-y-1.5">
-              <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Username</label>
-              <div class="relative">
-                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-text-2 text-[14px] font-body select-none">@</span>
-                <input type="text" formControlName="username" placeholder="seu_username"
-                       class="w-full bg-card-2 border rounded-xl pl-8 pr-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted"
-                       [class]="fieldClass(profileForm.get('username')!)" />
-              </div>
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Bio</label>
-              <textarea formControlName="bio" placeholder="Conte um pouco sobre você..." rows="3"
-                        class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted resize-none focus:border-primary/60"></textarea>
-              <p class="text-[10px] text-text-2 text-right px-1">{{ profileForm.get('bio')?.value?.length ?? 0 }}/120</p>
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Objetivo</label>
-              <div class="grid grid-cols-3 gap-2">
-                @for (opt of goalOptions; track opt.value) {
-                  <button type="button" (click)="profileForm.get('goal')!.setValue(opt.value)"
-                          class="flex flex-col items-center gap-1 py-3 px-2 rounded-xl border transition-all text-center"
-                          [class]="profileForm.get('goal')?.value === opt.value
-                            ? 'border-primary/50 bg-primary/10 text-primary shadow-glow-sm'
-                            : 'border-border bg-card-2 text-text-2 hover:border-border-2 hover:text-white'">
-                    <span class="text-xl">{{ opt.emoji }}</span>
-                    <span class="text-[10px] font-body font-medium leading-tight">{{ opt.label }}</span>
-                  </button>
-                }
-              </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-3">
               <div class="space-y-1.5">
-                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Peso</label>
+                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Nome completo</label>
+                <input type="text" formControlName="full_name" placeholder="Seu nome"
+                       class="w-full bg-card-2 border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted"
+                       [class]="fieldClass(profileForm.get('full_name')!)" />
+              </div>
+
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Username</label>
                 <div class="relative">
-                  <input type="number" formControlName="weight" placeholder="75"
-                         class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted focus:border-primary/60 pr-10" />
-                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">kg</span>
+                  <span class="absolute left-4 top-1/2 -translate-y-1/2 text-text-2 text-[14px] font-body select-none">@</span>
+                  <input type="text" formControlName="username" placeholder="seu_username"
+                         class="w-full bg-card-2 border rounded-xl pl-8 pr-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted"
+                         [class]="fieldClass(profileForm.get('username')!)" />
                 </div>
               </div>
-              <div class="space-y-1.5">
-                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Altura</label>
-                <div class="relative">
-                  <input type="number" formControlName="height" placeholder="175"
-                         class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted focus:border-primary/60 pr-10" />
-                  <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">cm</span>
-                </div>
-              </div>
-            </div>
 
-            <div class="bg-card-2 border border-primary/20 rounded-2xl p-4 space-y-4 shadow-[0_16px_40px_rgba(0,0,0,0.18)]">
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex items-start gap-3">
-                  <div class="mt-0.5 flex h-9 w-9 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">🏁</div>
-                  <div>
-                    <p class="text-[13px] font-body font-semibold text-white">Meta semanal</p>
-                    <p class="text-[11px] leading-relaxed text-text-2 font-body">Escolha quantos dias quer treinar por semana e transforme consistência em XP.</p>
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Bio <span class="text-text-2/60 normal-case tracking-normal">(opcional)</span></label>
+                <textarea formControlName="bio" placeholder="Conte um pouco sobre você..." rows="3"
+                          class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted resize-none focus:border-primary/60"></textarea>
+                <p class="text-[10px] text-text-2 text-right px-1">{{ profileForm.get('bio')?.value?.length ?? 0 }}/120</p>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Peso</label>
+                  <div class="relative">
+                    <input type="number" formControlName="weight" placeholder="75"
+                           class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted focus:border-primary/60 pr-10" />
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">kg</span>
                   </div>
                 </div>
-                <div class="rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-[10px] font-body font-semibold uppercase tracking-[0.16em] text-primary">
-                  50 XP por dia
+                <div class="space-y-1.5">
+                  <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Altura</label>
+                  <div class="relative">
+                    <input type="number" formControlName="height" placeholder="175"
+                           class="w-full bg-card-2 border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted focus:border-primary/60 pr-10" />
+                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">cm</span>
+                  </div>
                 </div>
               </div>
+            </section>
 
-              <div class="space-y-2">
-                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Dias por semana</label>
-                <div class="grid grid-cols-4 gap-2">
-                  @for (days of weeklyGoalOptions; track days) {
-                    <button type="button"
-                            (click)="profileForm.get('weekly_goal_days')?.setValue(days)"
-                            class="rounded-xl border px-3 py-3 text-left transition-all"
-                            [class]="profileForm.get('weekly_goal_days')?.value === days
-                              ? 'border-primary/45 bg-primary/10 text-white shadow-glow-sm'
-                              : 'border-border bg-card text-text-2 hover:border-primary/25 hover:text-white'">
-                      @if (days === 0) {
-                        <p class="text-[14px] font-display font-bold leading-none">Nenhuma</p>
-                        <p class="mt-1 text-[10px] font-body uppercase tracking-[0.14em]">sem meta</p>
-                      } @else {
-                        <p class="text-[20px] font-display font-bold leading-none">{{ days }}</p>
-                        <p class="mt-1 text-[10px] font-body uppercase tracking-[0.14em]">dias</p>
-                      }
+            <div class="h-px bg-border/60"></div>
+
+            <!-- ─── Seção: Conta ─── -->
+            <section class="space-y-4">
+              <header class="flex items-baseline justify-between gap-3 px-1">
+                <h3 class="text-[13px] font-display font-bold tracking-tight text-white">Conta</h3>
+                <span class="text-[10px] font-body uppercase tracking-[0.18em] text-text-2">Acesso</span>
+              </header>
+
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Email</label>
+                <div class="w-full bg-card border border-border/50 rounded-xl px-4 py-3 text-[14px] font-body text-text-2 flex items-center justify-between">
+                  <span>{{ auth.user()?.email }}</span>
+                  <span class="text-[10px] bg-border text-text-2 px-2 py-0.5 rounded-md font-body">verificado</span>
+                </div>
+                <p class="text-[10px] text-text-2 px-1">Para alterar o email, acesse a aba Segurança.</p>
+              </div>
+            </section>
+
+            @if (profileFeedback()) {
+              <div class="flex items-center gap-2 rounded-xl px-4 py-3 text-[13px] font-body border animate-fade-in"
+                   [class]="profileSuccess() ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-danger/10 border-danger/30 text-danger'">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  @if (profileSuccess()) { <polyline points="20 6 9 17 4 12"/> }
+                  @else { <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/> }
+                </svg>
+                {{ profileFeedback() }}
+              </div>
+            }
+
+            <button type="submit" [disabled]="profileLoading()"
+                    class="w-full bg-primary text-bg py-3.5 rounded-xl text-[14px] font-body font-semibold hover:shadow-glow transition-all disabled:opacity-60 active:scale-[0.98]">
+              {{ profileLoading() ? 'Salvando...' : 'Salvar alterações' }}
+            </button>
+
+          </form>
+        }
+
+        <!-- ── TAB: Treino ── -->
+        @if (activeTab() === 'treino') {
+          <form [formGroup]="profileForm" (ngSubmit)="saveProfile()" class="px-4 space-y-8 animate-fade-in">
+
+            <!-- ─── Seção: Objetivos & metas ─── -->
+            <section class="space-y-4">
+              <header class="flex items-baseline justify-between gap-3 px-1">
+                <h3 class="text-[13px] font-display font-bold tracking-tight text-white">Objetivos & metas</h3>
+                <span class="text-[10px] font-body uppercase tracking-[0.18em] text-text-2">Treino</span>
+              </header>
+
+              <div class="space-y-1.5">
+                <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Objetivo principal</label>
+                <div class="grid grid-cols-3 gap-2">
+                  @for (opt of goalOptions; track opt.value) {
+                    <button type="button" (click)="profileForm.get('goal')!.setValue(opt.value)"
+                            class="flex flex-col items-center gap-1 py-3 px-2 rounded-xl border transition-all text-center"
+                            [class]="profileForm.get('goal')?.value === opt.value
+                              ? 'border-primary/50 bg-primary/10 text-primary shadow-glow-sm'
+                              : 'border-border bg-card-2 text-text-2 hover:border-border-2 hover:text-white'">
+                      <span class="text-xl">{{ opt.emoji }}</span>
+                      <span class="text-[10px] font-body font-medium leading-tight">{{ opt.label }}</span>
                     </button>
                   }
                 </div>
               </div>
 
-              <div class="rounded-2xl border border-white/8 bg-card p-4 space-y-3">
-                <div class="flex items-center justify-between gap-3">
-                  <div>
-                    <p class="text-[12px] font-body font-semibold text-white">Progresso da semana</p>
-                    @if ((profileForm.get('weekly_goal_days')?.value ?? 0) > 0) {
-                      <p class="text-[11px] font-body text-text-2">{{ weeklyTrainingDays() }}/{{ profileForm.get('weekly_goal_days')?.value }} dias concluídos</p>
-                    } @else {
-                      <p class="text-[11px] font-body text-text-2">Meta semanal desativada. Você pode definir quando quiser.</p>
-                    }
+              <div class="bg-card-2 border border-primary/20 rounded-2xl p-4 space-y-4">
+
+                <!-- Cabeçalho -->
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2.5">
+                    <div class="flex h-8 w-8 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-base">🏁</div>
+                    <p class="text-[13px] font-body font-semibold text-white">Meta semanal</p>
                   </div>
-                  <div class="rounded-xl border border-primary/15 bg-primary/10 px-3 py-2 text-right">
-                    <p class="text-[9px] uppercase tracking-[0.14em] text-primary/80 font-body">Bônus</p>
-                    <p class="text-[15px] font-display font-bold text-primary">+{{ (profileForm.get('weekly_goal_days')?.value ?? 0) * 50 }} XP</p>
-                  </div>
+                  <span class="rounded-full border border-primary/20 bg-primary/10 px-2.5 py-1 text-[10px] font-body font-semibold text-primary">
+                    +50 XP / dia
+                  </span>
                 </div>
 
-                <div class="h-2 rounded-full bg-border overflow-hidden">
-                  <div class="h-full rounded-full bg-primary transition-all duration-500" [style.width]="weeklyGoalPreviewPct() + '%' "></div>
+                <!-- Seletor de dias -->
+                <div class="grid grid-cols-4 gap-1.5">
+                  @for (days of weeklyGoalOptions; track days) {
+                    <button type="button"
+                            (click)="profileForm.get('weekly_goal_days')?.setValue(days)"
+                            class="flex flex-col items-center justify-center rounded-xl border py-2.5 transition-all"
+                            [class]="profileForm.get('weekly_goal_days')?.value === days
+                              ? 'border-primary/50 bg-primary/10 text-primary shadow-glow-sm'
+                              : 'border-border bg-card text-text-2 hover:border-primary/25 hover:text-white'">
+                      <span class="text-[18px] font-display font-bold leading-none">{{ days === 0 ? '—' : days }}</span>
+                      <span class="mt-0.5 text-[9px] font-body uppercase tracking-[0.12em]">{{ days === 0 ? 'off' : 'dias' }}</span>
+                    </button>
+                  }
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 text-center">
-                  <div class="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2">
-                    <p class="text-[9px] uppercase tracking-[0.14em] text-text-2 font-body">Hoje</p>
-                    <p class="mt-1 text-[15px] font-display font-bold text-white">{{ weeklyTrainingDays() }}</p>
-                  </div>
-                  <div class="rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2">
-                    <p class="text-[9px] uppercase tracking-[0.14em] text-text-2 font-body">Concluídas</p>
-                    <p class="mt-1 text-[15px] font-display font-bold text-white">{{ weeklyCompletedWeeks() }}</p>
-                  </div>
-                  <div class="rounded-xl border border-primary/15 bg-primary/10 px-3 py-2">
-                    <p class="text-[9px] uppercase tracking-[0.14em] text-primary/80 font-body">Sequência</p>
-                    <p class="mt-1 text-[15px] font-display font-bold text-primary">{{ weeklyBestStreak() }}</p>
-                  </div>
-                </div>
-
-                <div class="rounded-xl border border-primary/15 bg-primary/8 px-3 py-3 text-[11px] leading-relaxed text-text-2 font-body">
-                  Ao bater a meta da semana, o app libera a recompensa automaticamente e marca conquistas como <span class="font-semibold text-white">primeira meta concluída</span> e <span class="font-semibold text-white">semanas consecutivas</span>.
-                </div>
-              </div>
-            </div>
-
-            <!-- Meta anual -->
-            <div class="bg-card-2 border border-border rounded-2xl p-4 space-y-3">
-              <div class="flex items-center gap-2">
-                <div class="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                  </svg>
-                </div>
-                <div>
-                  <p class="text-[13px] font-body font-semibold text-white">Meta anual de treinos</p>
-                  <p class="text-[11px] text-text-2 font-body">Progresso exibido nas suas postagens</p>
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1.5">
-                  <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Meta do ano</label>
-                  <div class="relative">
-                    <input type="number" formControlName="yearly_goal" placeholder="100" min="1" max="999"
-                           class="w-full bg-card border border-border rounded-xl px-4 py-3 text-[14px] font-body outline-none transition-colors placeholder:text-muted focus:border-primary/60 pr-16" />
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">treinos</span>
-                  </div>
-                </div>
-                <div class="space-y-1.5">
-                  <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Já realizados</label>
-                  <div class="relative">
-                    <div class="w-full bg-card border border-border rounded-xl px-4 py-3 text-[14px] font-body text-white pr-16">
-                      {{ backendWorkoutsDone() }}
+                <!-- Progresso compacto -->
+                @if ((profileForm.get('weekly_goal_days')?.value ?? 0) > 0) {
+                  <div class="space-y-1.5">
+                    <div class="flex items-center justify-between text-[11px] font-body">
+                      <span class="text-text-2">Esta semana</span>
+                      <span class="font-semibold text-white">{{ weeklyTrainingDays() }}&nbsp;/&nbsp;{{ profileForm.get('weekly_goal_days')?.value }} dias</span>
                     </div>
-                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-text-2 font-body">backend</span>
+                    <div class="h-1.5 overflow-hidden rounded-full bg-border">
+                      <div class="h-full rounded-full bg-primary transition-all duration-500" [style.width]="weeklyGoalPreviewPct() + '%'"></div>
+                    </div>
                   </div>
-                </div>
+                }
               </div>
-              @if (profileForm.get('yearly_goal')?.value) {
-                <div class="space-y-1">
-                  <div class="flex justify-between text-[11px] font-body">
-                    <span class="text-text-2">Progresso</span>
-                    <span class="text-primary font-semibold">
-                      {{ backendWorkoutsDone() }} / {{ profileForm.get('yearly_goal')?.value }}
-                    </span>
-                  </div>
-                  <div class="h-1.5 bg-border rounded-full overflow-hidden">
-                    <div class="h-full bg-primary rounded-full transition-all"
-                         [style.width]="progressPct() + '%'"></div>
-                  </div>
-                </div>
-              }
-            </div>
-
-            <div class="space-y-1.5">
-              <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider px-1">Email</label>
-              <div class="w-full bg-card border border-border/50 rounded-xl px-4 py-3 text-[14px] font-body text-text-2 flex items-center justify-between">
-                <span>{{ auth.user()?.email }}</span>
-                <span class="text-[10px] bg-border text-text-2 px-2 py-0.5 rounded-md font-body">verificado</span>
-              </div>
-              <p class="text-[10px] text-text-2 px-1">Para alterar o email, acesse a aba Segurança.</p>
-            </div>
+            </section>
 
             @if (profileFeedback()) {
               <div class="flex items-center gap-2 rounded-xl px-4 py-3 text-[13px] font-body border animate-fade-in"
@@ -583,6 +538,7 @@ export class ProfileComponent implements OnInit {
   checkin = inject(CheckinService);
   ranking = inject(RankingService);
   router  = inject(Router);
+  route = inject(ActivatedRoute);
   location = inject(Location);
   private fb = inject(FormBuilder);
 
@@ -590,7 +546,7 @@ export class ProfileComponent implements OnInit {
   readonly inviteUrl   = 'https://repify.com.br';
   copied = signal(false);
 
-  activeTab = signal<ActiveTab>('info');
+  activeTab = signal<ActiveTab>('pessoal');
 
   // Avatar state
   avatarCropSrc   = signal<string | null>(null);
@@ -661,20 +617,6 @@ export class ProfileComponent implements OnInit {
   weeklyCompletedWeeks = computed(() => this.workoutService.weeklyGoalState().completedWeeks);
   weeklyBestStreak = computed(() => this.workoutService.weeklyGoalState().bestStreak);
 
-  heroProgressPct = computed(() => {
-    const done = this.backendWorkoutsDone();
-    const goal = Number(this.auth.profile().yearly_goal ?? 0);
-    if (!goal) return 0;
-    return Math.min(Math.round((done / goal) * 100), 100);
-  });
-
-  progressPct = computed(() => {
-    const done = this.backendWorkoutsDone();
-    const goal = Number(this.profileForm?.get('yearly_goal')?.value);
-    if (!goal || !done) return 0;
-    return Math.min(Math.round((done / goal) * 100), 100);
-  });
-
   weeklyGoalPreviewPct = computed(() => {
     const done = this.weeklyTrainingDays();
     const goal = Number(this.profileForm?.get('weekly_goal_days')?.value ?? this.auth.profile().weekly_goal_days ?? 0);
@@ -683,6 +625,11 @@ export class ProfileComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    const requestedTab = this.route.snapshot.queryParamMap.get('tab');
+    if (this.isActiveTab(requestedTab)) {
+      this.activeTab.set(requestedTab);
+    }
+
     const p = this.auth.profile();
     this.profileForm = this.fb.group({
       full_name:    [p.full_name,    [Validators.maxLength(60)]],
@@ -691,7 +638,6 @@ export class ProfileComponent implements OnInit {
       goal:         [p.goal],
       weight:       [p.weight,       [Validators.min(20), Validators.max(400)]],
       height:       [p.height,       [Validators.min(50), Validators.max(300)]],
-      yearly_goal:  [p.yearly_goal,  [Validators.min(1), Validators.max(999)]],
       weekly_goal_days: [p.weekly_goal_days, [Validators.min(0), Validators.max(5)]],
     });
     this.emailForm = this.fb.group({
@@ -701,6 +647,10 @@ export class ProfileComponent implements OnInit {
       { newPassword: ['', [Validators.required, Validators.minLength(6)]], confirmPassword: ['', Validators.required] },
       { validators: passwordsMatch },
     );
+  }
+
+  private isActiveTab(value: string | null): value is ActiveTab {
+    return value === 'pessoal' || value === 'treino' || value === 'security';
   }
 
   fieldClass(control: AbstractControl | null): string {

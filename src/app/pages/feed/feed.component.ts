@@ -2,10 +2,9 @@ import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, OnDestro
 import { Router } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
 import { AuthService } from '../../core/services/auth.service';
-import { CHECKIN_XP, CheckinService } from '../../core/services/checkin.service';
+import { CheckinService } from '../../core/services/checkin.service';
 import { PostService } from '../../core/services/post.service';
 import { FeedHeaderComponent } from './components/feed-header.component';
-import { CheckInCardComponent } from './components/check-in-card.component';
 import { WorkoutPostComponent } from './components/workout-post.component';
 import { BottomNavComponent } from './components/bottom-nav.component';
 import { StoriesBarComponent } from './components/stories-bar.component';
@@ -16,7 +15,6 @@ import { StoredPlan, WorkoutService, WorkoutSession } from '../../core/services/
 import { WorkoutPost } from '../../core/models/workout-post.model';
 import { DecimalPipe } from '@angular/common';
 import { WalkModalComponent } from './components/walk-modal.component';
-import { WalkCardComponent } from './components/walk-card.component';
 import { WalkService } from '../../core/services/walk.service';
 import { RankingService } from '../../core/services/ranking.service';
 import { NotificationsPanelComponent } from './components/notifications-panel.component';
@@ -43,7 +41,7 @@ interface DailyChallengeView {
 }
 
 interface XpCarouselSlide {
-  id: 'checkin' | 'workout' | 'walk';
+  id: 'workout' | 'walk';
   label: string;
   reward: string;
   hint: string;
@@ -64,13 +62,15 @@ interface PreviewActionCard {
 }
 
 interface OnboardingActionCard {
-  id: 'profile' | 'program' | 'weekly-goal' | 'first-workout' | 'first-post';
+  id: 'profile' | 'program' | 'weekly-goal';
   kicker: string;
   title: string;
   description: string;
   reward: string;
   cta: string;
-  accentClass: string;
+  surfaceClass: string;
+  badgeClass: string;
+  stepClass: string;
 }
 
 const HOME_RANK_SNAPSHOT_KEY = 'repify_home_rank_snapshot';
@@ -113,7 +113,6 @@ function isoToday(): string {
   imports: [
     NgTemplateOutlet,
     FeedHeaderComponent,
-    CheckInCardComponent,
     WorkoutPostComponent,
     BottomNavComponent,
     StoriesBarComponent,
@@ -121,7 +120,6 @@ function isoToday(): string {
     DailyWorkoutCardComponent,
     SetupWorkoutCardComponent,
     WalkModalComponent,
-    WalkCardComponent,
     NotificationsPanelComponent,
     DecimalPipe,
     HomeRankingCardComponent,
@@ -137,7 +135,7 @@ function isoToday(): string {
         (onOpenNotifications)="openNotificationsPanel()" />
 
       <!-- Desktop page header (hidden on mobile) -->
-      <div class="hidden lg:flex items-center justify-between px-8 py-5 border-b border-border sticky top-0 bg-bg/95 backdrop-blur-sm z-40">
+      <!-- <div class="hidden lg:flex items-center justify-between px-8 py-5 border-b border-border sticky top-0 bg-bg/95 backdrop-blur-sm z-40">
         <div>
           <h1 class="text-[22px] font-display font-bold text-white">Feed</h1>
           <p class="text-[12px] font-body text-text-2 mt-0.5">{{ isPreview() ? 'Explore os posts públicos em modo leitura' : 'O que a comunidade está treinando' }}</p>
@@ -167,7 +165,7 @@ function isoToday(): string {
             <a href="/register" class="rounded-full bg-primary px-4 py-2 text-[12px] font-body font-semibold text-bg shadow-glow transition-all hover:bg-primary/90">Criar conta</a>
           </div>
         }
-      </div>
+      </div> -->
 
       <!-- ─── MOBILE layout (< lg) ──────────────────────────────── -->
       <div class="lg:hidden fixed inset-0 flex flex-col bg-bg" style="z-index: 10">
@@ -244,38 +242,6 @@ function isoToday(): string {
             [weekLabel]="weeklyGoal().weekLabel"
             [statusLabel]="weeklyGoal().statusLabel" />
           }
-
-          <!-- Daily XP summary -->
-          <div class="bg-card border border-border rounded-2xl p-4 space-y-3">
-            <p class="text-[10px] font-body uppercase tracking-[0.2em] text-text-2">XP de Hoje</p>
-            <div class="flex items-baseline gap-2">
-              <span class="text-[28px] font-display font-bold text-white">{{ dailyXp() }}</span>
-              <span class="text-[12px] font-body text-text-2">XP</span>
-            </div>
-            <div class="space-y-1.5">
-              <div class="flex items-center gap-2 text-[12px] font-body"
-                   [class]="checkin.todayChecked() ? 'text-text-2' : 'text-border-2'">
-                <span [class]="checkin.todayChecked() ? 'text-primary' : 'text-border'">
-                  {{ checkin.todayChecked() ? '✓' : '○' }}
-                </span>
-                Check-in diário +{{ CHECKIN_XP }} XP
-              </div>
-              <div class="flex items-center gap-2 text-[12px] font-body"
-                   [class]="workoutService.todayFinished() ? 'text-text-2' : 'text-border-2'">
-                <span [class]="workoutService.todayFinished() ? 'text-primary' : 'text-border'">
-                  {{ workoutService.todayFinished() ? '✓' : '○' }}
-                </span>
-                Treino do dia +70 XP
-              </div>
-              <div class="flex items-center gap-2 text-[12px] font-body"
-                   [class]="todayWalkDone() ? 'text-text-2' : 'text-border-2'">
-                <span [class]="todayWalkDone() ? 'text-primary' : 'text-border'">
-                  {{ todayWalkDone() ? '✓' : '○' }}
-                </span>
-                Caminhada +5 XP
-              </div>
-            </div>
-          </div>
 
           <!-- Streak -->
           @if (currentStreak() > 0) {
@@ -456,79 +422,45 @@ function isoToday(): string {
               </div>
             </div>
           </section>
-
-          <div class="grid gap-3">
-            @for (card of previewActionCards; track card.title) {
-              <button type="button"
-                      (click)="openPreviewBlockedAction(card.reason)"
-                      class="group relative overflow-hidden rounded-[26px] border border-primary/10 bg-card-2 px-4 py-4 text-left transition-all hover:border-primary/30 hover:-translate-y-0.5">
-                <div class="absolute inset-0 bg-gradient-to-r opacity-100" [class]="card.accentClass"></div>
-                <div class="relative z-[1] flex items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <p class="text-[10px] font-body uppercase tracking-[0.24em] text-primary/78">{{ card.kicker }}</p>
-                    <p class="mt-2 text-[17px] font-display font-bold leading-tight text-white">{{ card.title }}</p>
-                    <p class="mt-2 text-[12px] font-body leading-relaxed text-text-2">{{ card.description }}</p>
-                  </div>
-                  <div class="shrink-0 rounded-full border border-primary/20 bg-bg/60 px-2.5 py-1 text-[10px] font-body font-semibold uppercase tracking-[0.18em] text-primary">Abrir</div>
-                </div>
-                <div class="relative z-[1] mt-4 inline-flex items-center gap-2 text-[12px] font-body font-semibold text-white transition-colors group-hover:text-primary">
-                  {{ card.cta }}
-                  <span aria-hidden="true">→</span>
-                </div>
-              </button>
-            }
-          </div>
         </div>
       }
 
-      @if (showNewUserOnboarding()) {
-        <div class="px-4 mt-4 animate-slide-up space-y-4">
-          <section class="overflow-hidden rounded-[30px] border border-primary/15 bg-[linear-gradient(135deg,rgba(0,255,136,0.10),rgba(0,194,255,0.05)_35%,rgba(7,11,15,1)_100%)] shadow-[0_16px_56px_rgba(0,255,136,0.08)]">
-            <div class="relative px-5 py-5">
-              <div class="absolute right-[-20px] top-[-40px] h-32 w-32 rounded-full blur-3xl" style="background:radial-gradient(circle,rgba(0,255,136,0.24),rgba(0,255,136,0));"></div>
-              <div class="relative z-[1]">
-                <div class="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-bg/60 px-3 py-1 text-[10px] font-body font-semibold uppercase tracking-[0.24em] text-primary/85">
-                  <span class="h-2 w-2 rounded-full bg-primary shadow-glow-sm"></span>
-                  Missão inicial
+      @if (!isPreview() && showNewUserOnboarding()) {
+        <div class="px-4 mt-4 space-y-3 animate-slide-up">
+          @for (card of onboardingActionCards(); track card.id; let i = $index) {
+            <button
+              type="button"
+              (click)="runOnboardingAction(card.id)"
+              class="group relative flex w-full overflow-hidden rounded-[24px] border border-white/5 p-3.5 text-left shadow-[0_12px_28px_rgba(0,0,0,0.18)] transition-all hover:-translate-y-0.5 animate-slide-up"
+              [style.animation-delay]="(0.015 + i * 0.04) + 's'">
+              <div class="absolute inset-0 opacity-95" [class]="card.surfaceClass"></div>
+              <div class="relative z-[1] flex w-full items-center gap-3">
+                <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-[16px] border text-[14px] font-display font-bold" [class]="card.stepClass">
+                  {{ i + 1 }}
                 </div>
-                <h2 class="mt-4 max-w-[13ch] font-display text-[30px] font-black uppercase leading-[0.94] tracking-[-0.04em] text-white">
-                  Monte sua base e comece a ganhar XP.
-                </h2>
-                <p class="mt-3 max-w-[34ch] text-[13px] font-body leading-relaxed text-white/76">
-                  Seu onboarding agora é ação, não tutorial. Feche estas etapas para destravar ritmo, streak e progressão dentro do app.
-                </p>
+
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between gap-3">
+                    <p class="text-[10px] font-body uppercase tracking-[0.18em] text-white/58">{{ card.kicker }}</p>
+                    <span class="shrink-0 rounded-full border px-2.5 py-1 text-[9px] font-body font-semibold uppercase tracking-[0.08em]" [class]="card.badgeClass">
+                      {{ card.reward }}
+                    </span>
+                  </div>
+
+                  <p class="mt-1 text-[15px] font-display font-bold leading-tight text-white">{{ card.title }}</p>
+                  <p class="mt-1 text-[11px] font-body leading-relaxed text-white/68">{{ card.description }}</p>
+                </div>
+
+                <div class="shrink-0 text-[11px] font-body font-semibold text-white/78 transition-colors group-hover:text-white">
+                  {{ card.cta }} →
+                </div>
               </div>
-            </div>
-          </section>
-
-          <div class="grid gap-3">
-            @for (card of onboardingActionCards(); track card.id) {
-              <button type="button"
-                      (click)="runOnboardingAction(card.id)"
-                      class="group relative overflow-hidden rounded-[26px] border border-white/8 bg-card-2 px-4 py-4 text-left transition-all hover:border-primary/30 hover:-translate-y-0.5">
-                <div class="absolute inset-0 bg-gradient-to-r opacity-100" [class]="card.accentClass"></div>
-                <div class="relative z-[1] flex items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <p class="text-[10px] font-body uppercase tracking-[0.24em] text-primary/78">Etapa {{ $index + 1 }}</p>
-                      <span class="rounded-full border border-primary/15 bg-bg/60 px-2 py-1 text-[9px] font-body font-semibold uppercase tracking-[0.16em] text-primary">{{ card.reward }}</span>
-                    </div>
-                    <p class="mt-2 text-[17px] font-display font-bold leading-tight text-white">{{ card.title }}</p>
-                    <p class="mt-2 text-[12px] font-body leading-relaxed text-text-2">{{ card.description }}</p>
-                  </div>
-                  <div class="shrink-0 rounded-full border border-primary/20 bg-bg/60 px-2.5 py-1 text-[10px] font-body font-semibold uppercase tracking-[0.18em] text-primary">Abrir</div>
-                </div>
-                <div class="relative z-[1] mt-4 inline-flex items-center gap-2 text-[12px] font-body font-semibold text-white transition-colors group-hover:text-primary">
-                  {{ card.cta }}
-                  <span aria-hidden="true">→</span>
-                </div>
-              </button>
-            }
-          </div>
+            </button>
+          }
         </div>
       }
 
-      @if (!isPreview() && !showNewUserOnboarding() && profileCompletionActions().length > 0) {
+@if (!isPreview() && !showNewUserOnboarding() && profileCompletionActions().length > 0) {
       <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.015s">
         <button
           type="button"
@@ -569,57 +501,8 @@ function isoToday(): string {
       </div>
       }
 
-      <!-- XP Carousel -->
-      @if (!isPreview() && !showNewUserOnboarding()) {
-      <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.02s">
-        <div class="mb-3 flex items-end justify-between gap-3 px-1">
-          <div class="min-w-0">
-            <p class="text-[10px] font-body uppercase tracking-[0.22em] text-primary/75">Missão de hoje</p>
-            <p class="mt-1 text-[14px] font-display font-bold tracking-tight text-white">{{ currentXpCarouselSlide().label }}</p>
-            <p class="mt-1 text-[11px] font-body text-text-2">{{ currentXpCarouselSlide().hint }}</p>
-          </div>
-          <span class="shrink-0 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[10px] font-body font-semibold text-primary">
-            {{ currentXpCarouselSlide().reward }}
-          </span>
-        </div>
-
-        <div class="overflow-hidden rounded-[30px]">
-          <div class="flex transition-transform duration-500 ease-out"
-               [style.width.%]="xpCarouselSlides().length * 100"
-               [style.transform]="'translateX(-' + (xpCarouselIndexClamped() * (100 / xpCarouselSlides().length)) + '%)'">
-            @for (slide of xpCarouselSlides(); track slide.id) {
-              <div class="shrink-0" [style.width.%]="100 / xpCarouselSlides().length">
-                @if (slide.id === 'checkin') {
-                  <app-check-in-card (onWalk)="showWalk.set(true)" />
-                } @else if (slide.id === 'workout') {
-                  <app-daily-workout-card
-                    [workout]="todayWorkout()!"
-                    [state]="todayWorkoutAccess().state"
-                    (onStart)="startWorkout($event)" />
-                } @else {
-                  <app-walk-card (onStart)="showWalk.set(true)" />
-                }
-              </div>
-            }
-          </div>
-        </div>
-
-        @if (xpCarouselSlides().length > 1) {
-          <div class="mt-3 flex items-center justify-center gap-2">
-            @for (slide of xpCarouselSlides(); track slide.id; let i = $index) {
-              <button type="button"
-                      (click)="setXpCarouselIndex(i)"
-                      class="h-2.5 rounded-full transition-all"
-                      [attr.aria-label]="'Abrir slide ' + slide.label"
-                      [class]="xpCarouselIndexClamped() === i ? 'w-6 bg-primary' : 'w-2.5 bg-border hover:bg-border-2'"></button>
-            }
-          </div>
-        }
-      </div>
-      }
-
       <!-- Rank card (mobile only — desktop shows in right rail) -->
-      @if (!isPreview() && !showNewUserOnboarding()) {
+      <!-- @if (!isPreview() && !showNewUserOnboarding()) {
         <div class="px-4 mt-4 animate-slide-up lg:hidden" style="animation-delay:0.03s">
           <app-home-ranking-card
             [currentRank]="currentRank()"
@@ -633,10 +516,10 @@ function isoToday(): string {
             [xpDelta]="recentXpGain()"
             (openRanking)="router.navigateByUrl('/ranking')" />
         </div>
-      }
+      } -->
 
       @if (!isPreview() && !showNewUserOnboarding()) {
-        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.06s">
+        <div class="hidden-lg px-4 mt-4 animate-slide-up" style="animation-delay:0.06s">
           @if (weeklyGoal().goalDays > 0) {
           <app-weekly-goal-card
             [goalDays]="weeklyGoal().goalDays"
@@ -650,6 +533,15 @@ function isoToday(): string {
             [weekLabel]="weeklyGoal().weekLabel"
             [statusLabel]="weeklyGoal().statusLabel" />
           }
+        </div>
+      }
+
+      @if (!isPreview() && !showNewUserOnboarding() && todayWorkout()) {
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.07s">
+          <app-daily-workout-card
+            [workout]="todayWorkout()!"
+            [state]="todayWorkoutAccess().state"
+            (onStart)="startWorkout($event)" />
         </div>
       }
 
@@ -740,8 +632,6 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   walkSvc             = inject(WalkService);
   ranking             = inject(RankingService);
 
-  readonly CHECKIN_XP = CHECKIN_XP;
-
   @ViewChild('mainScroll') private mainScrollRef!: ElementRef<HTMLElement>;
 
   userEmail      = computed(() => this.auth.user()?.email ?? '');
@@ -757,18 +647,18 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     const profileActions = this.profileCompletionActions();
     const hasProgram = this.workoutService.hasProgram();
     const weeklyGoal = this.weeklyGoal();
-    const workoutsDone = this.workoutsDone();
-    const myPostsCount = this.myPostsCount();
 
     if (profileActions.length > 0) {
       cards.push({
         id: 'profile',
         kicker: 'Etapa 1',
-        title: 'Complete seu perfil antes de começar a aparecer de verdade no app.',
-        description: 'Defina o básico do perfil para liberar publicação, identidade e progressão social dentro do feed.',
-        reward: 'Perfil liberado',
-        cta: 'Completar perfil',
-        accentClass: 'from-primary/25 via-primary/10 to-transparent',
+        title: 'Complete seu perfil',
+        description: 'Foto, nome e @ para começar.',
+        reward: 'Perfil',
+        cta: 'Ajustar',
+        surfaceClass: 'bg-[linear-gradient(145deg,rgba(0,255,136,0.12),rgba(0,255,136,0.05)_35%,rgba(14,19,26,1)_100%)]',
+        badgeClass: 'border-primary/10 bg-primary/10 text-primary',
+        stepClass: 'border-primary/12 bg-primary/10 text-primary',
       });
     }
 
@@ -776,11 +666,13 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
       cards.push({
         id: 'program',
         kicker: 'Etapa 2',
-        title: 'Crie seu treino base para o app saber por onde começar.',
-        description: 'Monte seus dias, grupos musculares e sessões. Sem programa, não existe rotina para converter em consistência.',
-        reward: 'Base do jogo',
-        cta: 'Criar treino',
-        accentClass: 'from-[#00C2FF]/24 via-[#00C2FF]/8 to-transparent',
+        title: 'Crie seu treino',
+        description: 'Monte a base da sua rotina.',
+        reward: 'Treino',
+        cta: 'Montar',
+        surfaceClass: 'bg-[linear-gradient(145deg,rgba(0,194,255,0.16),rgba(0,194,255,0.05)_36%,rgba(14,19,26,1)_100%)]',
+        badgeClass: 'border-[#00C2FF]/10 bg-[#00C2FF]/12 text-[#78DCFF]',
+        stepClass: 'border-[#00C2FF]/12 bg-[#00C2FF]/10 text-[#78DCFF]',
       });
     }
 
@@ -788,35 +680,13 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
       cards.push({
         id: 'weekly-goal',
         kicker: 'Etapa 3',
-        title: 'Defina sua meta da semana e transforme constância em XP extra.',
-        description: 'Escolha quantos dias vai treinar para o app começar a cobrar execução e liberar recompensa semanal.',
-        reward: '+150 a +250 XP',
-        cta: 'Criar plano da semana',
-        accentClass: 'from-[#7C5CFF]/24 via-[#7C5CFF]/8 to-transparent',
-      });
-    }
-
-    if (hasProgram && workoutsDone === 0) {
-      cards.push({
-        id: 'first-workout',
-        kicker: 'Etapa 4',
-        title: 'Mate o primeiro treino e abra sua trilha real de XP.',
-        description: 'Seu primeiro treino concluído ativa histórico, streak e libera a sensação de progresso real dentro do feed.',
-        reward: '+70 XP estimados',
-        cta: 'Começar primeiro treino',
-        accentClass: 'from-[#FF7A00]/24 via-[#FF7A00]/8 to-transparent',
-      });
-    }
-
-    if (workoutsDone > 0 && myPostsCount === 0) {
-      cards.push({
-        id: 'first-post',
-        kicker: 'Etapa 5',
-        title: 'Publique seu resultado e puxe seu primeiro desafio no feed.',
-        description: 'Seu treino já rendeu XP. Agora transforme isso em presença, prova social e pressão sobre os amigos.',
-        reward: 'Feed liberado',
-        cta: 'Postar e desafiar',
-        accentClass: 'from-[#FF4D6D]/24 via-[#FF4D6D]/8 to-transparent',
+        title: 'Defina sua meta semanal',
+        description: 'Escolha quantos dias vai treinar.',
+        reward: 'Meta',
+        cta: 'Definir',
+        surfaceClass: 'bg-[linear-gradient(145deg,rgba(255,122,0,0.15),rgba(255,122,0,0.05)_36%,rgba(14,19,26,1)_100%)]',
+        badgeClass: 'border-[#FF7A00]/10 bg-[#FF7A00]/12 text-[#FFB06A]',
+        stepClass: 'border-[#FF7A00]/12 bg-[#FF7A00]/10 text-[#FFB06A]',
       });
     }
 
@@ -861,15 +731,6 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     return actions;
   });
   weeklyGoal     = computed(() => this.workoutService.weeklyGoalState());
-  dailyXp        = computed(() => {
-    const today = isoToday();
-    const checkinXp = this.checkin.todayChecked() ? CHECKIN_XP : 0;
-    const workoutXp = this.workoutService.history()
-      .filter(session => session.completedDate === today)
-      .reduce((total, session) => total + session.xpEarned, 0);
-    const walkXp = this.walkSvc.history().filter(session => session.finishedAt.startsWith(today)).length * 5;
-    return checkinXp + workoutXp + walkXp;
-  });
   todayWalkDone  = computed(() => this.walkSvc.history().some(session => session.finishedAt.startsWith(isoToday())));
   nextRankEntry  = computed(() => {
     const me = this.ranking.myRank();
@@ -901,12 +762,6 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!me || !above) return 100;
     if (above.totalXp <= 0 || me.totalXp >= above.totalXp) return 100;
     return Math.max(4, Math.min(99, Math.round((me.totalXp / above.totalXp) * 100)));
-  });
-  yearlyGoalPct  = computed(() => {
-    const done = this.workoutsDone();
-    const goal = Number(this.auth.profile().yearly_goal  ?? 0);
-    if (!goal) return 0;
-    return Math.min(Math.round((done / goal) * 100), 100);
   });
   dailyChallenge = computed<DailyChallengeView>(() => {
     const workout = this.todayWorkout();
@@ -968,14 +823,7 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   });
   xpCarouselSlides = computed<XpCarouselSlide[]>(() => {
-    const slides: XpCarouselSlide[] = [{
-      id: 'checkin',
-      label: this.checkin.todayChecked() ? 'Check-in do dia fechado' : 'Check-in com XP imediato',
-      reward: `+${CHECKIN_XP} XP`,
-      hint: this.checkin.todayChecked()
-        ? 'O ganho do check-in já contou hoje e o radar mostra esse avanço no XP total.'
-        : 'Marque presença para ganhar XP instantâneo e reforçar sua sequência diária.',
-    }];
+    const slides: XpCarouselSlide[] = [];
 
     if (this.todayWorkout()) {
       slides.push({
@@ -1450,8 +1298,13 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   runOnboardingAction(actionId: OnboardingActionCard['id']): void {
-    if (actionId === 'profile' || actionId === 'weekly-goal') {
+    if (actionId === 'profile') {
       void this.router.navigateByUrl('/profile');
+      return;
+    }
+
+    if (actionId === 'weekly-goal') {
+      void this.router.navigate(['/profile'], { queryParams: { tab: 'treino' } });
       return;
     }
 
@@ -1459,19 +1312,6 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
       void this.router.navigateByUrl('/my-workout');
       return;
     }
-
-    if (actionId === 'first-post') {
-      this.openNewPostPanel(true);
-      return;
-    }
-
-    const workout = this.todayWorkout();
-    if (workout) {
-      void this.startWorkout(workout.id);
-      return;
-    }
-
-    void this.router.navigateByUrl('/my-workout');
   }
 
   private async loadMyPostsCount(): Promise<void> {
