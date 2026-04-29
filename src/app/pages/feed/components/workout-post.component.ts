@@ -127,6 +127,15 @@ const MUSCLE_COLORS: Record<string, string> = {
         </div>
       </div>
 
+      <!-- Video -->
+      @if (post().videoUrl) {
+        <div class="mx-4 mb-3 overflow-hidden rounded-2xl bg-black">
+          <video [src]="post().videoUrl" controls playsinline preload="metadata"
+                 class="w-full max-h-[400px] object-contain">
+          </video>
+        </div>
+      }
+
       <!-- Photo -->
       @if (postPhotos().length > 0) {
         <div class="mx-4 mb-3 overflow-hidden rounded-2xl bg-card">

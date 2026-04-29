@@ -2,6 +2,7 @@ export const config = {
   port:                  Number(process.env['PORT']) || 3000,
   supabaseUrl:           process.env['SUPABASE_URL']              ?? '',
   supabaseServiceKey:    process.env['SUPABASE_SERVICE_ROLE_KEY'] ?? '',
+  exerciseDbKey:         process.env['EXERCISEDB_API_KEY']        ?? '',
 };
 
 const required = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];

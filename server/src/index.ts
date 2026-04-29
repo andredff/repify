@@ -14,6 +14,7 @@ import rankingRouter        from './routes/ranking.route';
 import workoutsRouter       from './routes/workouts.route';
 import uploadRouter          from './routes/upload.route';
 import followsRouter         from './routes/follows.route';
+import exercisesRouter       from './routes/exercises.route';
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/ranking',         rankingRouter);
 app.use('/api/workouts',        workoutsRouter);
 app.use('/api/upload',          uploadRouter);
 app.use('/api/follows',         followsRouter);
+app.use('/api/exercises',       exercisesRouter);
 
 // ── 404 fallback ────────────────────────────────────────────────────────────
 app.use((_req, res) => {

@@ -17,11 +17,12 @@ const PostSchema = z.object({
   photo_url_medium: z.string().url().optional(),
   photo_url_thumb:  z.string().url().optional(),
   photo_gallery:    z.array(PhotoGalleryItemSchema).max(6).optional(),
+  video_url:        z.string().url().optional(),
   workout_name:     z.string().max(80).optional(),
   workout_muscle:   z.string().max(30).optional(),
 }).refine(
-  d => d.caption?.trim() || d.photo_url || d.photo_gallery?.length || d.workout_name,
-  { message: 'O post precisa ter ao menos foto, descrição ou treino.' },
+  d => d.caption?.trim() || d.photo_url || d.photo_gallery?.length || d.video_url || d.workout_name,
+  { message: 'O post precisa ter ao menos foto, vídeo, descrição ou treino.' },
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ router.get('/public/:id', async (req, res: Response) => {
       photo_url_medium: post.photo_url_medium,
       photo_url_thumb: post.photo_url_thumb,
       photo_gallery: normalizePhotoGallery(post),
+      video_url:  post.video_url ?? null,
       workout:    post.workout_name ? { name: post.workout_name, muscleGroup: post.workout_muscle ?? '' } : null,
       likes:      post.likes,
       comments:   post.comments,
@@ -144,6 +146,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
       photo_url_medium: normalizedGallery[0]?.medium ?? parsed.data.photo_url_medium ?? null,
       photo_url_thumb:  normalizedGallery[0]?.thumb ?? parsed.data.photo_url_thumb ?? null,
       photo_gallery:    normalizedGallery.length ? normalizedGallery : null,
+      video_url:        parsed.data.video_url        ?? null,
       workout_name:     parsed.data.workout_name     ?? null,
       workout_muscle:   parsed.data.workout_muscle   ?? null,
     })
@@ -430,6 +433,7 @@ interface PostRow {
   photo_url_medium: string | null;
   photo_url_thumb: string | null;
   photo_gallery: unknown;
+  video_url: string | null;
   workout_name: string | null;
   workout_muscle: string | null;
   likes: number;
@@ -536,6 +540,7 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
       photo_url_medium: p.photo_url_medium,
       photo_url_thumb: p.photo_url_thumb,
       photo_gallery: normalizePhotoGallery(p),
+      video_url:   p.video_url,
       workout:     p.workout_name ? { name: p.workout_name, muscleGroup: p.workout_muscle ?? '' } : null,
       likes:       p.likes,
       liked_by_preview_name: likePreviewNameByPost.get(p.id) ?? null,

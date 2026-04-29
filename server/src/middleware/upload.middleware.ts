@@ -1,29 +1,37 @@
 import multer, { MulterError } from 'multer';
 import type { Request, Response, NextFunction } from 'express';
 
-const ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
-const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB — matches frontend validation
+const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
-const _multer = multer({
+const ALLOWED_VIDEO_MIME = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']);
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200 MB — compressed server-side
+
+const _multerImage = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_SIZE_BYTES, files: 1 },
+  limits: { fileSize: MAX_IMAGE_BYTES, files: 1 },
   fileFilter: (_req, file, cb) => {
-    if (ALLOWED_MIME.has(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Tipo de arquivo não permitido. Use JPG, PNG ou WebP.'));
-    }
+    if (ALLOWED_IMAGE_MIME.has(file.mimetype)) cb(null, true);
+    else cb(new Error('Tipo de arquivo não permitido. Use JPG, PNG ou WebP.'));
   },
 });
 
-/** Wraps multer.single() so errors become JSON 400 responses instead of HTML 500. */
-export function uploadSingle(field: string) {
+const _multerVideo = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_VIDEO_BYTES, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (ALLOWED_VIDEO_MIME.has(file.mimetype)) cb(null, true);
+    else cb(new Error('Formato de vídeo não suportado. Use MP4, WebM ou MOV.'));
+  },
+});
+
+function wrapMulter(instance: ReturnType<typeof multer>, field: string, maxMb: number) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    _multer.single(field)(req, res, (err: unknown) => {
+    instance.single(field)(req, res, (err: unknown) => {
       if (!err) { next(); return; }
       if (err instanceof MulterError) {
         const msg = err.code === 'LIMIT_FILE_SIZE'
-          ? `Arquivo muito grande. Máximo ${MAX_SIZE_BYTES / 1024 / 1024} MB.`
+          ? `Arquivo muito grande. Máximo ${maxMb} MB.`
           : err.message;
         res.status(400).json({ error: msg });
       } else {
@@ -32,3 +40,6 @@ export function uploadSingle(field: string) {
     });
   };
 }
+
+export const uploadSingle      = (field: string) => wrapMulter(_multerImage, field, MAX_IMAGE_BYTES / 1024 / 1024);
+export const uploadVideoSingle = (field: string) => wrapMulter(_multerVideo, field, MAX_VIDEO_BYTES / 1024 / 1024);

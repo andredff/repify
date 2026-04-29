@@ -5,6 +5,7 @@ import { WorkoutPost, WorkoutPostPhoto } from '../models/workout-post.model';
 export interface NewPostData {
   photo: File | null;
   photos?: File[];
+  video?: File | null;
   caption: string;
   workout?: { name: string; muscleGroup: string } | null;
 }
@@ -21,6 +22,7 @@ interface ApiPost {
   photo_url_medium: string | null;
   photo_url_thumb: string | null;
   photo_gallery?: Array<{ full: string; medium?: string | null; thumb?: string | null }> | null;
+  video_url?: string | null;
   workout: { name: string; muscleGroup: string } | null;
   likes: number;
   liked_by_preview_name?: string | null;
@@ -91,6 +93,21 @@ export class PostService {
     if (!user) throw new Error('Usuário não autenticado.');
     if (!this.canCreatePost()) throw new Error(this.createPostRequirementMessage());
 
+    // Upload video first (if provided)
+    let videoUrl: string | undefined;
+    if (data.video) {
+      const form = new FormData();
+      form.append('video', data.video, data.video.name || 'video.mp4');
+      const uploadRes = await this.fetch('/api/upload/post-video', { method: 'POST', body: form });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Falha ao enviar vídeo.');
+      }
+      const { url } = await uploadRes.json();
+      videoUrl = url;
+    }
+
+    // Upload photos
     const files = data.photos?.length ? data.photos.filter(Boolean) : (data.photo ? [data.photo] : []);
     const uploadedPhotos: WorkoutPostPhoto[] = [];
 
@@ -122,6 +139,7 @@ export class PostService {
          photo_url:        primaryPhoto?.full,
          photo_url_medium: primaryPhoto?.medium,
          photo_url_thumb:  primaryPhoto?.thumb,
+         video_url:        videoUrl,
          workout_name:     data.workout?.name,
          workout_muscle:   data.workout?.muscleGroup,
        }),
@@ -214,6 +232,7 @@ export class PostService {
       photo:        photos[0]?.full ?? p.photo_url ?? undefined,
       photoMedium:  photos[0]?.medium ?? p.photo_url_medium ?? undefined,
       photoThumb:   photos[0]?.thumb ?? p.photo_url_thumb ?? undefined,
+      videoUrl:     p.video_url ?? undefined,
       likes:        p.likes,
       likedByPreviewName: p.liked_by_preview_name ?? undefined,
       comments:     p.comments,

@@ -31,6 +31,7 @@ export interface WorkoutPost {
   photo?: string;
   photoMedium?: string;
   photoThumb?: string;
+  videoUrl?: string;
   likes: number;
   likedByPreviewName?: string;
   comments: number;
