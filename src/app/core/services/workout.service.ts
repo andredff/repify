@@ -315,7 +315,9 @@ function normalizeProgram(program: ActiveProgram | null): ActiveProgram | null {
   if (!program) return null;
   if (!Array.isArray(program.plans) || !program.plans.length) return program;
 
-  const dayIndexes = buildProgramDayIndexes(program.days, dayIndexFromIso(program.createdAt));
+  // Anchor to Monday (1) so schedules are always predictable:
+  // 3-day → Mon/Wed/Fri, 4-day → Mon/Tue/Thu/Fri, 5-day → Mon–Fri.
+  const dayIndexes = buildProgramDayIndexes(program.days, 1);
 
   return {
     ...program,
