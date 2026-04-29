@@ -1,0 +1,193 @@
+{
+  "configVersion": 1,
+  "timestamp": 1777478188296,
+  "index": "/index.html",
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/chunk-5EZDO6KR.js",
+        "/chunk-6CQEKDDT.js",
+        "/chunk-6YVBHK4S.js",
+        "/chunk-737AAPSK.js",
+        "/chunk-AOOU224N.js",
+        "/chunk-BAFW2JDJ.js",
+        "/chunk-BRNCREVY.js",
+        "/chunk-EVNO3VHD.js",
+        "/chunk-INPNJ7G7.js",
+        "/chunk-IS5VH4YF.js",
+        "/chunk-IWCPJAG4.js",
+        "/chunk-L7DYSZRK.js",
+        "/chunk-OJZEPFIN.js",
+        "/chunk-OPSGSRDY.js",
+        "/chunk-QCG2DK2V.js",
+        "/chunk-R6V3RDCO.js",
+        "/chunk-RZRBKX2Z.js",
+        "/chunk-TURGH2SI.js",
+        "/chunk-XUFWPISV.js",
+        "/chunk-Z7UBUOUA.js",
+        "/favicon.ico",
+        "/index.html",
+        "/main-7TSHXT4Q.js",
+        "/manifest.webmanifest",
+        "/styles-Z2NC75R6.css"
+      ],
+      "patterns": []
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "urls": [
+        "/card repost.png",
+        "/create-account.png",
+        "/dashboard.png",
+        "/exemplo badge.png",
+        "/icon.png",
+        "/icons/icon-128x128.png",
+        "/icons/icon-144x144.png",
+        "/icons/icon-152x152.png",
+        "/icons/icon-192x192-maskable.png",
+        "/icons/icon-192x192.png",
+        "/icons/icon-384x384.png",
+        "/icons/icon-512x512-maskable.png",
+        "/icons/icon-512x512.png",
+        "/icons/icon-72x72.png",
+        "/icons/icon-96x96.png",
+        "/logo-transparent.png",
+        "/logo.png",
+        "/media/layers-2x-TBM42ERR.png",
+        "/media/layers-55W3Q4RM.png",
+        "/media/marker-icon-2V3QKKVC.png",
+        "/modelo-layout.png",
+        "/repify-walk.png",
+        "/tela-treino-especifico.png"
+      ],
+      "patterns": []
+    }
+  ],
+  "dataGroups": [
+    {
+      "name": "google-fonts",
+      "patterns": [
+        "https:\\/\\/fonts\\.googleapis\\.com\\/.*",
+        "https:\\/\\/fonts\\.gstatic\\.com\\/.*"
+      ],
+      "strategy": "performance",
+      "maxSize": 30,
+      "maxAge": 2592000000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "api-feed",
+      "patterns": [
+        "\\/api\\/posts",
+        "\\/api\\/posts\\/.*",
+        "\\/api\\/users",
+        "\\/api\\/users\\/.*",
+        "\\/api\\/profile\\/.*"
+      ],
+      "strategy": "freshness",
+      "maxSize": 100,
+      "maxAge": 86400000,
+      "timeoutMs": 5000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    },
+    {
+      "name": "supabase-storage",
+      "patterns": [
+        "https:\\/\\/[^/]*\\.supabase\\.co\\/storage\\/v1\\/object\\/public\\/.*"
+      ],
+      "strategy": "performance",
+      "maxSize": 200,
+      "maxAge": 604800000,
+      "cacheQueryOptions": {
+        "ignoreVary": true
+      },
+      "version": 1
+    }
+  ],
+  "hashTable": {
+    "/card repost.png": "2db62429172470c545c9c61ca0835dec4382e8c0",
+    "/chunk-5EZDO6KR.js": "41adc68963b7e386dd4eee88354131ceef32d649",
+    "/chunk-6CQEKDDT.js": "6dc85fb4339a251eed151dbdf2c853330846a318",
+    "/chunk-6YVBHK4S.js": "1945b82be188e65f17cf27e5c7d24bce219f3138",
+    "/chunk-737AAPSK.js": "08999f630c0df0409c7b8474015725a4c46c5cf3",
+    "/chunk-AOOU224N.js": "9167517a7ce310acf252acfc265e784d4c39d956",
+    "/chunk-BAFW2JDJ.js": "2eee2488941a155c9e813778b65f2dc63c440f07",
+    "/chunk-BRNCREVY.js": "07046954e8212a69a26eb6b5a915a4ed58fc30ab",
+    "/chunk-EVNO3VHD.js": "a4707600efd5ebe822c67663033e68805064c095",
+    "/chunk-INPNJ7G7.js": "e57690e6e006b93a939922793bf007ea52204423",
+    "/chunk-IS5VH4YF.js": "23e000474b3d43d2964dcc72c777a69896722e49",
+    "/chunk-IWCPJAG4.js": "c566f30a3c0331f0b7fd1ed6e00c5bf48608c2e2",
+    "/chunk-L7DYSZRK.js": "38d970909f376a2f58e8c50c55f9135143774f67",
+    "/chunk-OJZEPFIN.js": "7a1790ad167139e94b2bddac637b1e74ae6a4dcb",
+    "/chunk-OPSGSRDY.js": "0bee06f95d2da2b8cc2261e506f996302d313c39",
+    "/chunk-QCG2DK2V.js": "eba95624d0af37ce39bcd34c49173cb5b0ea4a0b",
+    "/chunk-R6V3RDCO.js": "19af5c65aa4880bd70690916dd90c47f155f812f",
+    "/chunk-RZRBKX2Z.js": "e8171baa8e47c847e5ed8e4b59353d34d5ce3fa3",
+    "/chunk-TURGH2SI.js": "e0a621affb0b34b732c14fa7bd4ecf5266988311",
+    "/chunk-XUFWPISV.js": "b23f55f86779fa0afb5f26749aea5610ae8ca81f",
+    "/chunk-Z7UBUOUA.js": "2be1d972581fcf195b1b1e8d1a869bd9cd56b8c5",
+    "/create-account.png": "d7199437315099f512b9ed14adfc2f173e201e0e",
+    "/dashboard.png": "2373711bcd290c0ef4e249201dfe2f8cdb27d93d",
+    "/exemplo badge.png": "be8c311495e5fa431125e2b81a3f7cb4ccfea47b",
+    "/favicon.ico": "9c39f434fe1261f68c5e3eefdf734630d99c5670",
+    "/icon.png": "5cdf1d18325f9337b644c3627f544ade342c14af",
+    "/icons/icon-128x128.png": "6a59eb30793f09676a024d2877a4c2ec4a9434a7",
+    "/icons/icon-144x144.png": "e8b7cc54641512210fb1ab18e5c18bd9a77e09df",
+    "/icons/icon-152x152.png": "754f98a6821cff2a9c0c2fcc8238f3a5bb2fe4a7",
+    "/icons/icon-192x192-maskable.png": "3a28368f6786a1c16acfe5f3d5bd8cb875a57466",
+    "/icons/icon-192x192.png": "94c784bdf5aa0290983895cf5e2bd9bcb40f00af",
+    "/icons/icon-384x384.png": "f9b3e4fea45a7dc0cd92daffa5af56443dd7d2c5",
+    "/icons/icon-512x512-maskable.png": "dcea0a0b9adc7d512cdb2a9c245fd7ec4590f7d5",
+    "/icons/icon-512x512.png": "0584c092a7e2a26768bb8dec8cd3adac41f8e2bd",
+    "/icons/icon-72x72.png": "7f157b001e31f14cc571ab8e9a71b4bd2c30c045",
+    "/icons/icon-96x96.png": "7077e4a719acf8fa3a805874a4ef8e7f8e08820f",
+    "/index.html": "f2c7f0d848caf9dd046421cd69c700bef54fac0d",
+    "/logo-transparent.png": "13eaee4f6106a91357a0aec08cb0701be77aa71b",
+    "/logo.png": "2e3a8a27182ae11985926afa0ff88893775bd53d",
+    "/main-7TSHXT4Q.js": "cb648fcf19d0374354d940300e52c1e91a0c213f",
+    "/manifest.webmanifest": "3b85f041bcc586f624a02830df3e56c5c4ba7ffc",
+    "/media/layers-2x-TBM42ERR.png": "152a162333e46d24f9d89f566312fc0c64011dee",
+    "/media/layers-55W3Q4RM.png": "c9e7528e491a39232ba24a2706c6c739d6fb0f06",
+    "/media/marker-icon-2V3QKKVC.png": "60a90bcbb2b42b7ddb4556db94eb7c1084b0e5da",
+    "/modelo-layout.png": "9d06986b3e88ea5d84fc994cd72ddc13ffe5bae1",
+    "/repify-walk.png": "fc04e4d155f24b01f14e3bfa77115a5200bce0a2",
+    "/styles-Z2NC75R6.css": "3df588135037e8cc96d2b2a56d36f73e1d14bdac",
+    "/tela-treino-especifico.png": "b595a0ce1344604af6047019b7d20c3f9a07adb1"
+  },
+  "navigationUrls": [
+    {
+      "positive": true,
+      "regex": "^\\/.*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*\\.[^/]*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*__[^/]*$"
+    },
+    {
+      "positive": false,
+      "regex": "^\\/(?:.+\\/)?[^/]*__[^/]*\\/.*$"
+    }
+  ],
+  "navigationRequestStrategy": "performance"
+}
