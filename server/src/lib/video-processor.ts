@@ -1,11 +1,8 @@
 import ffmpeg from 'fluent-ffmpeg';
-import ffmpegBin from 'ffmpeg-static';
 import { randomUUID } from 'crypto';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { writeFile, readFile, unlink } from 'fs/promises';
-
-if (ffmpegBin) ffmpeg.setFfmpegPath(ffmpegBin);
 
 // Scale to max 1280px wide, keep aspect ratio, height divisible by 2
 const SCALE_FILTER = "scale='min(1280,iw)':-2";

@@ -8,50 +8,50 @@ services:
   # ───────────────────────────────────────────────────────────────────────────
   # Backend Express — repify-api.onrender.com
   # ───────────────────────────────────────────────────────────────────────────
-  - type: web
-    name: repify-api
-    runtime: node
-    region: oregon
-    plan: free
-    rootDir: server
-    buildCommand: npm install && npm run build
-    startCommand: npm start
-    healthCheckPath: /health
-    autoDeploy: true
-    envVars:
-      - key: NODE_VERSION
-        value: 22.11.0
-      - key: PORT
-        value: 10000
-      - key: CORS_ORIGINS
-        value: https://repify-web.onrender.com,https://repify.com.br,https://www.repify.com.br
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
+   - type: web
+     name: repify-api
+     runtime: node
+     region: oregon
+     plan: free
+     rootDir: server
+     buildCommand: npm ci --include=dev && npm run build && npm prune --production
+     startCommand: npm start
+     healthCheckPath: /health
+     autoDeploy: true
+     envVars:
+       - key: NODE_VERSION
+         value: 22.11.0
+       - key: PORT
+         value: 10000
+       - key: CORS_ORIGINS
+         value: https://repify-web.onrender.com,https://repify.com.br,https://www.repify.com.br
+       - key: SUPABASE_URL
+         sync: false
+       - key: SUPABASE_SERVICE_ROLE_KEY
+         sync: false
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # Frontend Angular (Static Site) — repify-web.onrender.com
-  # ───────────────────────────────────────────────────────────────────────────
-  - type: web
-    name: repify-web
-    runtime: static
-    branch: production
-    buildCommand: ""
-    staticPublishPath: .
-    pullRequestPreviewsEnabled: false
-    autoDeploy: true
-    headers:
-      - path: /ngsw-worker.js
-        name: Cache-Control
-        value: no-cache
-      - path: /ngsw.json
-        name: Cache-Control
-        value: no-cache
-      - path: /index.html
-        name: Cache-Control
-        value: no-cache
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
+   # ───────────────────────────────────────────────────────────────────────────
+   # Frontend Angular (Static Site) — repify-web.onrender.com
+   # ───────────────────────────────────────────────────────────────────────────
+   - type: web
+     name: repify-web
+     runtime: static
+     branch: production
+     buildCommand: npm ci --include=dev && npm run build
+     staticPublishPath: dist/repify
+     pullRequestPreviewsEnabled: false
+     autoDeploy: true
+     headers:
+       - path: /ngsw-worker.js
+         name: Cache-Control
+         value: no-cache
+       - path: /ngsw.json
+         name: Cache-Control
+         value: no-cache
+       - path: /index.html
+         name: Cache-Control
+         value: no-cache
+     routes:
+       - type: rewrite
+         source: /*
+         destination: /index.html

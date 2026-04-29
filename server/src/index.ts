@@ -63,8 +63,13 @@ app.use((_req, res) => {
 });
 
 // ── Start ────────────────────────────────────────────────────────────────────
-app.listen(config.port, () => {
-  console.log(`[repify-server] running on http://localhost:${config.port}`);
+const PORT = config.port;
+const HOST = '0.0.0.0';
+
+app.listen(PORT, HOST, () => {
+  console.log(`[repify-server] running on http://${HOST}:${PORT}`);
+  console.log(`[repify-server] environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`[repify-server] CORS origins: ${process.env.CORS_ORIGINS || 'defaults'}`);
 });
 
 export default app;
