@@ -125,7 +125,7 @@ function isoToday(): string {
     DecimalPipe,
     HomeRankingCardComponent,
     WeeklyGoalCardComponent,
-    ConsistencyTipCardComponent,
+    // ConsistencyTipCardComponent,
   ],
   template: `
     <div class="bg-bg relative">
