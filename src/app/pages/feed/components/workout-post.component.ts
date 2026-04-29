@@ -156,9 +156,13 @@ const MUSCLE_COLORS: Record<string, string> = {
       <!-- Photo -->
       @if (postPhotos().length > 0) {
         <div class="mx-4 mb-3 overflow-hidden rounded-2xl bg-card">
-          <div class="relative overflow-hidden">
-            <div class="flex transition-transform duration-300 ease-out"
-                 [style.transform]="'translateX(-' + (activePhotoIndex() * 100) + '%)'">
+          <div class="relative overflow-hidden"
+               (touchstart)="onCarouselTouchStart($event)"
+               (touchmove)="onCarouselTouchMove($event)"
+               (touchend)="onCarouselTouchEnd($event)">
+            <div class="flex ease-out"
+                 [class]="swipeDragging() ? '' : 'transition-transform duration-300'"
+                 [style.transform]="carouselTransform()">
               @for (photo of postPhotos(); track photo.full) {
                 <div class="w-full shrink-0 min-w-full">
                   <img
@@ -421,7 +425,19 @@ export class WorkoutPostComponent {
   likeUsers        = signal<PostLikeUser[]>([]);
   activePhotoIndex = signal(0);
   videoPlaying     = signal(false);
+  swipeDragging    = signal(false);
+  swipeDelta       = signal(0);
   private likesPressTimer: ReturnType<typeof setTimeout> | null = null;
+  private _swipeStartX = 0;
+  private _swipeStartY = 0;
+  private _swipeAxisLocked: 'h' | 'v' | null = null;
+
+  carouselTransform = computed(() => {
+    const base = -(this.activePhotoIndex() * 100);
+    const delta = this.swipeDragging() ? this.swipeDelta() : 0;
+    if (delta === 0) return `translateX(${base}%)`;
+    return `translateX(calc(${base}% + ${delta}px))`;
+  });
 
   constructor() {
     let lastPostId = '';
@@ -609,6 +625,42 @@ export class WorkoutPostComponent {
 
   toggleVideo(el: HTMLVideoElement): void {
     if (el.paused) { void el.play(); } else { el.pause(); }
+  }
+
+  onCarouselTouchStart(e: TouchEvent): void {
+    if (this.postPhotos().length <= 1) return;
+    this._swipeStartX = e.touches[0].clientX;
+    this._swipeStartY = e.touches[0].clientY;
+    this._swipeAxisLocked = null;
+    this.swipeDelta.set(0);
+    this.swipeDragging.set(true);
+  }
+
+  onCarouselTouchEnd(_e: TouchEvent): void {
+    if (!this.swipeDragging()) return;
+    const delta = this.swipeDelta();
+    const threshold = 50;
+    if (delta < -threshold) this.nextPhoto();
+    else if (delta > threshold) this.previousPhoto();
+    this.swipeDragging.set(false);
+    this.swipeDelta.set(0);
+    this._swipeAxisLocked = null;
+  }
+
+  onCarouselTouchMove(e: TouchEvent): void {
+    if (!this.swipeDragging()) return;
+    const dx = e.touches[0].clientX - this._swipeStartX;
+    const dy = e.touches[0].clientY - this._swipeStartY;
+    if (!this._swipeAxisLocked) {
+      this._swipeAxisLocked = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+    }
+    if (this._swipeAxisLocked === 'v') {
+      this.swipeDragging.set(false);
+      this.swipeDelta.set(0);
+      return;
+    }
+    e.preventDefault();
+    this.swipeDelta.set(dx);
   }
 
   previousPhoto(): void {
