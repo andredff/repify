@@ -26,6 +26,7 @@ interface ApiPost {
   workout: { name: string; muscleGroup: string } | null;
   likes: number;
   liked_by_preview_name?: string | null;
+  liked_by_preview_avatar?: string | null;
   comments: number;
   liked: boolean;
   created_at: string;
@@ -234,7 +235,8 @@ export class PostService {
       photoThumb:   photos[0]?.thumb ?? p.photo_url_thumb ?? undefined,
       videoUrl:     p.video_url ?? undefined,
       likes:        p.likes,
-      likedByPreviewName: p.liked_by_preview_name ?? undefined,
+      likedByPreviewName:   p.liked_by_preview_name ?? undefined,
+      likedByPreviewAvatar: p.liked_by_preview_avatar ?? undefined,
       comments:     p.comments,
       liked:        p.liked,
     };

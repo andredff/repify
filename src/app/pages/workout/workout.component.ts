@@ -3,7 +3,6 @@ import { Location } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { WorkoutCompletionSummary, WorkoutService, StoredPlan, StoredExercise, WorkoutSession } from '../../core/services/workout.service';
 import { PostService } from '../../core/services/post.service';
-import { ExerciseService } from '../../core/services/exercise.service';
 import { WorkoutPost } from '../../core/models/workout-post.model';
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
 import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
@@ -135,97 +134,45 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
           <!-- Exercise list -->
           <div class="space-y-3">
             @for (ex of exercises(); track ex.id; let i = $index) {
-              <div class="rounded-2xl border transition-all overflow-hidden"
-                   [class]="ex.done ? 'bg-primary/8 border-primary/30' : 'bg-card-2 border-border'">
+              <button type="button" (click)="toggleExercise(ex.id)"
+                      class="w-full rounded-2xl border transition-all p-4 text-left flex items-center gap-4"
+                      [class]="ex.done ? 'bg-primary/8 border-primary/30' : 'bg-card-2 border-border'">
 
-                <!-- Exercise row (tap to toggle) -->
-                <button type="button" (click)="toggleExercise(ex.id)"
-                        class="w-full flex items-center gap-3 p-4 text-left">
+                <!-- Checkbox -->
+                <div class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center border transition-all"
+                     [class]="ex.done ? 'bg-primary border-primary' : 'bg-card border-border'">
+                  @if (ex.done) {
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#080C10" stroke-width="3"
+                         stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  } @else {
+                    <span class="text-[12px] font-mono font-bold text-text-2">{{ i + 1 }}</span>
+                  }
+                </div>
 
-                  <!-- Checkbox -->
-                  <div class="shrink-0 w-8 h-8 rounded-full flex items-center justify-center border transition-all"
-                       [class]="ex.done ? 'bg-primary border-primary' : 'bg-card border-border'">
-                    @if (ex.done) {
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#080C10" stroke-width="3"
-                           stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
-                    } @else {
-                      <span class="text-[12px] font-mono font-bold text-text-2">{{ i + 1 }}</span>
-                    }
-                  </div>
+                <!-- Name -->
+                <div class="flex-1 min-w-0">
+                  <p class="text-[15px] font-body font-semibold leading-tight transition-colors"
+                     [class]="ex.done ? 'text-text-2 line-through' : 'text-white'">
+                    {{ ex.name }}
+                  </p>
+                </div>
 
-                  <!-- Name + sets/reps -->
-                  <div class="flex-1 min-w-0">
-                    <p class="text-[15px] font-body font-semibold transition-colors"
-                       [class]="ex.done ? 'text-text-2 line-through' : 'text-white'">
-                      {{ ex.name }}
-                    </p>
-                    <p class="text-[12px] font-body text-text-2 mt-0.5">
-                      {{ ex.sets }} séries × {{ ex.reps }}
-                    </p>
-                    <!-- Target muscle (from GIF data) -->
-                    @if (exerciseTarget(ex.id)) {
-                      <p class="text-[10px] font-body text-primary/70 mt-0.5 uppercase tracking-wider">
-                        {{ exerciseTarget(ex.id) }}
-                      </p>
-                    }
-                  </div>
+                <!-- Sets × Reps badge -->
+                <div class="shrink-0 text-right">
+                  <p class="text-[20px] font-display font-black leading-none transition-colors"
+                     [class]="ex.done ? 'text-primary/50' : 'text-primary'">
+                    {{ ex.sets }}
+                  </p>
+                  <p class="text-[10px] font-body text-text-2 mt-0.5 uppercase tracking-wider">séries</p>
+                  <p class="text-[13px] font-body font-semibold mt-1 transition-colors"
+                     [class]="ex.done ? 'text-text-2/50' : 'text-white'">
+                    {{ ex.reps }}
+                  </p>
+                </div>
 
-                  <!-- GIF thumbnail -->
-                  <div class="shrink-0 w-[72px] h-[72px] rounded-xl overflow-hidden bg-card border border-border flex items-center justify-center">
-                    @if (gifsLoading()) {
-                      <!-- Skeleton -->
-                      <div class="w-full h-full animate-pulse bg-card-2 rounded-xl"></div>
-                    } @else if (exerciseGif(ex.id)) {
-                      <img
-                        [src]="exerciseGif(ex.id)"
-                        [alt]="ex.name"
-                        class="w-full h-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                        (click)="expandGif($event, ex.id)"
-                      />
-                    } @else {
-                      <!-- Fallback icon when no GIF available -->
-                      <span class="text-[24px]">💪</span>
-                    }
-                  </div>
-
-                </button>
-
-                <!-- GIF expanded view -->
-                @if (expandedGifId() === ex.id && exerciseGif(ex.id)) {
-                  <div class="border-t border-border animate-fade-in">
-                    <img
-                      [src]="exerciseGif(ex.id)"
-                      [alt]="ex.name"
-                      class="w-full object-contain max-h-[300px] bg-card"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                    <div class="px-4 py-2 flex items-center justify-between">
-                      <div>
-                        @if (exerciseTarget(ex.id)) {
-                          <p class="text-[11px] font-body text-text-2 uppercase tracking-wider">
-                            Alvo: <span class="text-primary">{{ exerciseTarget(ex.id) }}</span>
-                          </p>
-                        }
-                        @if (exerciseEquipment(ex.id)) {
-                          <p class="text-[11px] font-body text-text-2 mt-0.5 capitalize">
-                            {{ exerciseEquipment(ex.id) }}
-                          </p>
-                        }
-                      </div>
-                      <button (click)="expandedGifId.set(null)"
-                              class="text-[11px] font-body text-text-2 hover:text-white transition-colors px-2 py-1">
-                        Fechar
-                      </button>
-                    </div>
-                  </div>
-                }
-
-              </div>
+              </button>
             }
           </div>
 
@@ -269,10 +216,6 @@ const STATIC_PLANS: Record<string, StoredPlan> = {
         (onPublish)="onWorkoutPostPublished($event)" />
     }
 
-    <!-- GIF fullscreen backdrop (tap outside to close) -->
-    @if (expandedGifId()) {
-      <div class="fixed inset-0 z-0" (click)="expandedGifId.set(null)"></div>
-    }
   `,
 })
 export class WorkoutComponent implements OnInit {
@@ -281,7 +224,6 @@ export class WorkoutComponent implements OnInit {
   private router         = inject(Router);
   private workoutService = inject(WorkoutService);
   private postService    = inject(PostService);
-  private exerciseSvc    = inject(ExerciseService);
 
   showNotifications       = signal(false);
   showWorkoutPostComposer = signal(false);
@@ -292,17 +234,6 @@ export class WorkoutComponent implements OnInit {
   completionSummary       = signal<WorkoutCompletionSummary | null>(null);
   exercises               = signal<StoredExercise[]>([]);
   plan                    = signal<StoredPlan | null>(null);
-
-  // ── GIF state ─────────────────────────────────────────────────────────────
-  gifsLoading    = signal(true);
-  expandedGifId  = signal<string | null>(null);
-
-  // gifId → { gifUrl, target, equipment }
-  private _gifData = signal<Map<string, { gif: string; target: string; equipment: string }>>(new Map());
-
-  exerciseGif(id: string): string       { return this._gifData().get(id)?.gif       ?? ''; }
-  exerciseTarget(id: string): string    { return this._gifData().get(id)?.target    ?? ''; }
-  exerciseEquipment(id: string): string { return this._gifData().get(id)?.equipment ?? ''; }
 
   // ── Computed ──────────────────────────────────────────────────────────────
   doneCount    = computed(() => this.exercises().filter(e => e.done).length);
@@ -402,29 +333,6 @@ export class WorkoutComponent implements OnInit {
     this.exercises.set(found.exercises.map(e => ({ ...e })));
     this.viewMode.set('active');
 
-    // Load GIFs in background — does not block the workout from starting
-    void this._loadGifs(found);
-  }
-
-  private async _loadGifs(plan: StoredPlan): Promise<void> {
-    this.gifsLoading.set(true);
-    try {
-      const matches = await this.exerciseSvc.getGifsForPlan(
-        plan.muscleGroup,
-        plan.exercises.map(e => ({ id: e.id, name: e.name })),
-      );
-
-      const dataMap = new Map<string, { gif: string; target: string; equipment: string }>();
-      for (const [exId, match] of matches) {
-        dataMap.set(exId, { gif: match.gif, target: match.target, equipment: match.equipment });
-      }
-
-      this._gifData.set(dataMap);
-    } catch {
-      // GIF loading failure is non-critical — exercises still work without GIFs
-    } finally {
-      this.gifsLoading.set(false);
-    }
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────
@@ -433,11 +341,6 @@ export class WorkoutComponent implements OnInit {
     this.exercises.update(list =>
       list.map(e => e.id === id ? { ...e, done: !e.done } : e)
     );
-  }
-
-  expandGif(event: MouseEvent, id: string): void {
-    event.stopPropagation();
-    this.expandedGifId.update(current => current === id ? null : id);
   }
 
   async finishWorkout(): Promise<void> {

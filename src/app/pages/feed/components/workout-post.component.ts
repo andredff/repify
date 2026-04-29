@@ -219,22 +219,27 @@ const MUSCLE_COLORS: Record<string, string> = {
 
       <!-- Workout tag -->
       @if (post().workout) {
-        <div class="mx-4 mb-3 overflow-hidden rounded-[20px] border border-white/8 bg-gradient-to-r p-3 shadow-[0_12px_28px_rgba(0,0,0,0.16)]"
+        <div class="mx-4 mb-3 overflow-hidden rounded-[20px] border border-white/8 bg-gradient-to-br"
              [class]="muscleGradient()">
-          <div class="flex items-start gap-3">
-            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] border border-white/10 bg-bg/45 text-[18px]">
+          <!-- accent line -->
+          <div class="h-[2px] bg-gradient-to-r from-primary/70 via-primary/25 to-transparent"></div>
+
+          <div class="flex items-center gap-3 px-4 py-3.5">
+            <!-- emoji -->
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/25 text-[20px]">
               {{ muscleEmoji() }}
             </div>
+
+            <!-- info -->
             <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <span class="rounded-full border border-primary/18 bg-primary/12 px-2 py-0.5 text-[9px] font-body font-semibold uppercase tracking-[0.12em] text-primary">Treino concluído</span>
-              </div>
-              <p class="mt-2 truncate text-[15px] font-display font-bold leading-tight text-white">{{ post().workout!.name }}</p>
-              <p class="mt-1 text-[10px] font-body uppercase tracking-[0.18em] text-text-2">{{ post().workout!.muscleGroup }}</p>
-              <p class="mt-2 text-[11px] font-body leading-relaxed text-white/72">Sessão registrada no feed com foco em {{ post().workout!.muscleGroup }}.</p>
+              <p class="text-[10px] font-body font-semibold uppercase tracking-[0.16em] text-primary">Treino concluído</p>
+              <p class="mt-1 truncate text-[17px] font-display font-bold leading-tight text-white">{{ post().workout!.name }}</p>
+              <p class="mt-0.5 text-[11px] font-body capitalize text-white/45">{{ post().workout!.muscleGroup }}</p>
             </div>
-            <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/24 bg-primary/14">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+
+            <!-- check -->
+            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-primary/35 bg-primary/15">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00FF88" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
             </div>
@@ -280,7 +285,7 @@ const MUSCLE_COLORS: Record<string, string> = {
       @if (likesSummary()) {
         <div class="px-4 pb-3 -mt-1">
           <div
-            class="inline-flex select-none items-center gap-1 rounded-full border border-white/6 bg-white/[0.02] px-2.5 py-1 text-[10px] font-body text-text-2/90 transition-colors hover:text-white"
+            class="inline-flex select-none items-center gap-1.5 text-[11px] font-body text-text-2/90 transition-colors hover:text-white"
             role="button"
             tabindex="0"
             aria-label="Segure para ver quem curtiu"
@@ -291,7 +296,18 @@ const MUSCLE_COLORS: Record<string, string> = {
             (contextmenu)="openLikesSheetFromContext($event)"
             (keydown.enter)="openLikesSheet()"
             (keydown.space)="openLikesSheetFromKeyboard($event)">
-            <span class="h-1 w-1 rounded-full bg-primary/70"></span>
+            <div class="flex items-center shrink-0">
+              @for (av of previewAvatarList(); track $index; let i = $index) {
+                <div class="w-5 h-5 rounded-full overflow-hidden border-2 border-card-2 bg-gradient-to-br from-primary/20 to-secondary/10 flex items-center justify-center text-[8px] font-display font-bold text-white shrink-0"
+                     [style.margin-left]="i > 0 ? '-6px' : '0'">
+                  @if (av.avatar) {
+                    <img [src]="av.avatar" alt="" class="w-full h-full object-cover" />
+                  } @else {
+                    {{ av.initial }}
+                  }
+                </div>
+              }
+            </div>
             <span>{{ likesSummary() }}</span>
           </div>
         </div>
@@ -394,7 +410,8 @@ export class WorkoutPostComponent {
   localComments    = signal(0);
   localLiked       = signal(false);
   localLikesCount  = signal(0);
-  localLikePreviewName = signal('');
+  localLikePreviewName   = signal('');
+  localLikePreviewAvatar = signal('');
   editing          = signal(false);
   editSaving       = signal(false);
   editDraft        = '';
@@ -416,6 +433,7 @@ export class WorkoutPostComponent {
         this.localLiked.set(p.liked);
         this.localLikesCount.set(p.likes);
         this.localLikePreviewName.set(p.likedByPreviewName ?? '');
+        this.localLikePreviewAvatar.set(p.likedByPreviewAvatar ?? '');
         this.likeUsers.set([]);
         this.likesError.set('');
         this.likesLoading.set(false);
@@ -449,6 +467,28 @@ export class WorkoutPostComponent {
 
     const firstName = this.firstName(name);
     return count === 1 ? `${firstName} curtiu` : `${firstName} e mais ${count - 1}`;
+  });
+
+  previewAvatarList = computed(() => {
+    const count = this.localLikesCount();
+    if (count <= 0 || !this.likesSummary()) return [];
+
+    const list: Array<{ avatar: string; initial: string }> = [];
+    const seen = new Set<string>();
+
+    if (this.localLiked()) {
+      const av = this.auth.avatarUrl();
+      list.push({ avatar: av, initial: this.currentUserFirstName().charAt(0) });
+      if (av) seen.add(av);
+    }
+
+    const previewAvatar = this.localLikePreviewAvatar();
+    const previewName   = this.localLikePreviewName().trim();
+    if (previewName && list.length < count && (!previewAvatar || !seen.has(previewAvatar))) {
+      list.push({ avatar: previewAvatar, initial: previewName.charAt(0) });
+    }
+
+    return list.slice(0, 3);
   });
 
   isOwner = computed(() => {
@@ -501,9 +541,11 @@ export class WorkoutPostComponent {
     this.localLikesCount.update(v => nowLiked ? v + 1 : v - 1);
     if (nowLiked && !this.localLikePreviewName()) {
       this.localLikePreviewName.set(this.currentUserFirstName());
+      this.localLikePreviewAvatar.set(this.auth.avatarUrl());
     }
     if (!nowLiked && this.localLikesCount() <= 0) {
       this.localLikePreviewName.set('');
+      this.localLikePreviewAvatar.set('');
     }
     this.onLike.emit();
   }

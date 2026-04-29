@@ -20,6 +20,7 @@ import { RankingService } from '../../core/services/ranking.service';
 import { NotificationsPanelComponent } from './components/notifications-panel.component';
 import { HomeRankingCardComponent } from './components/home-ranking-card.component';
 import { WeeklyGoalCardComponent } from './components/weekly-goal-card.component';
+import { ConsistencyTipCardComponent } from './components/consistency-tip-card.component';
 import { PermissionService } from '../../core/services/permission.service';
 
 export type { WorkoutPost };
@@ -124,6 +125,7 @@ function isoToday(): string {
     DecimalPipe,
     HomeRankingCardComponent,
     WeeklyGoalCardComponent,
+    ConsistencyTipCardComponent,
   ],
   template: `
     <div class="bg-bg relative">
@@ -551,6 +553,12 @@ function isoToday(): string {
           <app-setup-workout-card (onSetup)="router.navigateByUrl('/my-workout')" />
         </div>
       }
+
+      <!-- @if (!isPreview() && !showNewUserOnboarding()) {
+        <div class="px-4 mt-4 animate-slide-up" style="animation-delay:0.12s">
+          <app-consistency-tip-card />
+        </div>
+      } -->
 
       <!-- Feed posts -->
       <div class="px-4 mt-5 space-y-4">
