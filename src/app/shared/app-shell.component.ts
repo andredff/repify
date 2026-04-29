@@ -124,7 +124,7 @@ import { PreviewModePromptComponent } from './preview-mode-prompt.component';
                    class="flex w-full items-center justify-center rounded-2xl bg-primary px-4 py-3 text-[13px] font-body font-semibold text-bg shadow-glow transition-all hover:bg-primary/90">
                   Criar conta
                 </a>
-                <a routerLink="/"
+                <a routerLink="/login"
                    class="flex w-full items-center justify-center rounded-2xl border border-border bg-card-2 px-4 py-3 text-[13px] font-body font-semibold text-white transition-colors hover:border-primary/40 hover:text-primary">
                   Entrar
                 </a>
