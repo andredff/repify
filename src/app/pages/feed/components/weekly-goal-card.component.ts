@@ -29,7 +29,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
           </div>
         </div>
 
-        <div class="rounded-[18px] border border-white/6 bg-white/[0.03] px-2.5 py-2">
+        <div class="rounded-[18px] border border-primary/5 bg-white/[0.03] px-2.5 py-2">
           <div class="flex items-center justify-between gap-3 text-[10px] font-body">
             <div class="flex items-center gap-1.5">
               @for (slot of daySlots(); track slot.index) {

@@ -777,6 +777,6 @@ export class ProfileComponent implements OnInit {
 
   async logout(): Promise<void> {
     await this.auth.signOut();
-    this.router.navigateByUrl('/');
+    this.router.navigateByUrl('/login');
   }
 }
