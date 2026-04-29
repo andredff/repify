@@ -149,6 +149,49 @@ const MAX_PHOTOS = 6;
       </div>
     }
 
+    <!-- Media picker sheet -->
+    @if (showMediaPicker()) {
+      <div class="fixed inset-0 z-[55] flex items-end max-w-[460px] mx-auto"
+           style="background:rgba(8,12,16,0.7)" (click)="showMediaPicker.set(false)">
+        <div class="w-full bg-card border-t border-border rounded-t-2xl p-5 space-y-3 animate-slide-up"
+             (click)="$event.stopPropagation()">
+          <p class="text-[13px] font-body font-semibold text-white mb-1">Adicionar mídia</p>
+
+          <button (click)="showMediaPicker.set(false); photoInput.click()"
+                  class="w-full flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card-2 hover:border-border-2 transition-all text-left">
+            <div class="w-9 h-9 rounded-lg bg-border flex items-center justify-center shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-[13px] font-body font-semibold text-white">Foto</p>
+              <p class="text-[11px] font-body text-text-2">Até {{ MAX_PHOTOS }} fotos · JPG, PNG ou WEBP · máx 10MB</p>
+            </div>
+          </button>
+
+          <button (click)="showMediaPicker.set(false); videoInput.click()"
+                  class="w-full flex items-center gap-3 p-3.5 rounded-xl border border-border bg-card-2 hover:border-border-2 transition-all text-left">
+            <div class="w-9 h-9 rounded-lg bg-border flex items-center justify-center shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-[13px] font-body font-semibold text-white">Vídeo</p>
+              <p class="text-[11px] font-body text-text-2">MP4, WebM ou MOV · máx 100MB</p>
+            </div>
+          </button>
+
+          <button (click)="showMediaPicker.set(false)"
+                  class="w-full py-3 text-[13px] font-body text-text-2 hover:text-white transition-colors">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    }
+
     @if (showArtworkPrompt()) {
       <div class="fixed inset-0 z-[56] flex items-end max-w-[460px] mx-auto"
            style="background:rgba(8,12,16,0.74)" (click)="declineArtworkCarousel()">
@@ -342,41 +385,21 @@ const MAX_PHOTOS = 6;
           </div>
 
         } @else if (!videoFile()) {
-          <!-- Empty state: no media yet -->
-          <div class="flex flex-col gap-3">
-            <button (click)="photoInput.click()"
-                    class="w-full aspect-[4/3] bg-card-2 border-2 border-dashed border-border-2 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/5 transition-all group">
-              <div class="w-14 h-14 rounded-2xl bg-card border border-border flex items-center justify-center group-hover:border-primary/40 group-hover:bg-primary/10 transition-all">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-                  <polyline points="21 15 16 10 5 21"/>
-                </svg>
-              </div>
-              <div class="text-center">
-                <p class="text-[14px] font-body font-semibold text-white group-hover:text-primary transition-colors">Adicionar foto</p>
-                <p class="text-[11px] text-text-2 font-body mt-0.5">Opcional · Até {{ MAX_PHOTOS }} fotos · JPG, PNG ou WEBP · máx 10MB</p>
-              </div>
-            </button>
-
-            <div class="flex items-center gap-3">
-              <div class="flex-1 h-px bg-border"></div>
-              <span class="text-[11px] font-body text-text-2">ou</span>
-              <div class="flex-1 h-px bg-border"></div>
+          <!-- Empty state: single media box -->
+          <button (click)="showMediaPicker.set(true)"
+                  class="w-full aspect-[4/3] bg-card-2 border-2 border-dashed border-border-2 rounded-2xl flex flex-col items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/5 transition-all group">
+            <div class="w-14 h-14 rounded-2xl bg-card border border-border flex items-center justify-center group-hover:border-primary/40 group-hover:bg-primary/10 transition-all">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+                <line x1="12" y1="10" x2="12" y2="14"/><line x1="10" y1="12" x2="14" y2="12"/>
+              </svg>
             </div>
-
-            <button (click)="videoInput.click()"
-                    class="w-full py-4 bg-card-2 border-2 border-dashed border-border-2 rounded-2xl flex items-center justify-center gap-3 hover:border-primary/50 hover:bg-primary/5 transition-all group">
-              <div class="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center group-hover:border-primary/40 group-hover:bg-primary/10 transition-all">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8896A8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/>
-                </svg>
-              </div>
-              <div class="text-left">
-                <p class="text-[13px] font-body font-semibold text-white group-hover:text-primary transition-colors">Adicionar vídeo</p>
-                <p class="text-[11px] text-text-2 font-body">MP4, WebM ou MOV · máx 100MB</p>
-              </div>
-            </button>
-          </div>
+            <div class="text-center">
+              <p class="text-[14px] font-body font-semibold text-white group-hover:text-primary transition-colors">Adicionar mídia</p>
+              <p class="text-[11px] text-text-2 font-body mt-0.5">Foto ou vídeo · opcional</p>
+            </div>
+          </button>
         }
 
         <!-- Video section (shown when video selected, regardless of photos) -->
@@ -544,6 +567,7 @@ export class NewPostModalComponent {
   cropMode         = signal<'square' | 'story' | null>(null);
   showFormatPicker = signal(false);
   showArtworkPrompt = signal(false);
+  showMediaPicker  = signal(false);
 
   // ── State flags ──────────────────────────────────────────────────────────
   autoGeneratedVisual    = signal(false);
