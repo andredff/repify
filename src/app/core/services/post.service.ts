@@ -114,19 +114,18 @@ export class PostService {
 
     const primaryPhoto = uploadedPhotos[0];
 
-    const res = await this.fetch('/api/posts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        caption:          data.caption || undefined,
-        photo_url:        primaryPhoto?.full,
-        photo_url_medium: primaryPhoto?.medium,
-        photo_url_thumb:  primaryPhoto?.thumb,
-        photo_gallery:    uploadedPhotos.length ? uploadedPhotos : undefined,
-        workout_name:     data.workout?.name,
-        workout_muscle:   data.workout?.muscleGroup,
-      }),
-    });
+     const res = await this.fetch('/api/posts', {
+       method: 'POST',
+       headers: { 'Content-Type': 'application/json' },
+       body: JSON.stringify({
+         caption:          data.caption || undefined,
+         photo_url:        primaryPhoto?.full,
+         photo_url_medium: primaryPhoto?.medium,
+         photo_url_thumb:  primaryPhoto?.thumb,
+         workout_name:     data.workout?.name,
+         workout_muscle:   data.workout?.muscleGroup,
+       }),
+     });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

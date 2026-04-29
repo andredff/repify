@@ -3,10 +3,11 @@ import { Router } from '@angular/router';
 import { NotificationService, AppNotification } from '../../../core/services/notification.service';
 
 const TYPE_META: Record<string, { icon: string; label: string; color: string }> = {
-  like:    { icon: '❤️',  label: 'curtiu seu post',      color: 'text-red-400' },
-  comment: { icon: '💬',  label: 'comentou no seu post', color: 'text-blue-400' },
-  workout: { icon: '💪',  label: 'terminou um treino',   color: 'text-primary' },
+  like:    { icon: '❤️',  label: 'curtiu seu post',        color: 'text-red-400' },
+  comment: { icon: '💬',  label: 'comentou no seu post',   color: 'text-blue-400' },
+  workout: { icon: '💪',  label: 'terminou um treino',     color: 'text-primary' },
   walk:    { icon: '🚶',  label: 'completou uma caminhada', color: 'text-primary' },
+  follow:  { icon: '👤',  label: 'começou a te seguir',    color: 'text-secondary' },
 };
 
 @Component({
@@ -135,8 +136,10 @@ export class NotificationsPanelComponent {
 
   async openNotif(n: AppNotification): Promise<void> {
     if (!n.read) await this.notifSvc.markRead(n.id);
-    if (n.post_id) {
-      // Navigate to post — for now just close and let user scroll
+    if (n.type === 'follow' && n.actor?.username) {
+      this.onClose.emit();
+      this.router.navigateByUrl(`/u/${n.actor.username}`);
+      return;
     }
     this.onClose.emit();
   }

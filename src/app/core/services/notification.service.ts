@@ -4,7 +4,7 @@ import { AuthService } from './auth.service';
 
 export interface AppNotification {
   id: string;
-  type: 'like' | 'comment' | 'workout' | 'walk';
+  type: 'like' | 'comment' | 'workout' | 'walk' | 'follow';
   post_id: string | null;
   body: string | null;
   read: boolean;

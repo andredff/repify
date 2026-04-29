@@ -5,11 +5,13 @@ import { AuthService } from '../../core/services/auth.service';
 import { PostService } from '../../core/services/post.service';
 import { UserService } from '../../core/services/user.service';
 import { RankingService } from '../../core/services/ranking.service';
+import { FollowService } from '../../core/services/follow.service';
 import { BottomNavComponent } from '../feed/components/bottom-nav.component';
 import { WorkoutPostComponent } from '../feed/components/workout-post.component';
 import { NewPostModalComponent } from '../feed/components/new-post-modal.component';
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
 import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
+import { FollowersModalComponent, FollowTab } from './followers-modal.component';
 import { WorkoutPost } from '../../core/models/workout-post.model';
 
 interface PublicUser {
@@ -39,7 +41,10 @@ const GOAL_LABELS: Record<string, string> = {
 @Component({
   selector: 'app-public-profile',
   standalone: true,
-  imports: [BottomNavComponent, WorkoutPostComponent, NewPostModalComponent, FeedHeaderComponent, NotificationsPanelComponent],
+  imports: [
+    BottomNavComponent, WorkoutPostComponent, NewPostModalComponent,
+    FeedHeaderComponent, NotificationsPanelComponent, FollowersModalComponent,
+  ],
   template: `
     @if (showNewPost()) {
       <app-new-post-modal (onClose)="showNewPost.set(false)" />
@@ -130,7 +135,7 @@ const GOAL_LABELS: Record<string, string> = {
                 </p>
               }
 
-              <!-- Stats row -->
+              <!-- Stats row: posts · streak · level -->
               <div class="mt-5 flex items-center gap-0 bg-card-2 border border-border rounded-2xl overflow-hidden w-full max-w-[280px]">
                 <div class="flex-1 flex flex-col items-center py-3 border-r border-border">
                   <span class="text-[18px] font-display font-bold text-white">{{ posts().length }}</span>
@@ -146,16 +151,37 @@ const GOAL_LABELS: Record<string, string> = {
                 </div>
               </div>
 
+              <!-- Followers / Following row -->
+              <div class="mt-2 flex items-center gap-0 w-full max-w-[280px]">
+                <button
+                  (click)="openFollowers('followers')"
+                  class="flex-1 flex flex-col items-center py-2.5 rounded-l-xl bg-card-2 border border-border border-r-0 hover:bg-card active:scale-[0.97] transition-all">
+                  <span class="text-[16px] font-display font-bold text-white">{{ followersCount() }}</span>
+                  <span class="text-[10px] text-text-2 font-body mt-0.5">seguidores</span>
+                </button>
+                <button
+                  (click)="openFollowers('following')"
+                  class="flex-1 flex flex-col items-center py-2.5 rounded-r-xl bg-card-2 border border-border hover:bg-card active:scale-[0.97] transition-all">
+                  <span class="text-[16px] font-display font-bold text-white">{{ followingCount() }}</span>
+                  <span class="text-[10px] text-text-2 font-body mt-0.5">seguindo</span>
+                </button>
+              </div>
+
               <!-- Follow / Message (only if not own profile) -->
               @if (!publicUser()!.isOwn) {
                 <div class="flex gap-2 mt-4 w-full max-w-[280px]">
                   <button
                     (click)="toggleFollow()"
-                    class="flex-1 py-2.5 rounded-xl text-[13px] font-body font-semibold transition-all active:scale-[0.97]"
+                    [disabled]="followPending()"
+                    class="flex-1 py-2.5 rounded-xl text-[13px] font-body font-semibold transition-all active:scale-[0.97] disabled:opacity-60"
                     [class]="following()
                       ? 'bg-card-2 border border-border text-text-2 hover:border-danger hover:text-danger'
                       : 'bg-primary text-bg hover:shadow-glow'">
-                    {{ following() ? 'Seguindo' : 'Seguir' }}
+                    @if (followPending()) {
+                      <span class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin align-middle"></span>
+                    } @else {
+                      {{ following() ? 'Seguindo' : 'Seguir' }}
+                    }
                   </button>
                   <button class="w-11 h-11 flex items-center justify-center rounded-xl bg-card-2 border border-border text-text-2 hover:text-white hover:border-border-2 transition-colors">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -215,6 +241,15 @@ const GOAL_LABELS: Record<string, string> = {
       @if (showNotifications()) {
         <app-notifications-panel (onClose)="showNotifications.set(false)" />
       }
+
+      @if (showFollowersModal()) {
+        <app-followers-modal
+          [userId]="publicUser()!.id"
+          [initialTab]="followersModalTab()"
+          [followersCount]="followersCount()"
+          [followingCount]="followingCount()"
+          (onClose)="showFollowersModal.set(false)" />
+      }
     </div>
   `,
 })
@@ -223,6 +258,7 @@ export class PublicProfileComponent implements OnInit {
   private postService = inject(PostService);
   private userService = inject(UserService);
   private ranking     = inject(RankingService);
+  private followSvc   = inject(FollowService);
   router              = inject(Router);
   location            = inject(Location);
   private route       = inject(ActivatedRoute);
@@ -231,8 +267,13 @@ export class PublicProfileComponent implements OnInit {
   publicUser = signal<PublicUser | null>(null);
   posts      = signal<WorkoutPost[]>([]);
   following  = signal(false);
+  followPending = signal(false);
+  followersCount = signal(0);
+  followingCount = signal(0);
   showNewPost = signal(false);
   showNotifications = signal(false);
+  showFollowersModal = signal(false);
+  followersModalTab = signal<FollowTab>('followers');
 
   isOwn = computed(() => this.publicUser()?.isOwn ?? false);
 
@@ -285,7 +326,6 @@ export class PublicProfileComponent implements OnInit {
     this.loadProfile(handle);
   }
 
-  /** Espera o AuthService terminar de restaurar a sessão antes de fazer requests. */
   private waitForAuth(): Promise<void> {
     if (this.auth.initialized()) return Promise.resolve();
     return new Promise(resolve => {
@@ -325,18 +365,18 @@ export class PublicProfileComponent implements OnInit {
         isOwn:        true,
       });
 
-      try {
-        const data = await this.postService.listByUser(me.id);
-        this.posts.set(data);
-      } catch (err) {
-        console.warn('[public-profile] failed to load own posts', err);
-        this.posts.set([]);
-      }
+      await Promise.all([
+        this.postService.listByUser(me.id).then(d => this.posts.set(d)).catch(() => this.posts.set([])),
+        this.followSvc.getCounts(me.id).then(c => {
+          this.followersCount.set(c.followers);
+          this.followingCount.set(c.following);
+        }).catch(() => {}),
+      ]);
+
       this.loading.set(false);
       return;
     }
 
-    // Other users: fetch from API by id or username
     try {
       const found = await this.userService.getUser(handle);
       if (!found) {
@@ -361,19 +401,48 @@ export class PublicProfileComponent implements OnInit {
         isOwn:        false,
       });
 
-      try {
-        const userPosts = await this.postService.listByUser(found.id);
-        this.posts.set(userPosts);
-      } catch (err) {
-        console.warn('[public-profile] failed to load posts', err);
-        this.posts.set([]);
-      }
+      await Promise.all([
+        this.postService.listByUser(found.id).then(d => this.posts.set(d)).catch(() => this.posts.set([])),
+        this.followSvc.getCounts(found.id).then(c => {
+          this.followersCount.set(c.followers);
+          this.followingCount.set(c.following);
+        }).catch(() => {}),
+        this.followSvc.isFollowing(found.id).then(f => this.following.set(f)).catch(() => {}),
+      ]);
     } catch (err) {
       console.error('[public-profile] failed to load user', err);
       this.publicUser.set(null);
       this.posts.set([]);
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  openFollowers(tab: FollowTab): void {
+    this.followersModalTab.set(tab);
+    this.showFollowersModal.set(true);
+  }
+
+  async toggleFollow(): Promise<void> {
+    if (this.followPending()) return;
+    this.followPending.set(true);
+    const wasFollowing = this.following();
+
+    this.following.set(!wasFollowing);
+    this.followersCount.update(n => wasFollowing ? Math.max(0, n - 1) : n + 1);
+
+    try {
+      const userId = this.publicUser()!.id;
+      if (wasFollowing) {
+        await this.followSvc.unfollow(userId);
+      } else {
+        await this.followSvc.follow(userId);
+      }
+    } catch {
+      this.following.set(wasFollowing);
+      this.followersCount.update(n => wasFollowing ? n + 1 : Math.max(0, n - 1));
+    } finally {
+      this.followPending.set(false);
     }
   }
 
@@ -385,10 +454,6 @@ export class PublicProfileComponent implements OnInit {
     } catch {
       this.posts.set(previous);
     }
-  }
-
-  toggleFollow(): void {
-    this.following.update(f => !f);
   }
 
   async toggleLike(postId: string): Promise<void> {

@@ -11,6 +11,8 @@ import { NewPostModalComponent } from '../feed/components/new-post-modal.compone
 import { ImageCropperComponent } from '../../shared/image-cropper.component';
 import { FeedHeaderComponent } from '../feed/components/feed-header.component';
 import { NotificationsPanelComponent } from '../feed/components/notifications-panel.component';
+import { FollowService } from '../../core/services/follow.service';
+import { FollowersModalComponent, FollowTab } from '../public-profile/followers-modal.component';
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   const a = control.get('newPassword')?.value;
@@ -26,7 +28,7 @@ const MAX_SIZE_MB   = 5;
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [ReactiveFormsModule, BottomNavComponent, NewPostModalComponent, ImageCropperComponent, FeedHeaderComponent, NotificationsPanelComponent],
+  imports: [ReactiveFormsModule, BottomNavComponent, NewPostModalComponent, ImageCropperComponent, FeedHeaderComponent, NotificationsPanelComponent, FollowersModalComponent],
   template: `
     @if (showNewPost()) {
       <app-new-post-modal (onClose)="showNewPost.set(false)" />
@@ -165,6 +167,21 @@ const MAX_SIZE_MB   = 5;
               </span>
               <span class="text-[10px] text-text-2 font-body">peso</span>
             </div>
+          </div>
+
+          <!-- Followers / Following -->
+          <div class="mt-3 flex gap-4 z-10">
+            <button (click)="openFollowers('followers')"
+                    class="flex flex-col items-center active:opacity-70 transition-opacity">
+              <span class="text-[18px] font-display font-bold text-white">{{ followersCount() }}</span>
+              <span class="text-[10px] text-text-2 font-body">seguidores</span>
+            </button>
+            <div class="w-px bg-border"></div>
+            <button (click)="openFollowers('following')"
+                    class="flex flex-col items-center active:opacity-70 transition-opacity">
+              <span class="text-[18px] font-display font-bold text-white">{{ followingCount() }}</span>
+              <span class="text-[10px] text-text-2 font-body">seguindo</span>
+            </button>
           </div>
 
           <!-- Invite button -->
@@ -529,6 +546,15 @@ const MAX_SIZE_MB   = 5;
       </div>
 
       <app-bottom-nav [active]="''" (onNewPost)="showNewPost.set(true)" />
+
+      @if (showFollowersModal()) {
+        <app-followers-modal
+          [userId]="auth.user()!.id"
+          [initialTab]="followersModalTab()"
+          [followersCount]="followersCount()"
+          [followingCount]="followingCount()"
+          (onClose)="showFollowersModal.set(false)" />
+      }
     </div>
   `,
 })
@@ -537,6 +563,7 @@ export class ProfileComponent implements OnInit {
   workoutService = inject(WorkoutService);
   checkin = inject(CheckinService);
   ranking = inject(RankingService);
+  private followSvc = inject(FollowService);
   router  = inject(Router);
   route = inject(ActivatedRoute);
   location = inject(Location);
@@ -555,6 +582,10 @@ export class ProfileComponent implements OnInit {
   uploadProgress  = signal(0);
   showNewPost = signal(false);
   showNotifications = signal(false);
+  showFollowersModal = signal(false);
+  followersModalTab = signal<FollowTab>('followers');
+  followersCount = signal(0);
+  followingCount = signal(0);
   avatarError     = signal('');
   avatarSuccess   = signal(false);
 
@@ -630,6 +661,14 @@ export class ProfileComponent implements OnInit {
       this.activeTab.set(requestedTab);
     }
 
+    const userId = this.auth.user()?.id;
+    if (userId) {
+      this.followSvc.getCounts(userId).then(c => {
+        this.followersCount.set(c.followers);
+        this.followingCount.set(c.following);
+      }).catch(() => {});
+    }
+
     const p = this.auth.profile();
     this.profileForm = this.fb.group({
       full_name:    [p.full_name,    [Validators.maxLength(60)]],
@@ -647,6 +686,11 @@ export class ProfileComponent implements OnInit {
       { newPassword: ['', [Validators.required, Validators.minLength(6)]], confirmPassword: ['', Validators.required] },
       { validators: passwordsMatch },
     );
+  }
+
+  openFollowers(tab: FollowTab): void {
+    this.followersModalTab.set(tab);
+    this.showFollowersModal.set(true);
   }
 
   private isActiveTab(value: string | null): value is ActiveTab {
