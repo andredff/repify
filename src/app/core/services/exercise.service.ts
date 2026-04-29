@@ -73,6 +73,60 @@ const PT_TO_EN_KEYWORDS: Record<string, string[]> = {
   'flexão':              ['push-up'],
 };
 
+// ── EN → PT label translations ────────────────────────────────────────────────
+
+const TARGET_PT: Record<string, string> = {
+  'quads':               'quadríceps',
+  'glutes':              'glúteos',
+  'hamstrings':          'posteriores',
+  'calves':              'panturrilhas',
+  'abductors':           'abdutores',
+  'adductors':           'adutores',
+  'upper back':          'costas superiores',
+  'lats':                'latíssimo',
+  'traps':               'trapézio',
+  'delts':               'deltoides',
+  'pectorals':           'peitoral',
+  'biceps':              'bíceps',
+  'triceps':             'tríceps',
+  'abs':                 'abdômen',
+  'spine':               'coluna',
+  'cardiovascular system': 'cardio',
+  'serratus anterior':   'serrátil',
+  'levator scapulae':    'elevador da escápula',
+};
+
+const EQUIPMENT_PT: Record<string, string> = {
+  'barbell':          'barra',
+  'dumbbell':         'halter',
+  'cable':            'cabo / polia',
+  'machine':          'máquina',
+  'body weight':      'peso corporal',
+  'band':             'elástico',
+  'kettlebell':       'kettlebell',
+  'ez barbell':       'barra EZ',
+  'smith machine':    'Smith',
+  'leverage machine': 'máquina articulada',
+  'medicine ball':    'medicine ball',
+  'roller':           'rolo',
+  'rope':             'corda',
+  'stability ball':   'bola suíça',
+  'tire':             'pneu',
+  'trap bar':         'barra hexagonal',
+  'weighted':         'com carga',
+  'assisted':         'assistido',
+  'resistance band':  'elástico',
+  'other':            '',
+};
+
+function translateTarget(value: string): string {
+  return TARGET_PT[value.toLowerCase()] ?? value;
+}
+
+function translateEquipment(value: string): string {
+  return EQUIPMENT_PT[value.toLowerCase()] ?? value;
+}
+
 // ── Normalizer helpers ────────────────────────────────────────────────────────
 
 function normalize(text: string): string {
@@ -171,8 +225,8 @@ export class ExerciseService {
       if (match) {
         resultMap.set(planEx.id, {
           gif:       match.gifUrl,
-          target:    match.target,
-          equipment: match.equipment,
+          target:    translateTarget(match.target),
+          equipment: translateEquipment(match.equipment),
         });
         used.add(match.id);
       }
