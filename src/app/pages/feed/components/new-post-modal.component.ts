@@ -390,7 +390,7 @@ const MAX_PHOTOS = 6;
               </button>
             </div>
             <div class="rounded-2xl overflow-hidden bg-card border border-border relative">
-              <video [src]="videoPreview()" controls playsinline preload="metadata"
+              <video [src]="videoPreview()" [poster]="videoPoster()" controls playsinline preload="metadata"
                      class="w-full max-h-[320px] object-contain bg-black">
               </video>
             </div>
@@ -535,8 +535,9 @@ export class NewPostModalComponent {
   galleryArtworkPreview = signal('');
 
   // ── Video ────────────────────────────────────────────────────────────────
-  videoFile    = signal<File | null>(null);
-  videoPreview = signal('');
+  videoFile            = signal<File | null>(null);
+  videoPreview         = signal('');
+  videoPoster          = signal(''); // first frame captured client-side
 
   // ── Crop & format picker ─────────────────────────────────────────────────
   cropSrc          = signal<string | null>(null);
@@ -707,6 +708,7 @@ export class NewPostModalComponent {
     if (file.size > 100 * 1024 * 1024) { this.error.set('Vídeo muito grande. Máximo 100MB.'); return; }
     this.videoFile.set(file);
     this.videoPreview.set(URL.createObjectURL(file));
+    void this._captureVideoPoster(file);
   }
 
   removeVideo(): void {
@@ -714,6 +716,35 @@ export class NewPostModalComponent {
     if (prev.startsWith('blob:')) URL.revokeObjectURL(prev);
     this.videoFile.set(null);
     this.videoPreview.set('');
+    this.videoPoster.set('');
+  }
+
+  private _captureVideoPoster(file: File): Promise<void> {
+    return new Promise(resolve => {
+      const video = document.createElement('video');
+      const url   = URL.createObjectURL(file);
+      video.src        = url;
+      video.muted      = true;
+      video.playsInline = true;
+      video.currentTime = 0.5;
+
+      const cleanup = () => URL.revokeObjectURL(url);
+
+      video.addEventListener('seeked', () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width  = video.videoWidth  || 640;
+          canvas.height = video.videoHeight || 360;
+          canvas.getContext('2d')?.drawImage(video, 0, 0);
+          this.videoPoster.set(canvas.toDataURL('image/jpeg', 0.8));
+        } catch { /* ignore */ } finally {
+          cleanup();
+          resolve();
+        }
+      }, { once: true });
+
+      video.addEventListener('error', () => { cleanup(); resolve(); }, { once: true });
+    });
   }
 
   useOriginal(): void {

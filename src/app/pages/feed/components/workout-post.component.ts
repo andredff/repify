@@ -129,10 +129,27 @@ const MUSCLE_COLORS: Record<string, string> = {
 
       <!-- Video -->
       @if (post().videoUrl) {
-        <div class="mx-4 mb-3 overflow-hidden rounded-2xl bg-black">
-          <video [src]="post().videoUrl" controls playsinline preload="metadata"
+        <div class="mx-4 mb-3 overflow-hidden rounded-2xl bg-black relative cursor-pointer"
+             (click)="toggleVideo(videoEl)">
+          <video #videoEl
+                 [src]="post().videoUrl + '#t=0.1'"
+                 playsinline
+                 preload="metadata"
+                 (play)="videoPlaying.set(true)"
+                 (pause)="videoPlaying.set(false)"
+                 (ended)="videoPlaying.set(false)"
                  class="w-full max-h-[400px] object-contain">
           </video>
+          <!-- Play overlay (shown when paused) -->
+          @if (!videoPlaying()) {
+            <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div class="w-14 h-14 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+              </div>
+            </div>
+          }
         </div>
       }
 
@@ -386,6 +403,7 @@ export class WorkoutPostComponent {
   likesError       = signal('');
   likeUsers        = signal<PostLikeUser[]>([]);
   activePhotoIndex = signal(0);
+  videoPlaying     = signal(false);
   private likesPressTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
@@ -541,6 +559,10 @@ export class WorkoutPostComponent {
     }
 
     this.showComments.set(true);
+  }
+
+  toggleVideo(el: HTMLVideoElement): void {
+    if (el.paused) { void el.play(); } else { el.pause(); }
   }
 
   previousPhoto(): void {
