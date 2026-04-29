@@ -87,13 +87,24 @@ const MUSCLE_EMOJI: Record<string, string> = {
           </div>
 
           <div class="shrink-0 pl-2">
-          @if (isFinished()) {
-            <div class="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/15 px-3 py-2 text-[12px] font-body font-semibold text-primary">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              {{ ctaLabel() }}
-            </div>
+            @if (isFinished()) {
+              <div class="flex flex-col items-end gap-2">
+                <div class="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/15 px-3 py-2 text-[12px] font-body font-semibold text-primary">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                  {{ ctaLabel() }}
+                </div>
+                <button
+                  type="button"
+                  (click)="onCreatePost.emit()"
+                  class="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-[11px] font-body font-semibold text-white transition-all hover:border-primary/22 hover:bg-primary/10 hover:text-primary active:scale-95">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14"/><path d="M5 12h14"/>
+                  </svg>
+                  Postar treino
+                </button>
+              </div>
           } @else {
             <button
               type="button"
@@ -111,7 +122,7 @@ const MUSCLE_EMOJI: Record<string, string> = {
               {{ ctaLabel() }}
             </button>
           }
-        </div>
+          </div>
           </div>
           </div>
 
@@ -123,6 +134,7 @@ export class DailyWorkoutCardComponent {
   workout  = input.required<DailyWorkout>();
   state = input<WorkoutAvailabilityState>('pending');
   onStart  = output<string>();
+  onCreatePost = output<void>();
 
   readonly isFinished = computed(() => this.state() === 'completed');
   readonly isLocked = computed(() => this.state() === 'locked');

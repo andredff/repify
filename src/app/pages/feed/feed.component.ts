@@ -541,7 +541,8 @@ function isoToday(): string {
           <app-daily-workout-card
             [workout]="todayWorkout()!"
             [state]="todayWorkoutAccess().state"
-            (onStart)="startWorkout($event)" />
+            (onStart)="startWorkout($event)"
+            (onCreatePost)="openNewPostPanel(true)" />
         </div>
       }
 
@@ -939,14 +940,8 @@ export class FeedComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const streak = this.workoutService.streak();
     return [
-      'Treino finalizado no Repify.',
-      `${session.planName} • ${session.muscleGroup}`,
-      `Exercícios concluídos: ${session.exercisesDone}/${session.totalExercises}`,
-      `Duração estimada: ${session.estimatedDuration} min`,
-      `XP ganho: +${session.xpEarned}`,
-      `Nível do treino: ${session.difficulty}`,
-      streak > 0 ? `Streak atual: ${streak} dia${streak === 1 ? '' : 's'}` : '',
-      'Topa encarar esse desafio comigo?',
+      'Treino concluído. A régua ficou alta.',
+      streak > 0 ? `Streak em ${streak} dia${streak === 1 ? '' : 's'}. Quero ver responder.` : 'Quero ver quem responde no mesmo ritmo.',
     ].filter(Boolean).join('\n');
   });
 

@@ -5,15 +5,22 @@ import { supabaseAdmin } from '../supabase';
 
 const router = Router();
 
+const PhotoGalleryItemSchema = z.object({
+  full: z.string().url(),
+  medium: z.string().url().optional(),
+  thumb: z.string().url().optional(),
+});
+
 const PostSchema = z.object({
   caption:          z.string().max(500).optional(),
   photo_url:        z.string().url().optional(),
   photo_url_medium: z.string().url().optional(),
   photo_url_thumb:  z.string().url().optional(),
+  photo_gallery:    z.array(PhotoGalleryItemSchema).max(6).optional(),
   workout_name:     z.string().max(80).optional(),
   workout_muscle:   z.string().max(30).optional(),
 }).refine(
-  d => d.caption?.trim() || d.photo_url || d.workout_name,
+  d => d.caption?.trim() || d.photo_url || d.photo_gallery?.length || d.workout_name,
   { message: 'O post precisa ter ao menos foto, descrição ou treino.' },
 );
 
@@ -50,6 +57,9 @@ router.get('/public/:id', async (req, res: Response) => {
       id:         post.id,
       caption:    post.caption,
       photo_url:  post.photo_url,
+      photo_url_medium: post.photo_url_medium,
+      photo_url_thumb: post.photo_url_thumb,
+      photo_gallery: normalizePhotoGallery(post),
       workout:    post.workout_name ? { name: post.workout_name, muscleGroup: post.workout_muscle ?? '' } : null,
       likes:      post.likes,
       comments:   post.comments,
@@ -124,14 +134,16 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
     return;
   }
 
+  const normalizedGallery = normalizePhotoGallery(parsed.data);
   const { data, error } = await supabaseAdmin
     .from('posts')
     .insert({
       user_id:          req.userId,
       caption:          parsed.data.caption          ?? null,
-      photo_url:        parsed.data.photo_url        ?? null,
-      photo_url_medium: parsed.data.photo_url_medium ?? null,
-      photo_url_thumb:  parsed.data.photo_url_thumb  ?? null,
+      photo_url:        normalizedGallery[0]?.full ?? parsed.data.photo_url ?? null,
+      photo_url_medium: normalizedGallery[0]?.medium ?? parsed.data.photo_url_medium ?? null,
+      photo_url_thumb:  normalizedGallery[0]?.thumb ?? parsed.data.photo_url_thumb ?? null,
+      photo_gallery:    normalizedGallery.length ? normalizedGallery : null,
       workout_name:     parsed.data.workout_name     ?? null,
       workout_muscle:   parsed.data.workout_muscle   ?? null,
     })
@@ -157,7 +169,7 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
 
   const { data: existing, error: fetchErr } = await supabaseAdmin
     .from('posts')
-    .select('user_id, photo_url, photo_url_medium, photo_url_thumb')
+    .select('user_id, photo_url, photo_url_medium, photo_url_thumb, photo_gallery')
     .eq('id', id)
     .maybeSingle();
 
@@ -172,13 +184,14 @@ router.delete('/:id', requireAuth, async (req: AuthRequest, res: Response) => {
 
   // Remove all storage variants (full, medium, thumb)
   const marker = '/object/public/workout-photos/';
-  const pathsToRemove = [existing.photo_url, (existing as any).photo_url_medium, (existing as any).photo_url_thumb]
+  const galleryPaths = normalizePhotoGallery(existing).flatMap(photo => [photo.full, photo.medium, photo.thumb]);
+  const pathsToRemove = [...galleryPaths, existing.photo_url, (existing as any).photo_url_medium, (existing as any).photo_url_thumb]
     .filter(Boolean)
     .map((url: string) => {
       const idx = url.indexOf(marker);
       return idx !== -1 ? decodeURIComponent(url.slice(idx + marker.length).split('?')[0]) : null;
     })
-    .filter(Boolean) as string[];
+    .filter((path, index, items) => !!path && items.indexOf(path) === index) as string[];
 
   if (pathsToRemove.length) {
     await supabaseAdmin.storage.from('workout-photos').remove(pathsToRemove);
@@ -247,6 +260,45 @@ router.post('/:id/like', requireAuth, async (req: AuthRequest, res: Response) =>
   }
 
   res.json({ liked: true });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/posts/:id/likes — lista quem curtiu
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/:id/likes', requireAuth, async (req: AuthRequest, res: Response) => {
+  const postId = req.params['id'];
+  if (!postId) { res.status(400).json({ error: 'Missing id.' }); return; }
+
+  const { data, error } = await supabaseAdmin
+    .from('post_likes')
+    .select('post_id, user_id, created_at')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    res.status(500).json({ error: 'Failed to fetch likes.' });
+    return;
+  }
+
+  const rows = (data ?? []) as PostLikeRow[];
+  const userIds = Array.from(new Set(rows.map(row => row.user_id)));
+  const users = await Promise.all(userIds.map(id => supabaseAdmin.auth.admin.getUserById(id)));
+  const userMap = new Map<string, any>();
+  for (const entry of users) {
+    if (entry.data?.user) userMap.set(entry.data.user.id, entry.data.user);
+  }
+
+  const likes = rows.map(row => {
+    const user = userMap.get(row.user_id);
+    return {
+      id: row.user_id,
+      name: extractUserDisplayName(user),
+      username: user?.user_metadata?.['username'] || undefined,
+      avatar: resolveAvatarUrl(user?.user_metadata?.['avatar_url']),
+    };
+  });
+
+  res.json({ likes });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -375,6 +427,9 @@ interface PostRow {
   user_id: string;
   caption: string | null;
   photo_url: string | null;
+  photo_url_medium: string | null;
+  photo_url_thumb: string | null;
+  photo_gallery: unknown;
   workout_name: string | null;
   workout_muscle: string | null;
   likes: number;
@@ -389,6 +444,12 @@ interface UserStatsRow {
 
 interface XpEventRow {
   user_id: string;
+}
+
+interface PostLikeRow {
+  post_id: string;
+  user_id: string;
+  created_at: string;
 }
 
 async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string | null) {
@@ -415,7 +476,7 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
         .in('post_id', postIds)).data
     : [];
 
-  const [{ data: statsRows }, { data: workoutRows }] = await Promise.all([
+  const [{ data: statsRows }, { data: workoutRows }, { data: previewLikeRows }] = await Promise.all([
     supabaseAdmin
       .from('user_stats')
       .select('user_id, total_xp')
@@ -425,6 +486,11 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
       .select('user_id')
       .eq('type', 'workout')
       .in('user_id', userIds),
+    supabaseAdmin
+      .from('post_likes')
+      .select('post_id, user_id, created_at')
+      .in('post_id', postIds)
+      .order('created_at', { ascending: false }),
   ]);
 
   const statsMap = new Map<string, UserStatsRow>();
@@ -437,6 +503,26 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
     workoutMap.set(row.user_id, (workoutMap.get(row.user_id) ?? 0) + 1);
   }
 
+  const likeRows = (previewLikeRows ?? []) as PostLikeRow[];
+  const previewLikeUserIds = Array.from(new Set(likeRows.map(row => row.user_id)));
+  const previewLikeUsers = await Promise.all(
+    previewLikeUserIds.map(id => supabaseAdmin.auth.admin.getUserById(id)),
+  );
+  const previewLikeUserMap = new Map<string, any>();
+  for (const entry of previewLikeUsers) {
+    if (entry.data?.user) previewLikeUserMap.set(entry.data.user.id, entry.data.user);
+  }
+
+  const likePreviewNameByPost = new Map<string, string>();
+  for (const row of likeRows) {
+    if (likePreviewNameByPost.has(row.post_id)) continue;
+    const liker = previewLikeUserMap.get(row.user_id);
+    const displayName = extractUserDisplayName(liker);
+    if (displayName) {
+      likePreviewNameByPost.set(row.post_id, extractFirstName(displayName));
+    }
+  }
+
   const likedSet = new Set((myLikes ?? []).map(l => l.post_id));
 
   return posts.map(p => {
@@ -447,8 +533,12 @@ async function enrichWithAuthorsAndLikes(posts: PostRow[], currentUserId: string
       id:          p.id,
       caption:     p.caption,
       photo_url:   p.photo_url,
+      photo_url_medium: p.photo_url_medium,
+      photo_url_thumb: p.photo_url_thumb,
+      photo_gallery: normalizePhotoGallery(p),
       workout:     p.workout_name ? { name: p.workout_name, muscleGroup: p.workout_muscle ?? '' } : null,
       likes:       p.likes,
+      liked_by_preview_name: likePreviewNameByPost.get(p.id) ?? null,
       comments:    p.comments,
       liked:       likedSet.has(p.id),
       created_at:  p.created_at,
@@ -479,6 +569,46 @@ function resolveAvatarUrl(path: string | undefined | null): string {
   if (path.startsWith('http')) return path;
   const { data } = supabaseAdmin.storage.from('avatars').getPublicUrl(path);
   return data.publicUrl;
+}
+
+function extractUserDisplayName(user: any): string {
+  const meta = user?.user_metadata ?? {};
+  return meta['full_name'] || user?.email?.split('@')[0] || 'Usuário';
+}
+
+function extractFirstName(name: string): string {
+  return name.trim().split(/\s+/)[0] || name;
+}
+
+function normalizePhotoGallery(source: {
+  photo_url?: string | null;
+  photo_url_medium?: string | null;
+  photo_url_thumb?: string | null;
+  photo_gallery?: unknown;
+}): Array<{ full: string; medium?: string; thumb?: string }> {
+  if (Array.isArray(source.photo_gallery)) {
+    const normalized = source.photo_gallery
+      .filter((photo): photo is { full?: string; medium?: string; thumb?: string } => !!photo && typeof photo === 'object')
+      .filter(photo => typeof photo.full === 'string' && photo.full.length > 0)
+      .map(photo => ({
+        full: photo.full!,
+        medium: typeof photo.medium === 'string' ? photo.medium : undefined,
+        thumb: typeof photo.thumb === 'string' ? photo.thumb : undefined,
+      }));
+    if (normalized.length) {
+      return normalized;
+    }
+  }
+
+  if (!source.photo_url) {
+    return [];
+  }
+
+  return [{
+    full: source.photo_url,
+    medium: source.photo_url_medium ?? undefined,
+    thumb: source.photo_url_thumb ?? undefined,
+  }];
 }
 
 function timeAgo(iso: string): string {

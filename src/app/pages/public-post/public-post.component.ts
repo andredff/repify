@@ -20,6 +20,7 @@ interface PublicPost {
   photo_url: string | null;
   photo_url_medium: string | null;
   photo_url_thumb: string | null;
+  photo_gallery?: Array<{ full: string; medium?: string | null; thumb?: string | null }> | null;
   workout: { name: string; muscleGroup: string } | null;
   likes: number;
   comments: number;
@@ -256,8 +257,8 @@ const SOCIAL_PROOF = [
         <section class="space-y-6 lg:sticky lg:top-[92px] lg:self-start">
           <article class="cinema-card group relative overflow-hidden rounded-[34px] border border-primary/15 shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
             <div class="absolute inset-0">
-              @if (post()!.photo_url) {
-                <img [src]="post()!.photo_url" alt="Foto do treino de {{ post()!.user.name }}" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
+              @if (activePhoto()) {
+                <img [src]="activePhoto()!" alt="Foto do treino de {{ post()!.user.name }}" class="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.03]" />
               } @else {
                 <div class="h-full w-full"
                 style="background: radial-gradient(circle at 20% 10%, rgba(0,255,136,0.26), transparent 30%), radial-gradient(circle at 78% 28%, rgba(0,194,255,0.12), transparent 34%), linear-gradient(135deg, #080C10 10%, #131C26 60%, #0E151D 100%);"></div>
@@ -274,10 +275,19 @@ const SOCIAL_PROOF = [
                   <span class="neon-dot"></span>
                   {{ blueprint().heroTag }}
                 </div>
-                <div class="glass inline-flex items-center gap-2 rounded-full border border-primary/15 px-3 py-1.5 text-[11px] font-body text-white/80">
-                  <span>🔥 {{ post()!.user.streak_days }} dias</span>
-                  <span class="text-white/25">|</span>
-                  <span>{{ post()!.time_ago }}</span>
+                <div class="flex flex-wrap items-center justify-end gap-2">
+                  @if (publicPhotos().length > 1) {
+                    <div class="glass inline-flex items-center gap-2 rounded-full border border-primary/15 px-2.5 py-1.5 text-[11px] font-body text-white/80">
+                      <button type="button" (click)="previousPhoto()" class="text-white/70 transition-colors hover:text-white" aria-label="Foto anterior">‹</button>
+                      <span>{{ activePhotoIndex() + 1 }}/{{ publicPhotos().length }}</span>
+                      <button type="button" (click)="nextPhoto()" class="text-white/70 transition-colors hover:text-white" aria-label="Próxima foto">›</button>
+                    </div>
+                  }
+                  <div class="glass inline-flex items-center gap-2 rounded-full border border-primary/15 px-3 py-1.5 text-[11px] font-body text-white/80">
+                    <span>🔥 {{ post()!.user.streak_days }} dias</span>
+                    <span class="text-white/25">|</span>
+                    <span>{{ post()!.time_ago }}</span>
+                  </div>
                 </div>
               </div>
 
@@ -315,6 +325,21 @@ const SOCIAL_PROOF = [
                   <div class="glass max-w-[540px] rounded-[26px] border border-primary/15 p-4 sm:p-5">
                     <p class="text-[11px] font-body uppercase tracking-[0.28em] text-text-2">Legenda do treino</p>
                     <p class="mt-2 text-[14px] font-body leading-relaxed text-white/90 whitespace-pre-wrap">{{ post()!.caption }}</p>
+                  </div>
+                }
+
+                @if (publicPhotos().length > 1) {
+                  <div class="flex flex-wrap gap-2">
+                    @for (photo of publicPhotos(); track photo.full; let index = $index) {
+                      <button type="button"
+                              (click)="goToPhoto(index)"
+                              class="overflow-hidden rounded-2xl border transition-all"
+                              [class]="activePhotoIndex() === index ? 'border-primary/40 shadow-[0_0_0_1px_rgba(0,255,136,0.16)]' : 'border-white/10 opacity-75 hover:opacity-100'">
+                        <img [src]="photo.thumb || photo.medium || photo.full"
+                             alt="Miniatura da foto {{ index + 1 }}"
+                             class="h-16 w-16 object-cover" />
+                      </button>
+                    }
                   </div>
                 }
               </div>
@@ -598,6 +623,7 @@ export class PublicPostComponent implements OnInit {
   private router = inject(Router);
 
   post    = signal<PublicPost | null>(null);
+  activePhotoIndex = signal(0);
   loading = signal(true);
   error   = signal(false);
   readonly socialProof = signal(SOCIAL_PROOF);
@@ -641,6 +667,25 @@ export class PublicPostComponent implements OnInit {
     { icon: '📈', label: 'Performance', value: performanceLabel(this.consistency()), hint: 'Leitura geral da sessão' },
   ]);
   readonly workoutTitle = computed(() => this.post()?.workout?.name || this.blueprint().title);
+  readonly publicPhotos = computed(() => {
+    const post = this.post();
+    if (!post) return [];
+
+    if (Array.isArray(post.photo_gallery) && post.photo_gallery.length > 0) {
+      return post.photo_gallery.filter(photo => !!photo?.full);
+    }
+
+    if (!post.photo_url) {
+      return [];
+    }
+
+    return [{
+      full: post.photo_url,
+      medium: post.photo_url_medium,
+      thumb: post.photo_url_thumb,
+    }];
+  });
+  readonly activePhoto = computed(() => this.publicPhotos()[this.activePhotoIndex()]?.medium || this.publicPhotos()[this.activePhotoIndex()]?.full || null);
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
@@ -662,10 +707,12 @@ export class PublicPostComponent implements OnInit {
       }
       const { post } = await res.json();
       this.post.set(post ?? fallbackPost);
+      this.activePhotoIndex.set(0);
       if (!this.post()) throw new Error('empty');
     } catch {
       if (fallbackPost) {
         this.post.set(fallbackPost);
+        this.activePhotoIndex.set(0);
         return;
       }
       this.error.set(true);
@@ -717,6 +764,23 @@ export class PublicPostComponent implements OnInit {
 
   goToRegister(): void { this.router.navigate(['/register']); }
   goToLogin():    void { this.router.navigate(['/']); }
+
+  previousPhoto(): void {
+    const total = this.publicPhotos().length;
+    if (total <= 1) return;
+    this.activePhotoIndex.update(index => (index - 1 + total) % total);
+  }
+
+  nextPhoto(): void {
+    const total = this.publicPhotos().length;
+    if (total <= 1) return;
+    this.activePhotoIndex.update(index => (index + 1) % total);
+  }
+
+  goToPhoto(index: number): void {
+    if (index < 0 || index >= this.publicPhotos().length) return;
+    this.activePhotoIndex.set(index);
+  }
 }
 
 function resolveTier(totalXp: number): XpTier {

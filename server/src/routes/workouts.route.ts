@@ -295,16 +295,13 @@ router.post('/session/start', requireAuth, async (req: AuthRequest, res: Respons
     ? completedAtMs >= programCreatedAtMs
     : !!existing?.completed_at;
 
-  if (existing?.active_plan_id && existing.active_plan_id !== parsed.data.planId) {
-    res.status(409).json({ error: 'Another workout is already active today.', daySession: existing });
-    return;
-  }
+  const isSwitchingPlan = existing?.active_plan_id != null && existing.active_plan_id !== parsed.data.planId;
 
   const nextSession = {
     user_id: userId,
     session_date: today,
     active_plan_id: parsed.data.planId,
-    started_at: existing?.started_at ?? nowIso,
+    started_at: isSwitchingPlan ? nowIso : (existing?.started_at ?? nowIso),
     completed_plan_id: completedAfterCurrentProgram ? existing?.completed_plan_id ?? null : null,
     completed_at: completedAfterCurrentProgram ? existing?.completed_at ?? null : null,
     motivational_quote: completedAfterCurrentProgram ? existing?.motivational_quote ?? null : null,

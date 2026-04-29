@@ -23,36 +23,47 @@ interface CaptionOption {
   value: string;
 }
 
-const CAPTION_HOOKS = [
-  'Treino batido. Quero ver quem responde.',
-  'Missão cumprida no Repify. Agora eu quero réplica.',
-  'Fechei o treino e deixei o desafio no ar.',
-  'Resultado entregue. Sua vez de tentar encostar.',
-  'Acabei o treino do dia. Quem vier, vem forte.',
-  'Treino concluído e régua levantada.',
-  'Hoje eu fiz minha parte. Quero ver a sua.',
-  'O treino caiu. O desafio ficou.',
-  'Marquei presença e deixei trabalho pra concorrência.',
-  'Treino do dia resolvido. Bora ver quem sustenta o ritmo.',
-];
-
-const CAPTION_METRICS = [
-  (summary: WorkoutPostPrefillSummary) => `Foram ${summary.exercisesDone}/${summary.totalExercises} exercícios fechados em ${summary.durationMinutes} min.`,
-  (summary: WorkoutPostPrefillSummary) => `Saí com +${summary.xpEarned} XP depois de ${summary.durationMinutes} min de execução real.`,
-  (summary: WorkoutPostPrefillSummary) => `Completei ${summary.exercisesDone}/${summary.totalExercises} exercícios e o treino já ficou no histórico.`,
-  (summary: WorkoutPostPrefillSummary) => `Treino encerrado às ${summary.completedAtLabel} com +${summary.xpEarned} XP no bolso.`,
-  (summary: WorkoutPostPrefillSummary) => `Passei por ${summary.title} e fechei ${summary.exercisesDone}/${summary.totalExercises} exercícios sem cortar caminho.`,
-];
-
-const CAPTION_CLOSERS = [
-  'Se você acha que bate, prova no app.',
-  'Topa entrar nesse desafio comigo?',
-  'Quero ver alguém passar disso hoje.',
-  'Se vier, vem com treino completo.',
-  'Agora é sua chance de responder no Repify.',
-  'Vamos ver quem consegue devolver esse placar.',
-  'Se for desafiar, fecha o treino inteiro.',
-  'Duvido encostar nesse ritmo ainda hoje.',
+const AUTO_CAPTION_PHRASES = [
+  'Treino feito. Sem desculpa.',
+  'Hoje teve disciplina.',
+  'Mais um dia cumprido.',
+  'Não falhei comigo hoje.',
+  'Consistência > motivação.',
+  'Fiz o que precisava ser feito.',
+  'Sem atalho. Só execução.',
+  'Um dia mais forte.',
+  'Processo acima de tudo.',
+  'Check do dia ✅',
+  'Treino pago.',
+  'Mais um passo.',
+  'Sem emoção, só ação.',
+  'Fiz mesmo sem vontade.',
+  'Resultado é consequência.',
+  'Hoje eu apareci.',
+  'Disciplina mantida.',
+  'Evolução silenciosa.',
+  'Constância ativa.',
+  'Mais perto do objetivo.',
+  'Você ou desiste, ou evolui.',
+  'Ninguém faz por você.',
+  'Feito > perfeito.',
+  'Dor passa. Resultado fica.',
+  'Sem esforço, sem progresso.',
+  'Mais ação, menos desculpa.',
+  'O básico bem feito funciona.',
+  'Repetição cria resultado.',
+  'Você colhe o que repete.',
+  'Hoje eu venci a preguiça.',
+  '+1 dia na sequência 🔥',
+  'XP garantido hoje',
+  'Missão concluída',
+  'Streak mantida',
+  'Level up em andamento',
+  'Meta da semana mais perto',
+  'Desafio avançado',
+  'Progresso atualizado',
+  'Check-in validado',
+  'Consistência registrada',
 ];
 
 export interface WorkoutPostPrefillSummary {
@@ -136,6 +147,49 @@ export interface WorkoutPostPrefillSummary {
       </div>
     }
 
+    @if (showArtworkPrompt()) {
+      <div class="fixed inset-0 z-[56] flex items-end max-w-[460px] mx-auto"
+           style="background:rgba(8,12,16,0.74)" (click)="declineArtworkCarousel()">
+        <div class="w-full rounded-t-[28px] border-t border-primary/20 bg-card p-5 animate-slide-up"
+             (click)="$event.stopPropagation()">
+          <div class="mx-auto mb-4 h-1.5 w-12 rounded-full bg-white/10"></div>
+          <p class="text-[11px] font-body font-medium uppercase tracking-[0.22em] text-primary/80">Carrossel do treino</p>
+          <h3 class="mt-2 text-[19px] font-display font-bold text-white">Adicionar a arte do treino como 2ª foto?</h3>
+          <p class="mt-2 text-[13px] font-body leading-relaxed text-text-2">
+            Sua foto entra primeiro no post. A arte gerada do treino entra como a segunda imagem do carrossel.
+          </p>
+
+          @if (galleryArtworkPreview()) {
+            <div class="mt-4 rounded-2xl border border-primary/15 bg-primary/8 p-3">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="overflow-hidden rounded-xl border border-white/8 bg-card-2">
+                  <img [src]="photoPreview()" alt="Prévia da foto principal" class="aspect-square w-full object-cover" />
+                  <p class="border-t border-white/8 px-2 py-1.5 text-center text-[10px] font-body uppercase tracking-[0.16em] text-text-2">Foto 1</p>
+                </div>
+                <div class="overflow-hidden rounded-xl border border-primary/20 bg-card-2">
+                  <img [src]="galleryArtworkPreview()" alt="Prévia da arte do treino" class="aspect-square w-full object-cover" />
+                  <p class="border-t border-primary/15 px-2 py-1.5 text-center text-[10px] font-body uppercase tracking-[0.16em] text-primary">Foto 2</p>
+                </div>
+              </div>
+            </div>
+          }
+
+          <div class="mt-5 flex gap-3">
+            <button type="button"
+                    (click)="declineArtworkCarousel()"
+                    class="flex-1 rounded-xl border border-border px-4 py-3 text-[13px] font-body font-medium text-text-2 transition-colors hover:text-white">
+              Agora não
+            </button>
+            <button type="button"
+                    (click)="acceptArtworkCarousel()"
+                    class="flex-1 rounded-xl border border-primary/30 bg-primary/12 px-4 py-3 text-[13px] font-body font-semibold text-primary transition-all hover:bg-primary/18">
+              Adicionar
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
     <div class="fixed inset-0 z-50 flex flex-col max-w-[460px] mx-auto bg-card animate-slide-up">
 
       <!-- Header -->
@@ -161,7 +215,8 @@ export interface WorkoutPostPrefillSummary {
 
           <!-- Photo area -->
           @if (photoPreview()) {
-            <div class="relative rounded-2xl overflow-hidden bg-card-2">
+            <div class="space-y-3">
+              <div class="relative rounded-2xl overflow-hidden bg-card-2">
               <img [src]="photoPreview()" class="w-full h-auto max-h-[70vh] object-contain" />
               <div class="absolute top-3 right-3 flex gap-2">
                 @if (prefillSummary()) {
@@ -173,7 +228,7 @@ export interface WorkoutPostPrefillSummary {
                       <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
                       <polyline points="21 3 21 9 15 9"/>
                     </svg>
-                    Regenerar arte
+                    {{ autoGeneratedVisual() ? 'Regenerar arte' : (galleryArtworkFile() ? 'Regenerar foto 2' : 'Adicionar foto 2') }}
                   </button>
                 }
                 <button
@@ -193,6 +248,29 @@ export interface WorkoutPostPrefillSummary {
                   </svg>
                 </button>
               </div>
+              </div>
+
+              @if (galleryArtworkPreview()) {
+                <div class="rounded-2xl border border-primary/18 bg-primary/8 p-3">
+                  <div class="mb-2 flex items-center justify-between gap-3">
+                    <div>
+                      <p class="text-[11px] font-body font-medium uppercase tracking-[0.18em] text-primary/80">Carrossel pronto</p>
+                      <p class="mt-1 text-[12px] font-body text-text-2">Sua foto vai primeiro. A arte do treino entra como segunda imagem.</p>
+                    </div>
+                    <span class="rounded-full border border-primary/20 bg-bg/40 px-2.5 py-1 text-[10px] font-mono text-primary">2 fotos</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="overflow-hidden rounded-xl border border-white/8 bg-card-2">
+                      <img [src]="photoPreview()" alt="Primeira foto do carrossel" class="aspect-square w-full object-cover" />
+                      <p class="border-t border-white/8 px-2 py-1.5 text-center text-[10px] font-body uppercase tracking-[0.16em] text-text-2">Foto 1</p>
+                    </div>
+                    <div class="overflow-hidden rounded-xl border border-primary/20 bg-card-2">
+                      <img [src]="galleryArtworkPreview()" alt="Segunda foto do carrossel" class="aspect-square w-full object-cover" />
+                      <p class="border-t border-primary/15 px-2 py-1.5 text-center text-[10px] font-body uppercase tracking-[0.16em] text-primary">Foto 2</p>
+                    </div>
+                  </div>
+                </div>
+              }
             </div>
           } @else {
             <button
@@ -247,7 +325,7 @@ export interface WorkoutPostPrefillSummary {
 
           @if (captionOptions().length > 0) {
             <div class="space-y-2">
-              <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Legendas de provocação</label>
+              <label class="text-[11px] font-body font-medium text-text-2 uppercase tracking-wider">Legendas automáticas</label>
               <div class="rounded-xl border border-border bg-card-2 p-3.5 space-y-3">
                 <div class="flex items-center justify-between gap-3">
                   <div>
@@ -354,9 +432,12 @@ export class NewPostModalComponent {
 
   photoFile        = signal<File | null>(null);
   photoPreview     = signal('');
+  galleryArtworkFile = signal<File | null>(null);
+  galleryArtworkPreview = signal('');
   cropSrc          = signal<string | null>(null);
   cropMode         = signal<'square' | 'story' | null>(null);
   showFormatPicker = signal(false);
+  showArtworkPrompt = signal(false);
   autoGeneratedVisual = signal(false);
   caption          = '';
   selectedWorkout  = signal<WorkoutOption | null>(null);
@@ -365,6 +446,7 @@ export class NewPostModalComponent {
   generatedCaptionLabel = signal('');
 
   publishing = signal(false);
+  generatingArtwork = signal(false);
   error      = signal('');
   private captionTouched = false;
   private workoutTouched = false;
@@ -430,28 +512,11 @@ export class NewPostModalComponent {
     const workout = this.prefillWorkout();
     if (!summary || !workout) return [];
 
-    const options: CaptionOption[] = [];
-    let variant = 1;
-
-    for (const hook of CAPTION_HOOKS) {
-      for (const metric of CAPTION_METRICS) {
-        const closer = CAPTION_CLOSERS[(variant - 1) % CAPTION_CLOSERS.length];
-        options.push({
-          id: `provocation-${variant}`,
-          label: `Provocação ${String(variant).padStart(2, '0')}`,
-          value: [
-            hook,
-            `${summary.title} • ${workout.muscleGroup}.`,
-            metric(summary),
-            closer,
-          ].join('\n'),
-        });
-        variant++;
-        if (options.length === 40) return options;
-      }
-    }
-
-    return options;
+    return AUTO_CAPTION_PHRASES.map((phrase, index) => ({
+      id: `provocation-${index + 1}`,
+      label: `Legenda ${String(index + 1).padStart(2, '0')}`,
+      value: phrase,
+    }));
   });
 
   publishProfileError = computed(() => this.postService.canCreatePost() ? '' : this.postService.createPostRequirementMessage());
@@ -521,27 +586,29 @@ export class NewPostModalComponent {
   }
 
   useOriginal(): void {
-    this.photoManuallyManaged = true;
-    this.autoGeneratedVisual.set(false);
+    this.prepareManualPrimaryPhoto();
     this.photoPreview.set(this.cropSrc()!);
     const dataUrl = this.cropSrc()!;
     fetch(dataUrl).then(r => r.blob()).then(blob => {
       this.photoFile.set(new File([blob], 'photo.png', { type: blob.type }));
+      this.maybePromptForArtworkCarousel();
     });
     this.showFormatPicker.set(false);
   }
 
   onPhotoCropped(result: { dataUrl: string; blob: Blob }): void {
-    this.photoManuallyManaged = true;
-    this.autoGeneratedVisual.set(false);
+    this.prepareManualPrimaryPhoto();
     this.cropMode.set(null);
     this.photoPreview.set(result.dataUrl);
     this.photoFile.set(new File([result.blob], 'photo.png', { type: 'image/png' }));
+    this.maybePromptForArtworkCarousel();
   }
 
   clearPhoto(): void {
     this.photoManuallyManaged = true;
     this.autoGeneratedVisual.set(false);
+    this.clearGalleryArtwork();
+    this.showArtworkPrompt.set(false);
     this.photoFile.set(null);
     this.photoPreview.set('');
     this.cropSrc.set(null);
@@ -554,9 +621,28 @@ export class NewPostModalComponent {
       return;
     }
 
+     if (this.photoManuallyManaged && this.photoFile()) {
+      await this.createArtworkSecondPhoto(summary, true);
+      return;
+    }
+
     this.photoManuallyManaged = false;
     this.autoArtworkAttemptedKey = this.buildArtworkKey(summary);
     await this.generateChallengeArtwork(summary);
+  }
+
+  declineArtworkCarousel(): void {
+    this.showArtworkPrompt.set(false);
+  }
+
+  async acceptArtworkCarousel(): Promise<void> {
+    const summary = this.prefillSummary();
+    if (!summary) {
+      this.showArtworkPrompt.set(false);
+      return;
+    }
+
+    await this.createArtworkSecondPhoto(summary, false);
   }
 
   onBackdrop(event: MouseEvent): void {
@@ -571,6 +657,7 @@ export class NewPostModalComponent {
     try {
       const post = await this.postService.createPost({
         photo:   this.photoFile(),
+        photos: this.postPhotos(),
         caption: this.caption,
         workout: this.selectedWorkout(),
       });
@@ -601,6 +688,7 @@ export class NewPostModalComponent {
 
   private async generateChallengeArtwork(summary: WorkoutPostPrefillSummary): Promise<void> {
     try {
+      this.generatingArtwork.set(true);
       const result = await this.buildChallengeArtwork(summary);
       if (this.photoManuallyManaged) {
         return;
@@ -611,7 +699,50 @@ export class NewPostModalComponent {
       this.autoGeneratedVisual.set(true);
     } catch {
       // If artwork generation fails, the user can still publish with caption only.
+    } finally {
+      this.generatingArtwork.set(false);
     }
+  }
+
+  private prepareManualPrimaryPhoto(): void {
+    this.photoManuallyManaged = true;
+    this.autoGeneratedVisual.set(false);
+    this.clearGalleryArtwork();
+  }
+
+  private maybePromptForArtworkCarousel(): void {
+    if (!this.prefillSummary() || !this.photoPreview()) {
+      return;
+    }
+
+    this.showArtworkPrompt.set(true);
+  }
+
+  private async createArtworkSecondPhoto(summary: WorkoutPostPrefillSummary, replaceExisting: boolean): Promise<void> {
+    try {
+      this.generatingArtwork.set(true);
+      const result = await this.buildChallengeArtwork(summary);
+      if (!replaceExisting && !this.photoFile()) {
+        return;
+      }
+
+      this.galleryArtworkPreview.set(result.dataUrl);
+      this.galleryArtworkFile.set(result.file);
+      this.showArtworkPrompt.set(false);
+    } catch {
+      this.error.set('Nao foi possivel gerar a arte do treino agora.');
+    } finally {
+      this.generatingArtwork.set(false);
+    }
+  }
+
+  private clearGalleryArtwork(): void {
+    this.galleryArtworkFile.set(null);
+    this.galleryArtworkPreview.set('');
+  }
+
+  private postPhotos(): File[] {
+    return [this.photoFile(), this.galleryArtworkFile()].filter((photo): photo is File => !!photo);
   }
 
   private async buildChallengeArtwork(summary: WorkoutPostPrefillSummary): Promise<{ dataUrl: string; file: File }> {

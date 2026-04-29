@@ -5,6 +5,12 @@ export interface WorkoutExercise {
   weight?: number;
 }
 
+export interface WorkoutPostPhoto {
+  full: string;
+  medium?: string;
+  thumb?: string;
+}
+
 export interface WorkoutPost {
   id: string;
   user: {
@@ -21,10 +27,12 @@ export interface WorkoutPost {
     name: string;
     muscleGroup: string;
   };
+  photos?: WorkoutPostPhoto[];
   photo?: string;
   photoMedium?: string;
   photoThumb?: string;
   likes: number;
+  likedByPreviewName?: string;
   comments: number;
   liked: boolean;
   streak?: number;
