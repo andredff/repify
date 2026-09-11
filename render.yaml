@@ -37,8 +37,11 @@ services:
      name: repify-web
      runtime: static
      branch: production
-     buildCommand: npm ci --include=dev && NODE_OPTIONS=--max_old_space_size=460 npm run build
-     staticPublishPath: dist/repify
+     # A branch "production" ja contem o build pronto (gerado pelo GitHub Actions
+     # em .github/workflows/deploy-frontend.yml). Nao ha package.json aqui, entao
+     # qualquer "npm ci"/"npm run build" falha. Apenas sirva os arquivos.
+     buildCommand: ""
+     staticPublishPath: .
      pullRequestPreviewsEnabled: false
      autoDeploy: true
      headers:

@@ -11,6 +11,26 @@ interface BeforeInstallPromptEvent extends Event {
 const DISMISS_KEY = 'repify_pwa_dismissed';
 const DISMISS_DAYS = 7;
 
+/**
+ * localStorage pode ser inacessível (Safari privado, cookies bloqueados, webviews)
+ * ou inexistente (SSR/testes). Nunca deixe o acesso derrubar o bootstrap do app.
+ */
+function readStorage(key: string): string | null {
+  try {
+    return globalThis.localStorage?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStorage(key: string, value: string): void {
+  try {
+    globalThis.localStorage?.setItem(key, value);
+  } catch {
+    // Ignora falhas de acesso/quota de storage.
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class PwaService {
   private swUpdate = inject(SwUpdate);
@@ -54,13 +74,13 @@ export class PwaService {
 
   /** Usuário fechou o prompt — não mostra novamente por DISMISS_DAYS dias. */
   dismissInstall(): void {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    writeStorage(DISMISS_KEY, String(Date.now()));
     this.installAvailable.set(false);
     this.iosInstallTip.set(false);
   }
 
   private isDismissed(): boolean {
-    const raw = localStorage.getItem(DISMISS_KEY);
+    const raw = readStorage(DISMISS_KEY);
     if (!raw) return false;
     const ts = Number(raw);
     if (!Number.isFinite(ts)) return false;

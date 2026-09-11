@@ -14,6 +14,7 @@ on:
       - 'postcss.config.*'
       - 'ngsw-config.json'
       - '.github/workflows/deploy-frontend.yml'
+      - '.github/deploy/**'
   workflow_dispatch:
 
 permissions:
@@ -43,6 +44,14 @@ jobs:
         run: |
           mkdir -p deploy-tmp
           cp -r dist/repify/browser/. deploy-tmp/
+
+          # A branch "production" contem APENAS o build pronto (sem package.json).
+          # Sem este vercel.json a Vercel cai nas configuracoes do dashboard e tenta
+          # rodar "ng build", que falha com "ng: command not found" (exit 127).
+          # buildCommand/installCommand vazios = servir os arquivos como estao.
+          # Tambem garante o rewrite de SPA: o _redirects e sintaxe Netlify/Render
+          # e a Vercel o ignora, entao deep links (/feed, /ranking) dariam 404.
+          cp .github/deploy/vercel.json deploy-tmp/vercel.json
 
       - name: Deploy to production branch
         uses: peaceiris/actions-gh-pages@v4
